@@ -139,31 +139,6 @@ export function HeroVariant3() {
               <TerminalPanel variant="floating" />
             </motion.div>
 
-            {/* Floating tech badges */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.2 }}
-              className="absolute -left-8 top-1/4 px-4 py-2 bg-slate-800/80 backdrop-blur-xl border border-cyan-500/30 rounded-lg text-sm text-cyan-300 font-mono shadow-lg shadow-cyan-500/10"
-            >
-              TypeScript
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.4 }}
-              className="absolute -right-8 top-2/3 px-4 py-2 bg-slate-800/80 backdrop-blur-xl border border-violet-500/30 rounded-lg text-sm text-violet-300 font-mono shadow-lg shadow-violet-500/10"
-            >
-              AI Powered
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.6 }}
-              className="absolute left-1/4 -bottom-6 px-4 py-2 bg-slate-800/80 backdrop-blur-xl border border-blue-500/30 rounded-lg text-sm text-blue-300 font-mono shadow-lg shadow-blue-500/10"
-            >
-              Cloud Native
-            </motion.div>
           </div>
         </div>
 
