@@ -5,7 +5,7 @@ import { ContactSection } from './components/ContactSection';
 
 export default function App() {
   return (
-    <div className="bg-slate-950 text-slate-100 selection:bg-cyan-500/30">
+    <div className="bg-zinc-950 text-zinc-100 selection:bg-emerald-500/30">
       <main>
         <HeroVariant3 />
         <SkillsSection />
