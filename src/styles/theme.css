@@ -39,6 +39,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --font-mono-elegant: 'IBM Plex Mono', monospace;
+  --font-display: 'Outfit', sans-serif;
+  --font-terminal: 'JetBrains Mono', monospace;
+  --font-space: 'Space Mono', monospace;
 }
 
 .dark {
@@ -53,7 +57,7 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+    --muted-foreground: #9ca3af;
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.396 0.141 25.723);
@@ -117,6 +121,18 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --font-mono-elegant: var(--font-mono-elegant);
+  --font-display: var(--font-display);
+  --font-terminal: var(--font-terminal);
+  --font-space: var(--font-space);
+
+  /* Accessibility Overrides */
+  --color-zinc-400: #9ca3af;
+  --color-zinc-500: #a1a1aa;
+  --color-zinc-600: #888888;
+  --color-zinc-700: #71717a;
+  --color-zinc-800: #52525b;
+  --color-gray-400: #9ca3af;
 }
 
 @layer base {
@@ -177,5 +193,43 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+
+  /* Custom Selection */
+  ::selection {
+    background-color: #00FF41;
+    color: #000000;
+  }
+
+  /* Retro Terminal Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #000000;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 65, 0.2);
+    border-radius: 0;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 65, 0.4);
+  }
+
+  /* Support for Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 255, 65, 0.2) #000000;
+  }
+}
+
+@layer utilities {
+  .pixelated {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
   }
 }
