@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Terminal, Sparkles, X, Briefcase, Calendar, ChevronRight, Minus, Maximize2, Hash, Download, Languages } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, animate, useMotionValue, useTransform, type MotionValue } from 'motion/react';
 
 const commands = [
   'about',
@@ -102,11 +102,52 @@ interface TerminalPanelProps {
   variant?: 'default' | 'floating' | 'centered';
 }
 
+interface ExperienceNodeMarkerProps {
+  pulseY: MotionValue<number>;
+  targetY: number;
+}
+
+function ExperienceNodeMarker({ pulseY, targetY }: ExperienceNodeMarkerProps) {
+  const activation = useTransform(pulseY, (value) => {
+    const distance = Math.abs(value - targetY);
+    return Math.max(0, 1 - distance / 54);
+  });
+
+  const borderColor = useTransform(activation, [0, 1], ['rgba(63,63,70,0.9)', 'rgba(16,185,129,0.95)']);
+  const backgroundColor = useTransform(activation, [0, 1], ['rgba(9,9,11,1)', 'rgba(16,185,129,0.18)']);
+  const boxShadow = useTransform(
+    activation,
+    [0, 0.65, 1],
+    [
+      '0 0 0 rgba(16,185,129,0)',
+      '0 0 12px rgba(16,185,129,0.45), 0 0 18px rgba(16,185,129,0.18)',
+      '0 0 18px rgba(16,185,129,0.8), 0 0 28px rgba(16,185,129,0.35)',
+    ]
+  );
+  const coreOpacity = useTransform(activation, [0, 1], [0.45, 1]);
+  const coreScale = useTransform(activation, [0, 1], [1, 1.25]);
+
+  return (
+    <motion.div
+      className="relative z-10 flex h-4 w-4 items-center justify-center border border-zinc-700 bg-zinc-950"
+      style={{ borderColor, backgroundColor, boxShadow }}
+    >
+      <motion.div className="h-1.5 w-1.5 bg-emerald-500/60" style={{ opacity: coreOpacity, scale: coreScale }} />
+    </motion.div>
+  );
+}
+
 export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
   const [inputValue, setInputValue] = useState('');
   const [activeView, setActiveView] = useState<'terminal' | 'about' | 'experience' | 'projects' | 'contact' | 'cv'>('terminal');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [experienceRailHeight, setExperienceRailHeight] = useState(0);
+  const [experienceNodeTargets, setExperienceNodeTargets] = useState<number[]>([]);
+  const [aboutTypedLength, setAboutTypedLength] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const experienceRailRef = useRef<HTMLDivElement>(null);
+  const experienceNodeRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const experiencePulseY = useMotionValue(-24);
 
   const handleCommand = (cmd: string) => {
     const cleanCmd = cmd.toLowerCase().trim();
@@ -167,6 +208,95 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
       handleCommand(inputValue);
     }
   };
+
+  useEffect(() => {
+    if (activeView !== 'experience') {
+      return;
+    }
+
+    const measureTimeline = () => {
+      const rail = experienceRailRef.current;
+      if (!rail) {
+        return;
+      }
+
+      const railRect = rail.getBoundingClientRect();
+      setExperienceRailHeight(railRect.height);
+
+      const targets = experienceNodeRefs.current.map((node) => {
+        if (!node) {
+          return 0;
+        }
+
+        const nodeRect = node.getBoundingClientRect();
+        return nodeRect.top - railRect.top + nodeRect.height / 2;
+      });
+
+      setExperienceNodeTargets(targets);
+    };
+
+    measureTimeline();
+
+    const observer = new ResizeObserver(() => {
+      measureTimeline();
+    });
+
+    if (experienceRailRef.current) {
+      observer.observe(experienceRailRef.current);
+    }
+
+    experienceNodeRefs.current.forEach((node) => {
+      if (node) {
+        observer.observe(node);
+      }
+    });
+
+    window.addEventListener('resize', measureTimeline);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measureTimeline);
+    };
+  }, [activeView, isExpanded]);
+
+  useEffect(() => {
+    if (activeView !== 'experience' || experienceRailHeight <= 0) {
+      return;
+    }
+
+    const controls = animate(experiencePulseY, [-24, experienceRailHeight + 24], {
+      duration: 4.8,
+      repeat: Infinity,
+      ease: 'linear',
+    });
+
+    return () => {
+      controls.stop();
+    };
+  }, [activeView, experienceRailHeight, experiencePulseY]);
+
+  useEffect(() => {
+    if (activeView !== 'about') {
+      setAboutTypedLength(0);
+      return;
+    }
+
+    let frame = 0;
+    const fullText = `"${aboutData.bio}"`;
+    const tick = () => {
+      frame += 3;
+      setAboutTypedLength(Math.min(frame, fullText.length));
+      if (frame < fullText.length) {
+        window.setTimeout(tick, 18);
+      }
+    };
+
+    const startDelay = window.setTimeout(tick, 180);
+
+    return () => {
+      window.clearTimeout(startDelay);
+    };
+  }, [activeView]);
 
   const panel = (
       <motion.div
@@ -387,12 +517,20 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                                 alt="Roiner Hernandez" 
                                 className="w-full h-full object-cover"
                               />
+                              <motion.div
+                                aria-hidden="true"
+                                className="absolute left-0 right-0 h-px bg-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.95),0_0_22px_rgba(16,185,129,0.5)]"
+                                animate={{ top: ['6%', '94%'], opacity: [0, 1, 1, 0] }}
+                                transition={{ duration: 2.8, ease: 'linear', times: [0, 0.08, 0.92, 1] }}
+                              />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                             </div>
                             
-                            {/* Decorative corner elements */}
-                            <div className="absolute -top-3 -right-3 w-16 h-16 border-t-2 border-r-2 border-emerald-500/30 rounded-tr-2xl pointer-events-none" />
-                            <div className="absolute -bottom-3 -left-3 w-16 h-16 border-b-2 border-l-2 border-emerald-500/30 rounded-bl-2xl pointer-events-none" />
+                            {/* Targeting corner elements */}
+                            <div className="absolute -top-3 -left-3 w-16 h-16 border-t-2 border-l-2 border-emerald-500/35 pointer-events-none" />
+                            <div className="absolute -top-3 -right-3 w-16 h-16 border-t-2 border-r-2 border-emerald-500/35 pointer-events-none" />
+                            <div className="absolute -bottom-3 -left-3 w-16 h-16 border-b-2 border-l-2 border-emerald-500/35 pointer-events-none" />
+                            <div className="absolute -bottom-3 -right-3 w-16 h-16 border-b-2 border-r-2 border-emerald-500/35 pointer-events-none" />
                           </motion.div>
                           
                           <div className="md:col-span-8 space-y-8 pt-4">
@@ -407,9 +545,18 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                                   <span className="text-emerald-500">$</span>
                                   <span>cat profile_summary.md</span>
                                 </div>
-                                <p className="text-xl text-zinc-300 leading-relaxed font-light italic">
-                                  "{aboutData.bio}"
-                                </p>
+                                <div className="relative min-h-[15rem]">
+                                  <p className="text-xl text-zinc-300 leading-relaxed font-light">
+                                    {`"${aboutData.bio}"`.slice(0, aboutTypedLength)}
+                                  </p>
+                                  {aboutTypedLength < `"${aboutData.bio}"`.length && (
+                                    <motion.span
+                                      animate={{ opacity: [1, 0, 1] }}
+                                      transition={{ duration: 0.9, repeat: Infinity, ease: 'steps(2)' }}
+                                      className="absolute ml-1 inline-block h-6 w-2 bg-emerald-400/80 shadow-[0_0_10px_rgba(16,185,129,0.45)]"
+                                    />
+                                  )}
+                                </div>
                               </div>
                             </div>
 
@@ -424,7 +571,10 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                               </div>
                               <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors col-span-2 sm:col-span-1">
                                 <span className="text-[10px] text-emerald-500/60 uppercase font-mono">Status</span>
-                                <p className="text-emerald-400 text-xs font-mono">{aboutData.status}</p>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
+                                  <p className="text-emerald-400 text-xs font-mono">{aboutData.status}</p>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -478,7 +628,19 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                           </div>
                         </div>
 
-                        <div className="space-y-16 relative before:absolute before:left-0 before:top-2 before:bottom-0 before:w-px before:bg-zinc-800 pl-8 md:pl-12">
+                        <div className="relative pl-10 md:pl-14">
+                          <div className="absolute left-0 top-2 bottom-0 w-6 flex justify-center pointer-events-none">
+                            <div ref={experienceRailRef} className="relative h-full w-px overflow-visible">
+                              <div className="absolute inset-0 bg-gradient-to-b from-zinc-800 via-emerald-500/10 to-zinc-800" />
+                              <motion.div
+                                aria-hidden="true"
+                                className="absolute top-0 left-1/2 h-16 w-1.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-emerald-300/0 via-emerald-400 to-emerald-300/0 shadow-[0_0_18px_rgba(16,185,129,0.9)] blur-[0.5px]"
+                                style={{ y: experiencePulseY }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-16 relative">
                           {experienceData.map((exp, i) => (
                             <motion.div
                               key={i}
@@ -487,13 +649,18 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                               transition={{ delay: 0.2 + i * 0.1 }}
                               className="relative"
                             >
-                              <div className="absolute -left-[41px] md:-left-[57px] top-1.5 w-4 h-4 bg-zinc-950 border border-zinc-800 z-10 flex items-center justify-center">
-                                 <div className="w-1.5 h-1.5 bg-emerald-500/50" />
+                              <div
+                                ref={(node) => {
+                                  experienceNodeRefs.current[i] = node;
+                                }}
+                                className="absolute left-0 top-1.5 w-6 -translate-x-[40px] md:-translate-x-[56px] flex justify-center"
+                              >
+                                <ExperienceNodeMarker pulseY={experiencePulseY} targetY={experienceNodeTargets[i] ?? 0} />
                               </div>
                               
                               <div className="space-y-4">
                                 <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-[10px] font-mono text-emerald-500 px-1.5 py-0.5 bg-emerald-500/5 border border-emerald-500/20 rounded">
                                       {exp.period}
                                     </span>
@@ -516,6 +683,7 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                               </div>
                             </motion.div>
                           ))}
+                          </div>
                         </div>
                       </div>
                     )}
