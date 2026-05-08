@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Terminal, Sparkles, X, Briefcase, Calendar, ChevronRight, Minus, Maximize2, Hash, Download, Languages } from 'lucide-react';
+import { Terminal, Sparkles, X, Briefcase, Calendar, Minus, Maximize2, Hash, Download, Languages, Folder, FolderOpen, ChevronLeft, ChevronRight, Search, ChevronDown, Github, ExternalLink, Globe, Smartphone, Activity, Target, Layers, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence, animate, useMotionValue, useTransform, type MotionValue } from 'motion/react';
 
 const commands = [
@@ -98,6 +98,194 @@ const cvData = {
   ]
 };
 
+type ProjectLink = {
+  label: string;
+  href: string;
+};
+
+type ProjectImage = {
+  src: string;
+  caption: string;
+};
+
+type ProjectPresentation = 'media-first' | 'info-first';
+
+type ProjectStatus = {
+  label: string;
+  value?: string;
+};
+
+type ProjectFallbackVisual = {
+  title: string;
+  lines: string[];
+};
+
+type ProjectEntry = {
+  id: string;
+  terminalName: string;
+  displayName: string;
+  subtitle: string;
+  category: string;
+  role: string;
+  impact: string;
+  presentation: ProjectPresentation;
+  description: string;
+  highlights: string[];
+  tech: string[];
+  heroImage?: ProjectImage;
+  secondaryImages?: ProjectImage[];
+  links: ProjectLink[];
+  status?: ProjectStatus;
+  fallbackVisual?: ProjectFallbackVisual;
+  focusAreas?: string;
+  deliveryScope?: string;
+};
+
+const projectEntries: ProjectEntry[] = [
+  {
+    id: 'flashcardia',
+    terminalName: 'Flashcardia',
+    displayName: 'Flashcardia AI Mastery',
+    subtitle: 'AI learning ecosystem',
+    category: 'Product',
+    role: 'Product design, UX and AI feature architecture',
+    impact: 'Transforms vocabulary practice into a structured mastery loop with generation, repetition and scored feedback.',
+    presentation: 'media-first',
+    description: 'Ecosistema de aprendizaje impulsado por IA para capturar conocimiento, practicarlo con intención y convertir memoria de corto plazo en dominio de largo plazo.',
+    highlights: [
+      'Genera nuevas flashcards con IA y voz para acelerar la creación de decks.',
+      'Usa repetición espaciada para decidir qué repasar y cuándo hacerlo.',
+      'Challenge Mode evalúa frases, asigna score y entrega feedback contextual.',
+    ],
+    tech: ['React Native', 'AI', 'Voice Input', 'SRS', 'Mobile UX'],
+    heroImage: {
+      src: '/project-media/flashcardia-challenge.png',
+      caption: 'Challenge Mode con evaluación automática y feedback accionable.',
+    },
+    secondaryImages: [
+      {
+        src: '/project-media/flashcardia-ai-create.png',
+        caption: 'Creación de tarjetas guiada por IA para acelerar el aprendizaje.',
+      },
+    ],
+    links: [
+      {
+        label: 'LAUNCH_WEB_APPLICATION',
+        href: 'https://flashcardia-web.vercel.app/es',
+      },
+    ],
+    status: {
+      label: 'KNOWLEDGE_LOOP',
+      value: 'ACTIVE',
+    },
+  },
+  {
+    id: 'autostream',
+    terminalName: 'AutoStream_IA',
+    displayName: 'WhatsApp Commerce Agent',
+    subtitle: 'Prompt-configurable commerce bot',
+    category: 'Automation',
+    role: 'Conversational flow design and automation logic',
+    impact: 'Lets a business adapt sales logic, payment validation and responses without rewriting code.',
+    presentation: 'media-first',
+    description: 'Bot de WhatsApp configurable por prompt que puede actuar como tienda o asistente de negocio, adaptando sus reglas de respuesta sin tocar código.',
+    highlights: [
+      'Interpreta texto, audios e imágenes para sostener una conversación comercial natural.',
+      'Detecta comprobantes de pago, valida la intención y registra la venta para operación diaria.',
+      'La lógica del negocio se redefine con lenguaje natural para cambiar catálogo, tono y políticas.',
+    ],
+    tech: ['WhatsApp', 'LLMs', 'Payments OCR', 'Automation', 'Sheets'],
+    heroImage: {
+      src: '/project-media/autostream-chat.png',
+      caption: 'Flujo conversacional para ventas, catálogo y medios de pago.',
+    },
+    secondaryImages: [
+      {
+        src: '/project-media/autostream-payment.png',
+        caption: 'Procesamiento operativo listo para validar pagos y registrar pedidos.',
+      },
+    ],
+    links: [],
+    status: {
+      label: 'PROMPT_CONFIGURED',
+      value: 'LIVE_LOGIC',
+    },
+  },
+  {
+    id: 'ucrop',
+    terminalName: 'UCROP_IT',
+    displayName: 'ucrop.it Traceability Platform',
+    subtitle: 'Agri traceability and sustainability',
+    category: 'Platform',
+    role: 'Full stack delivery across product, services and operations',
+    impact: 'Connected traceability, field operations and sustainability reporting across web, mobile and backoffice systems.',
+    presentation: 'info-first',
+    description: 'Plataforma de trazabilidad agrícola y sustentabilidad donde participé de punta a punta, desde experiencia de usuario hasta microservicios, despliegues y backoffice.',
+    highlights: [
+      'Construcción de Crop Story, actividades, creación de crops, campos y reportes de producto.',
+      'Creación de campos dibujando polígonos sobre Google Maps para modelar la operación real.',
+      'Integración de trazabilidad y reportes de sustentabilidad conectando frontends, APIs y servicios.',
+    ],
+    tech: ['React', 'Next.js', 'Expo', 'NestJS', 'Python', 'Microservices'],
+    links: [
+      {
+        label: 'EXPLORE_PRODUCT_SITE',
+        href: 'https://ucrop.it/',
+      },
+      {
+        label: 'GET_ON_GOOGLE_PLAY',
+        href: 'https://play.google.com/store/apps/details?id=com.ucropit.ucropitapp&hl=es',
+      },
+    ],
+    status: {
+      label: 'END_TO_END_SCOPE',
+      value: 'FULL_STACK',
+    },
+    fallbackVisual: {
+      title: 'TRACEABILITY_PIPELINE',
+      lines: [
+        'crop_story -> sustainability_report',
+        'field_polygon -> activities -> compliance',
+        'web + mobile + microservices + backoffice',
+      ],
+    },
+    focusAreas: 'Crop creation, mapped fields, activity flows and sustainability-linked product reporting.',
+    deliveryScope: 'Frontend, backend, microservices, deployments and backoffice operations across the platform.',
+  },
+  {
+    id: 'calai',
+    terminalName: 'CalAI',
+    displayName: 'Cal AI Nutrition Scanner',
+    subtitle: 'Computer vision nutrition analysis',
+    category: 'AI Tool',
+    role: 'AI-assisted nutrition UX and analysis flow',
+    impact: 'Makes calorie and macro estimation fast, editable and conversational from a single food photo.',
+    presentation: 'media-first',
+    description: 'Analizador nutricional por imagen que estima calorías y macronutrientes a partir de una foto, con refinamiento posterior usando prompts conversacionales.',
+    highlights: [
+      'Convierte una imagen de comida en una estimación rápida de calorías, proteínas, carbohidratos y grasas.',
+      'Permite ajustar ingredientes o cantidades con prompts para mejorar precisión sin rehacer el análisis.',
+      'Diseñado para mantener el flujo rápido entre captura, lectura del resultado y corrección asistida.',
+    ],
+    tech: ['Computer Vision', 'Nutrition AI', 'Prompt Refinement', 'Mobile'],
+    heroImage: {
+      src: '/project-media/calai-results.png',
+      caption: 'Lectura nutricional detallada con calorías y macros por alimento.',
+    },
+    secondaryImages: [
+      {
+        src: '/project-media/calai-camera.png',
+        caption: 'Flujo de captura pensado para obtener una estimación inmediata.',
+      },
+    ],
+    links: [],
+    status: {
+      label: 'VISION_INFERENCE',
+      value: 'READY',
+    },
+  },
+];
+
 interface TerminalPanelProps {
   variant?: 'default' | 'floating' | 'centered';
 }
@@ -137,9 +325,123 @@ function ExperienceNodeMarker({ pulseY, targetY }: ExperienceNodeMarkerProps) {
   );
 }
 
+function TerminalLinkButton({ label, href, index = 0 }: ProjectLink & { index?: number }) {
+  // Format label to be lowercase and use spaces (e.g., "explore product site")
+  const formattedLabel = label.replace(/_/g, ' ').toLowerCase();
+
+  return (
+    <motion.a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.1 }}
+      whileHover={{ x: 4 }}
+      className="group inline-flex items-center gap-2 py-1 transition-all"
+    >
+      <span className="text-sm font-mono text-emerald-500 group-hover:text-emerald-400 transition-colors border-b border-transparent group-hover:border-emerald-500/40">
+        {formattedLabel}
+      </span>
+      <ArrowUpRight className="h-4 w-4 text-emerald-500 group-hover:text-emerald-400 transition-all transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+    </motion.a>
+  );
+}
+
+function ProjectSectionLabel({ children }: { children: string }) {
+  return <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-zinc-500">{children}</div>;
+}
+
+function ProjectMediaPanel({
+  project,
+  selectedImageIndex,
+  onSelectImage,
+}: {
+  project: ProjectEntry;
+  selectedImageIndex: number;
+  onSelectImage: (index: number) => void;
+}) {
+  const images = [project.heroImage, ...(project.secondaryImages ?? [])].filter(Boolean) as ProjectImage[];
+  const activeImage = images[selectedImageIndex] ?? images[0];
+
+  const nextImage = () => {
+    onSelectImage((selectedImageIndex + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    onSelectImage((selectedImageIndex - 1 + images.length) % images.length);
+  };
+
+  if (!activeImage) {
+    return null;
+  }
+
+  return (
+    <div className="group relative">
+      <div className="overflow-hidden rounded-[2rem] bg-zinc-950/50 shadow-2xl transition-all duration-500">
+        <div className="relative flex min-h-[400px] items-center justify-center p-4 sm:p-10 overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={selectedImageIndex}
+              initial={{ opacity: 0, x: 20, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -20, scale: 1.02 }}
+              transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+              src={activeImage.src}
+              alt={project.displayName}
+              className="max-h-[550px] w-full object-contain drop-shadow-[0_0_50px_rgba(16,185,129,0.1)] relative z-10"
+              style={{
+                filter: 'contrast(1.05) brightness(1.05)',
+              }}
+            />
+          </AnimatePresence>
+
+          {/* Minimalist Grid Overlay instead of scanlines */}
+          <div className="absolute inset-0 z-20 pointer-events-none opacity-[0.03]" 
+               style={{ backgroundImage: 'radial-gradient(circle, #10b981 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+          
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.04),transparent_70%)]" />
+
+          {images.length > 1 && (
+            <>
+              {/* Full-height Side Navigation */}
+              <div className="absolute inset-y-0 left-0 w-16 z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <button
+                  onClick={prevImage}
+                  className="h-full w-full flex items-center justify-center bg-gradient-to-r from-black/60 to-transparent text-white/20 hover:text-emerald-500 transition-colors"
+                >
+                  <ChevronLeft className="w-8 h-8" />
+                </button>
+              </div>
+              <div className="absolute inset-y-0 right-0 w-16 z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <button
+                  onClick={nextImage}
+                  className="h-full w-full flex items-center justify-center bg-gradient-to-l from-black/60 to-transparent text-white/20 hover:text-emerald-500 transition-colors"
+                >
+                  <ChevronRight className="w-8 h-8" />
+                </button>
+              </div>
+
+              {/* Technical Counter Label */}
+              <div className="absolute bottom-6 right-6 z-30 flex items-center gap-3 rounded border border-emerald-500/10 bg-black/80 px-3 py-1.5 backdrop-blur-md font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-300">
+                <span className="text-zinc-500">MEDIA_INDEX:</span>
+                <span className="text-emerald-500 text-sm">{String(selectedImageIndex + 1).padStart(2, '0')}</span>
+                <span className="text-zinc-700">/</span>
+                <span className="text-zinc-400">{String(images.length).padStart(2, '0')}</span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
   const [inputValue, setInputValue] = useState('');
   const [activeView, setActiveView] = useState<'terminal' | 'about' | 'experience' | 'projects' | 'contact' | 'cv'>('terminal');
+  const [activeProjectId, setActiveProjectId] = useState(projectEntries[0].id);
+  const [activeProjectImageIndex, setActiveProjectImageIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [experienceRailHeight, setExperienceRailHeight] = useState(0);
   const [experienceNodeTargets, setExperienceNodeTargets] = useState<number[]>([]);
@@ -148,6 +450,11 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
   const experienceRailRef = useRef<HTMLDivElement>(null);
   const experienceNodeRefs = useRef<Array<HTMLDivElement | null>>([]);
   const experiencePulseY = useMotionValue(-24);
+  const activeProject = projectEntries.find((project) => project.id === activeProjectId) ?? projectEntries[0];
+  const activeProjectIndex = projectEntries.findIndex((project) => project.id === activeProject.id);
+  const hasNextProject = activeProjectIndex !== -1 && activeProjectIndex < projectEntries.length - 1;
+  const usesProjectSplitScroll = isExpanded && activeView === 'projects';
+  const usesFullscreenExpandedLayout = isExpanded && (activeView === 'projects' || activeView === 'contact' || activeView === 'cv');
 
   const handleCommand = (cmd: string) => {
     const cleanCmd = cmd.toLowerCase().trim();
@@ -164,6 +471,15 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
   };
 
   const handleNext = () => {
+    if (activeView === 'projects') {
+      if (hasNextProject) {
+        setActiveProjectId(projectEntries[activeProjectIndex + 1].id);
+      } else {
+        handleCommand('contact');
+      }
+      return;
+    }
+
     const currentIndex = viewOrder.indexOf(activeView as any);
     if (currentIndex !== -1 && currentIndex < viewOrder.length - 1) {
       handleCommand(viewOrder[currentIndex + 1]);
@@ -298,6 +614,10 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
     };
   }, [activeView]);
 
+  useEffect(() => {
+    setActiveProjectImageIndex(0);
+  }, [activeProjectId]);
+
   const panel = (
       <motion.div
         layout
@@ -312,7 +632,8 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
         }}
         onClick={handleTerminalClick}
         className={`
-          backdrop-blur-xl border overflow-hidden cursor-text flex flex-col h-full w-full
+          backdrop-blur-xl border overflow-hidden cursor-text flex flex-col w-full
+          ${usesFullscreenExpandedLayout ? 'h-screen' : isExpanded ? 'min-h-screen' : 'h-full'}
           ${variant === 'floating' && !isExpanded ? 'shadow-2xl shadow-emerald-500/10' : ''}
           ${variant === 'centered' && !isExpanded ? 'max-w-4xl mx-auto' : ''}
           ${isExpanded ? 'border-none rounded-none' : 'border-zinc-800 rounded-2xl'}
@@ -374,7 +695,9 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
         </div>
 
         {/* Main Content Area */}
-        <div className="relative flex-1 overflow-hidden">
+        <div className={`relative flex-1 ${
+          usesFullscreenExpandedLayout ? 'min-h-0 overflow-hidden' : isExpanded ? 'overflow-visible' : 'min-h-0 overflow-hidden'
+        }`}>
           <AnimatePresence mode="wait">
             {activeView === 'terminal' ? (
               <motion.div
@@ -413,7 +736,7 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                       </div>
                       <p className="text-zinc-200 leading-snug">Welcome to my neural workspace. How can I assist your exploration today?</p>
                       <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40 animate-pulse" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
                         System ready. Use the terminal below to navigate or click a command.
                       </div>
                     </div>
@@ -422,7 +745,7 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                   {/* Command chips */}
                   <div className="pt-2">
                     <div className="text-[10px] font-mono text-zinc-400 mb-4 flex items-center gap-2 uppercase tracking-[0.2em]">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                       QUICK_ACCESS_COMMANDS
                     </div>
                     <div className="grid grid-cols-3 gap-3">
@@ -495,12 +818,24 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="flex flex-col h-full bg-black/40"
+                className="flex h-full min-h-0 flex-col bg-black/40"
               >
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10">
-                  <div className="max-w-6xl mx-auto min-h-full flex flex-col">
+                <div className={`flex flex-1 min-h-0 flex-col ${
+                  activeView === 'projects'
+                    ? usesProjectSplitScroll
+                      ? 'overflow-hidden p-0'
+                      : 'overflow-y-auto custom-scrollbar p-0'
+                    : 'overflow-hidden p-6 md:p-10 overflow-y-auto custom-scrollbar'
+                }`}>
+                  <div className={`${
+                    activeView === 'projects'
+                      ? usesProjectSplitScroll
+                        ? 'h-full w-full min-h-0'
+                        : 'w-full min-h-full'
+                      : 'max-w-6xl mx-auto min-h-full'
+                  } flex flex-1 min-h-0 flex-col`}>
 
-                    <div className="flex-1">
+                    <div className={activeView === 'projects' ? 'flex flex-1 min-h-0 flex-col' : 'flex-1 min-h-0'}>
                       {activeView === 'about' && (
                       <div className="space-y-12 pb-12">
                         {/* Profile Header Section */}
@@ -517,12 +852,8 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                                 alt="Roiner Hernandez" 
                                 className="w-full h-full object-cover"
                               />
-                              <motion.div
-                                aria-hidden="true"
-                                className="absolute left-0 right-0 h-px bg-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.95),0_0_22px_rgba(16,185,129,0.5)]"
-                                animate={{ top: ['6%', '94%'], opacity: [0, 1, 1, 0] }}
-                                transition={{ duration: 2.8, ease: 'linear', times: [0, 0.08, 0.92, 1] }}
-                              />
+                              {/* Scanline Removed as per request */}
+
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                             </div>
                             
@@ -572,7 +903,7 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                               <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors col-span-2 sm:col-span-1">
                                 <span className="text-[10px] text-emerald-500/60 uppercase font-mono">Status</span>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
+                                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
                                   <p className="text-emerald-400 text-xs font-mono">{aboutData.status}</p>
                                 </div>
                               </div>
@@ -689,81 +1020,521 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                     )}
 
                     {activeView === 'projects' && (
-                      <div className="space-y-12 pb-12">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-xs font-mono">
-                            <span className="text-emerald-500">$</span>
-                            <span className="text-zinc-300">ls -la projects/</span>
-                          </div>
-                          <div className="text-[10px] font-mono text-zinc-600">
-                            Total 2 items found in workspace...
-                          </div>
-                        </div>
+                        <div
+                          className={`flex flex-col bg-zinc-950/50 lg:flex-row ${
+                            usesProjectSplitScroll ? 'h-full flex-1 min-h-0 overflow-hidden' : 'min-h-full'
+                          }`}
+                        >
+                          <motion.aside
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex w-full flex-shrink-0 flex-col border-b border-zinc-800 bg-black/40 min-h-0 lg:w-80 lg:border-b-0 lg:border-r"
+                          >
+                            <div className="border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between bg-zinc-900/20">
+                              <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+                                <Terminal className="w-3 h-3 text-emerald-500/50" />
+                                <span>Explorer</span>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
+                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
+                              </div>
+                            </div>
 
-                        <div className="grid md:grid-cols-2 gap-6 pb-12">
-                          {aboutData.projects.map((project, i) => (
-                            <motion.div
-                              key={project.name}
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: 0.2 + i * 0.1 }}
-                              className="group p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl hover:border-emerald-500/30 transition-all hover:bg-zinc-800/30"
-                            >
-                              <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                  <h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors">{project.name}</h3>
-                                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                                    <div className="w-2 h-2 bg-emerald-500 rounded-full group-hover:animate-ping" />
-                                  </div>
+
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 pt-4 space-y-0.5">
+                              <div className="px-2 pb-2 flex items-center justify-between">
+                                <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">Workspace</span>
+                                <ChevronDown className="w-3 h-3 text-zinc-700" />
+                              </div>
+                              
+                              {projectEntries.map((project) => {
+                                const isActive = project.id === activeProject.id;
+
+                                return (
+                                  <button
+                                    key={project.id}
+                                    type="button"
+                                    onClick={() => setActiveProjectId(project.id)}
+                                    className={`group relative flex w-full items-center gap-3 px-3 py-2.5 text-left transition-all duration-200 rounded-lg ${
+                                      isActive
+                                        ? 'bg-emerald-500/[0.07] text-emerald-400'
+                                        : 'text-zinc-500 hover:bg-zinc-800/40 hover:text-zinc-300'
+                                    }`}
+                                  >
+                                    {isActive && (
+                                      <motion.div 
+                                        layoutId="active-indicator"
+                                        className="absolute left-0 top-2 bottom-2 w-0.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" 
+                                      />
+                                    )}
+                                    
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <div className={`shrink-0 transition-colors duration-200 ${isActive ? 'text-emerald-500' : 'text-zinc-700 group-hover:text-zinc-500'}`}>
+                                        {isActive ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />}
+                                      </div>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className={`font-mono text-xs truncate ${isActive ? 'font-bold text-zinc-100' : ''}`}>
+                                          {project.terminalName}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {usesProjectSplitScroll && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                onClick={handleNext}
+                                className="cursor-pointer border-t border-zinc-800/60 bg-black/50 px-4 py-3 group/prompt"
+                              >
+                                <div className="flex items-center gap-2 text-white/40 font-mono text-xs group-hover/prompt:text-white/80 transition-colors">
+                                  <span className="group-hover/prompt:text-emerald-500 transition-colors">$</span>
+                                  <span>
+                                    Presiona <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all">ENTER</span> para {hasNextProject ? `abrir ${projectEntries[activeProjectIndex + 1].terminalName}` : 'ir a contacto'}
+                                  </span>
+                                  <div className="h-3.5 w-1.5 bg-white/40 group-hover/prompt:bg-emerald-500" />
                                 </div>
-                                <p className="text-zinc-400 text-sm leading-relaxed font-mono">
-                                  {project.description}
-                                </p>
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                  {project.tech.map(t => (
-                                    <span key={t} className="text-[10px] font-mono text-zinc-500 px-2 py-0.5 bg-black/30 border border-zinc-800 rounded">
-                                      {t}
+                              </motion.div>
+                            )}
+                            
+                          </motion.aside>
+
+                          <AnimatePresence mode="wait">
+                            <motion.section
+                              key={activeProject.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              tabIndex={usesProjectSplitScroll ? 0 : undefined}
+                              className={`min-w-0 flex-1 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.08),transparent_40%),linear-gradient(180deg,rgba(9,9,11,0.6),rgba(9,9,11,0.95))] ${
+                                usesProjectSplitScroll ? 'h-full min-h-0 overflow-y-auto overscroll-y-contain custom-scrollbar focus:outline-none' : ''
+                              }`}
+                            >
+                              <div className="border-b border-zinc-800 px-6 py-4">
+                                <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em]">
+                                  <span className="text-[#00FF41]">{activeProject.terminalName}</span>
+                                  <span className="text-zinc-700">/</span>
+                                  <span className="text-zinc-500">{activeProject.category}</span>
+                                  {activeProject.status && (
+                                    <span className="rounded-full border border-emerald-500/25 bg-emerald-500/[0.06] px-2.5 py-1 text-emerald-300">
+                                      {activeProject.status.label}
+                                      {activeProject.status.value ? ` / ${activeProject.status.value}` : ''}
                                     </span>
-                                  ))}
+                                  )}
                                 </div>
                               </div>
-                            </motion.div>
-                          ))}
+
+                              <div className="grid gap-10 p-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:p-8">
+                                <div className="space-y-8">
+                                  <div className="space-y-5">
+                                    <div className="space-y-4">
+                                      <div className="flex items-center gap-4">
+                                        <span className="font-mono text-[10px] font-bold text-emerald-500 border-l-2 border-emerald-500 pl-2 uppercase tracking-widest">
+                                          DATA_STREAM_{String(activeProjectIndex + 1).padStart(2, '0')}
+                                        </span>
+                                      </div>
+                                      
+                                      <div className="relative">
+                                        <h3 className="font-mono text-2xl font-black italic tracking-tighter text-white md:text-3xl lg:text-4xl leading-tight">
+                                          <span className="text-emerald-500 mr-2 opacity-40 not-italic">&gt;</span>
+                                          {activeProject.displayName}
+                                          <motion.span
+                                            animate={{ opacity: [1, 0] }}
+                                            transition={{ duration: 0.8, repeat: Infinity, ease: "steps(2)" }}
+                                            className="ml-2 inline-block h-[0.7em] w-[0.15em] translate-y-0.5 bg-emerald-500/60 not-italic"
+                                          />
+                                        </h3>
+                                      </div>
+
+                                      <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500">
+                                        {activeProject.subtitle}
+                                      </div>
+                                    </div>
+
+                                    {/* Links - Moved to the top for visibility */}
+                                    {activeProject.links.length > 0 && (
+                                      <div className="space-y-4 py-2">
+                                        <div className="flex items-center gap-3">
+                                          <ProjectSectionLabel>External Resources</ProjectSectionLabel>
+                                          <div className="h-px flex-1 bg-zinc-800/50" />
+                                        </div>
+                                        <div className="flex flex-wrap gap-x-8 gap-y-4">
+                                          {activeProject.links.map((link, idx) => (
+                                            <TerminalLinkButton key={link.href} {...link} index={idx} />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <p className="max-w-2xl text-base leading-8 text-zinc-300">
+                                      {activeProject.description}
+                                    </p>
+                                  </div>
+
+                                  {/* Additional Project Metadata */}
+                                   <div className="grid gap-8 md:grid-cols-2">
+                                     {/* Role Section */}
+                                     <div className="group relative flex gap-4">
+                                       <div className="flex flex-col items-center pt-1">
+                                         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-all duration-500">
+                                           <Briefcase className="w-5 h-5 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
+                                         </div>
+                                         <div className="mt-4 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
+                                       </div>
+                                       <div className="flex flex-col gap-1.5 pb-4">
+                                         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
+                                           POSITION_CONTEXT
+                                         </span>
+                                         <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                                           {activeProject.role}
+                                         </p>
+                                       </div>
+                                     </div>
+
+                                     {/* Impact Section */}
+                                     <div className="group relative flex gap-4">
+                                       <div className="flex flex-col items-center pt-1">
+                                         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-all duration-500">
+                                           <Sparkles className="w-5 h-5 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
+                                         </div>
+                                         <div className="mt-4 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
+                                       </div>
+                                       <div className="flex flex-col gap-1.5 pb-4">
+                                         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
+                                           PRODUCT_IMPACT
+                                         </span>
+                                         <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                                           {activeProject.impact}
+                                         </p>
+                                       </div>
+                                     </div>
+                                   </div>
+
+                                  <div className="space-y-6">
+                                     {activeProject.highlights.map((highlight, index) => (
+                                       <motion.div
+                                         key={highlight}
+                                         initial={{ opacity: 0, y: 5 }}
+                                         animate={{ opacity: 1, y: 0 }}
+                                         transition={{ delay: 0.4 + index * 0.1 }}
+                                         className="group flex gap-4"
+                                       >
+                                         <div className="flex flex-col items-center pt-1">
+                                           <ChevronRight className="w-6 h-6 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
+                                           <div className="mt-2 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
+                                         </div>
+                                         
+                                         <div className="flex flex-col gap-1.5 pb-2">
+                                           <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 opacity-90 group-hover:text-zinc-200 group-hover:opacity-100 transition-all">
+                                             {highlight}
+                                           </p>
+                                         </div>
+                                       </motion.div>
+                                     ))}
+                                   </div>
+
+                                   <div className="space-y-4">
+                                     <ProjectSectionLabel>Stack</ProjectSectionLabel>
+                                     <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
+                                       {activeProject.tech.map((tech, index) => (
+                                         <motion.div
+                                           key={tech}
+                                           initial={{ opacity: 0 }}
+                                           animate={{ opacity: 1 }}
+                                           transition={{ delay: 0.6 + index * 0.05 }}
+                                           className="group flex items-center gap-2"
+                                         >
+                                           <span className="font-mono text-xs text-emerald-500/30 transition-colors group-hover:text-emerald-500">#</span>
+                                           <span className="font-mono text-[11px] uppercase tracking-wider text-zinc-600 transition-colors group-hover:text-zinc-300">
+                                             {tech}
+                                           </span>
+                                         </motion.div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                  {activeProject.presentation === 'media-first' ? (
+                                    <ProjectMediaPanel
+                                      project={activeProject}
+                                      selectedImageIndex={activeProjectImageIndex}
+                                      onSelectImage={setActiveProjectImageIndex}
+                                    />
+                                  ) : (
+                                    <div className="space-y-10">
+                                      {/* Process Architecture Visual */}
+                                      <div className="overflow-hidden rounded-[2rem] border border-emerald-500/10 bg-zinc-950/50 p-8 shadow-2xl backdrop-blur-sm transition-all duration-500 hover:border-emerald-500/20">
+                                        <div className="flex items-center gap-3 mb-10">
+                                          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                                            <Activity className="w-4 h-4 text-emerald-500" />
+                                          </div>
+                                          <div className="flex flex-col gap-0.5">
+                                            <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-emerald-400">
+                                              {activeProject.fallbackVisual?.title?.replace('PROJECT_FEATURE_CORE', 'SYSTEM_ARCHITECTURE') ?? 'PROCESS_ARCHITECTURE'}
+                                            </span>
+                                            <span className="font-mono text-[9px] text-zinc-600 uppercase tracking-widest">
+                                              Topology_v2.4
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <div className="relative space-y-6">
+                                          {/* Vertical Spine - Solid Color (Static) */}
+                                          <div className="absolute left-4 top-2 bottom-2 w-px bg-emerald-500/20" />
+
+                                          
+                                          {(activeProject.fallbackVisual?.lines ?? []).map((line, idx) => (
+                                            <motion.div 
+                                              key={line} 
+                                              initial={{ opacity: 0, x: -10 }}
+                                              animate={{ opacity: 1, x: 0 }}
+                                              transition={{ delay: idx * 0.15 }}
+                                              className="relative pl-12 flex items-center group/line"
+                                            >
+                                              <div className="absolute left-[12.5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 flex items-center justify-center">
+                                                <div className="relative w-2 h-2 rounded-full border border-emerald-500/50 bg-black group-hover/line:bg-emerald-500 group-hover/line:shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-300" />
+                                              </div>
+                                              
+                                              {/* Card - No Border, Minimal Background */}
+                                              <div className="flex-1 rounded-2xl bg-zinc-900/10 px-6 py-5 transition-all duration-300 group-hover/line:bg-emerald-500/[0.03]">
+                                                 <div className="flex items-center justify-between gap-4">
+                                                   <span className="font-mono text-[13px] leading-relaxed text-zinc-300 group-hover/line:text-zinc-100 transition-colors">
+                                                     <span className="text-emerald-500/40 mr-3">0{idx + 1}_</span>
+                                                     {line}
+                                                   </span>
+                                                 </div>
+                                              </div>
+                                            </motion.div>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Project Context Boxes - Refactored for consistency */}
+                                      <div className="grid gap-8 md:grid-cols-2 px-2">
+                                         {/* Focus Areas */}
+                                         <div className="group relative flex gap-4">
+                                            <div className="flex flex-col items-center pt-1">
+                                              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-all duration-500">
+                                                <Target className="w-5 h-5 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
+                                              </div>
+                                              <div className="mt-4 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
+                                            </div>
+                                            <div className="flex flex-col gap-2 pb-4">
+                                              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
+                                                CORE_FOCUS_AREAS
+                                              </span>
+                                              <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                                                {activeProject.focusAreas ?? 'Core product mechanics, UX loops and key user interactions.'}
+                                              </p>
+                                            </div>
+                                         </div>
+
+                                         {/* Delivery Scope */}
+                                         <div className="group relative flex gap-4">
+                                            <div className="flex flex-col items-center pt-1">
+                                              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-all duration-500">
+                                                <Layers className="w-5 h-5 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
+                                              </div>
+                                              <div className="mt-4 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
+                                            </div>
+                                            <div className="flex flex-col gap-2 pb-4">
+                                              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
+                                                DELIVERY_SCOPE
+                                              </span>
+                                              <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                                                {activeProject.deliveryScope ?? 'End-to-end implementation from architecture to production deployment.'}
+                                              </p>
+                                            </div>
+                                         </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.section>
+                          </AnimatePresence>
                         </div>
-                      </div>
                     )}
 
                     {activeView === 'contact' && (
-                      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-8">
-                        <div className="text-center space-y-4">
-                          <h2 className="text-4xl font-bold text-white tracking-tighter">Secure Communication</h2>
-                          <p className="text-zinc-500 font-mono">Establishing encrypted link...</p>
+                      <div className="w-full space-y-10 pb-8">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-xs font-mono">
+                            <span className="text-emerald-500">$</span>
+                            <span className="text-zinc-300">init secure-channel --handshake</span>
+                          </div>
+                          <div className="text-[10px] font-mono text-zinc-600">
+                            Secure relay online. Preferred channels mounted and ready... [OK]
+                          </div>
                         </div>
-                        
-                        <div className="grid gap-4 w-full max-w-md pb-12">
-                          {[
-                            { label: 'EMAIL', value: aboutData.email, icon: '📧' },
-                            { label: 'GITHUB', value: 'github.com/Roiner994', icon: '💻' },
-                            { label: 'LINKEDIN', value: 'linkedin.com/in/roiner', icon: '🤝' }
-                          ].map((item, i) => (
-                            <motion.div
-                              key={item.label}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: i * 0.1 }}
-                              className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between group hover:border-emerald-500/30 transition-all cursor-pointer"
+
+                        <div className="grid gap-12 xl:grid-cols-[0.8fr_1.2fr] xl:items-start">
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              whileHover="hover"
+                              className="relative group cursor-none"
                             >
-                              <div className="flex items-center gap-3">
-                                <span className="text-xl">{item.icon}</span>
-                                <div className="flex flex-col">
-                                  <span className="text-[10px] text-zinc-500 font-mono">{item.label}</span>
-                                  <span className="text-sm text-zinc-200 group-hover:text-emerald-400 transition-colors">{item.value}</span>
+                              {/* Clean Minimalism Frame */}
+                              <div className="absolute -inset-1 bg-gradient-to-br from-emerald-500/20 to-transparent blur opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                              
+                              <div className="relative aspect-square overflow-hidden rounded-xl border border-white/5 bg-zinc-950 transition-all duration-500 group-hover:border-emerald-500/40 group-hover:shadow-[0_0_40px_-10px_rgba(16,185,129,0.2)]">
+                                {/* Base Image */}
+                                <img 
+                                  src="/roiner_avatar_system.png" 
+                                  alt="Contact Avatar" 
+                                  className="h-full w-full object-cover transition-all duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100 group-hover:rotate-1"
+                                />
+
+                                {/* Glitch Layer 1 (Red/Cyan Shift) */}
+                                <motion.div 
+                                  className="absolute inset-0 mix-blend-screen opacity-0 group-hover:opacity-30 pointer-events-none"
+                                  variants={{
+                                    hover: {
+                                      x: [-2, 2, -1, 0],
+                                      transition: { repeat: Infinity, duration: 0.2 }
+                                    }
+                                  }}
+                                >
+                                  <img src="/roiner_avatar_system.png" alt="" className="h-full w-full object-cover saturate-[200%] hue-rotate-90" />
+                                </motion.div>
+
+                                {/* Digital Noise Overlay */}
+                                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] group-hover:opacity-[0.08] pointer-events-none mix-blend-overlay" />
+
+                                {/* Minimalist Data Fragments */}
+                                <div className="absolute inset-0 p-4 flex flex-col justify-between pointer-events-none z-30">
+                                  <div className="flex justify-between items-start opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                                    <span className="font-mono text-[7px] text-emerald-400/40">v2.0.4_STABLE</span>
+                                    <span className="font-mono text-[7px] text-emerald-400/40">CORE_SYNC</span>
+                                  </div>
+                                  <div className="flex justify-between items-end">
+                                    <div className="flex flex-col">
+                                      <motion.span 
+                                        animate={{ opacity: [0.2, 0.5, 0.2] }}
+                                        transition={{ duration: 2, repeat: Infinity }}
+                                        className="font-mono text-[10px] text-emerald-500 font-bold tracking-tighter"
+                                      >
+                                        [USER_ROOT]
+                                      </motion.span>
+                                      <span className="font-mono text-xl font-black text-white/90 tracking-tighter">ROINER</span>
+                                    </div>
+                                    <div className="h-4 w-4 border border-emerald-500/20 flex items-center justify-center">
+                                      <div className="h-1 w-1 bg-emerald-500 animate-pulse" />
+                                    </div>
+                                  </div>
                                 </div>
+
+                                {/* Floating Code Snippets */}
+                                <motion.div 
+                                  className="absolute top-1/4 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-40"
+                                  variants={{
+                                    hover: { x: -20, transition: { duration: 0.5 } }
+                                  }}
+                                >
+                                  <span className="font-mono text-[6px] text-emerald-500/30 whitespace-nowrap bg-zinc-950/80 px-1 py-0.5">const user = "roiner_hernandez";</span>
+                                </motion.div>
+                                <motion.div 
+                                  className="absolute bottom-1/3 -left-4 opacity-0 group-hover:opacity-100 transition-opacity z-40"
+                                  variants={{
+                                    hover: { x: 20, transition: { duration: 0.7 } }
+                                  }}
+                                >
+                                  <span className="font-mono text-[6px] text-emerald-500/30 whitespace-nowrap bg-zinc-950/80 px-1 py-0.5">await connection.open();</span>
+                                </motion.div>
                               </div>
-                              <span className="text-emerald-500/30 font-mono text-xs opacity-0 group-hover:opacity-100 transition-opacity">COPY_CMD</span>
                             </motion.div>
-                          ))}
-                        </div>
+
+                            {/* Right Column: Content & Channels */}
+                            <div className="flex flex-col justify-center space-y-10">
+                              <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-px w-8 bg-emerald-500/30" />
+                                  <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-emerald-500/60 font-bold">
+                                    outbound_comms
+                                  </span>
+                                </div>
+
+                                <h2 className="text-4xl font-bold tracking-tighter text-white md:text-5xl xl:text-6xl leading-none">
+                                  Let&apos;s build the <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8 decoration-2">future</span>.
+                                </h2>
+                                
+                                <p className="max-w-md text-sm text-zinc-400 font-mono leading-relaxed">
+                                  Handshake ready. Select a protocol to initiate a direct data link with my system. 
+                                </p>
+                              </div>
+
+                              {/* Terminal Command List */}
+                              <div className="grid gap-3">
+                                {[
+                                  {
+                                    label: 'MAIL',
+                                    cmd: 'sendmail --to roiner@sys',
+                                    value: aboutData.email,
+                                    action: `mailto:${aboutData.email}`,
+                                    color: 'text-blue-400'
+                                  },
+                                  {
+                                    label: 'GITHUB',
+                                    cmd: 'ssh git@github.com:roiner',
+                                    value: 'github.com/Roiner994',
+                                    action: 'https://github.com/Roiner994',
+                                    color: 'text-purple-400'
+                                  },
+                                  {
+                                    label: 'LINKEDIN',
+                                    cmd: 'connect --relay linkedin',
+                                    value: 'linkedin.com/in/roiner',
+                                    action: 'https://linkedin.com/in/roiner-hernandez-6701b212a',
+                                    color: 'text-emerald-400'
+                                  }
+                                ].map((item, i) => (
+                                  <motion.a
+                                    key={item.label}
+                                    href={item.action}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.4 + (i * 0.1) }}
+                                    className="group relative flex items-center gap-4 overflow-hidden rounded-lg border border-zinc-800/50 bg-zinc-900/10 px-4 py-3 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.03]"
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-3 mb-1">
+                                        <span className={`font-mono text-[9px] font-black tracking-widest ${item.color} bg-white/5 px-1.5 py-0.5 rounded`}>
+                                          {item.label}
+                                        </span>
+                                        <span className="font-mono text-[10px] text-zinc-600 group-hover:text-emerald-500/40 transition-colors">
+                                          {item.cmd}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-emerald-500/50 font-mono text-xs font-bold">$</span>
+                                        <span className="font-mono text-sm text-zinc-300 group-hover:text-white transition-colors truncate">
+                                          {item.value}
+                                        </span>
+                                        <motion.span 
+                                          animate={{ opacity: [1, 0] }}
+                                          transition={{ duration: 0.8, repeat: Infinity }}
+                                          className="h-4 w-2 bg-emerald-500/60 hidden group-hover:inline-block"
+                                        />
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex flex-col items-end shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <span className="font-mono text-[8px] text-emerald-500/60 font-bold uppercase">EXECUTE</span>
+                                      <ArrowUpRight className="w-4 h-4 text-emerald-500" />
+                                    </div>
+                                  </motion.a>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
                       </div>
                     )}
 
@@ -859,13 +1630,15 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                   </div>
 
                   {/* Integrated Navigation Prompt */}
-                    {activeView !== 'terminal' && (
+                    {activeView !== 'terminal' && activeView !== 'projects' && (
                       <motion.div
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
                         viewport={{ once: false, amount: 0.1 }}
                         onClick={handleNext}
-                        className="mt-8 mb-12 cursor-pointer group/prompt inline-block"
+                        className={`cursor-pointer group/prompt inline-block ${
+                          activeView === 'contact' || activeView === 'cv' ? 'mt-4 mb-4 self-start' : 'mt-8 mb-12'
+                        }`}
                       >
                         <div className="flex items-center gap-2 text-white/40 font-mono text-sm group-hover/prompt:text-white/80 transition-colors">
                           <span className="group-hover/prompt:text-emerald-500 transition-colors">$</span>
@@ -933,7 +1706,7 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
 
   if (isExpanded && typeof document !== 'undefined') {
     return createPortal(
-      <div className="fixed inset-0 z-[140] h-screen w-screen bg-zinc-950">
+      <div className={`fixed inset-0 z-[140] h-screen w-screen bg-zinc-950 ${usesProjectSplitScroll ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {panel}
       </div>,
       document.body
