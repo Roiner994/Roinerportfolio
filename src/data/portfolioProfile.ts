@@ -227,7 +227,6 @@ export const projectEntries: ProjectEntry[] = [
       'La lógica del negocio se redefine con lenguaje natural para cambiar catálogo, tono y políticas.',
     ],
     tech: ['WhatsApp', 'LLMs', 'Payments OCR', 'Automation', 'Sheets'],
-    tech: ['WhatsApp', 'LLMs', 'Payments OCR', 'Automation', 'Sheets'],
     links: [],
     status: {
       label: 'PROMPT_CONFIGURED',
@@ -290,7 +289,6 @@ export const projectEntries: ProjectEntry[] = [
       'Permite ajustar ingredientes o cantidades con prompts para mejorar precisión sin rehacer el análisis.',
       'Diseñado para mantener el flujo rápido entre captura, lectura del resultado y corrección asistida.',
     ],
-    tech: ['Computer Vision', 'Nutrition AI', 'Prompt Refinement', 'Mobile'],
     tech: ['Computer Vision', 'Nutrition AI', 'Prompt Refinement', 'Mobile'],
     links: [],
     status: {
