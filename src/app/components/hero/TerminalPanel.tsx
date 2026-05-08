@@ -1,7 +1,43 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Terminal, Sparkles, X, Briefcase, Calendar, Minus, Maximize2, Hash, Download, Languages, Folder, FolderOpen, ChevronLeft, ChevronRight, Search, ChevronDown, Github, ExternalLink, Globe, Smartphone, Activity, Target, Layers, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence, animate, useMotionValue, useTransform, type MotionValue } from 'motion/react';
+import { aboutData, cvData, experienceData, projectEntries, type ProjectEntry, type ProjectImage, type ProjectLink } from '@/data/portfolioProfile';
+import { useIsMobile } from '@/app/components/ui/use-mobile';
+
+const TypewriterText = ({ text, speed = 10, onTick }: { text: string; speed?: number; onTick?: () => void }) => {
+  const [displayedText, setDisplayedText] = useState("");
+  const [isDone, setIsDone] = useState(false);
+
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < text.length) {
+        setDisplayedText(text.slice(0, i + 1));
+        i++;
+        onTick?.();
+      } else {
+        setIsDone(true);
+        clearInterval(interval);
+      }
+    }, speed);
+
+    return () => clearInterval(interval);
+  }, [text, speed, onTick]);
+
+  return (
+    <span>
+      {displayedText}
+      {!isDone && (
+        <motion.span
+          animate={{ opacity: [1, 0] }}
+          transition={{ duration: 0.5, repeat: Infinity, ease: "steps(2)" }}
+          className="inline-block w-1.5 h-3.5 bg-emerald-500 ml-1 align-middle"
+        />
+      )}
+    </span>
+  );
+};
 
 const commands = [
   'about',
@@ -12,279 +48,44 @@ const commands = [
   'ai'
 ];
 
+const shellCommands = new Set(commands);
+
 const viewOrder: ('about' | 'experience' | 'projects' | 'contact' | 'cv')[] = ['about', 'experience', 'projects', 'contact', 'cv'];
 
-const experienceData = [
-  {
-    company: "ucrop.it",
-    role: "Full Stack Developer",
-    period: "2021 - Present",
-    location: "Argentina",
-    description: "Arquitectura y desarrollo Full Stack para la plataforma líder en trazabilidad agrícola y sostenibilidad. Implementación de sistemas de inteligencia verificada para análisis de carteras de productores desde riesgos regionales hasta el nivel de parcela individual. Liderazgo técnico en la evolución del producto utilizando React y TypeScript.",
-    tech: ["React", "TypeScript", "Node.js", "SQL", "AWS"]
-  },
-  {
-    company: "OvniX | Hello Mundo",
-    role: "Scrum Master & Software Architect",
-    period: "2019 - 2021",
-    location: "Chile",
-    description: "Liderazgo técnico en OvniX, el marketplace para Pymes chilenas. Gestión operativa y facilitación entre stakeholders y equipos de ingeniería. Diseño de arquitecturas escalables y consultoría técnica internacional, implementando productos digitales de alto impacto con React Native y Node.js.",
-    tech: ["React Native", "Node.js", "Agile", "System Design"]
-  },
-  {
-    company: "KHAPTO",
-    role: "React Native Developer",
-    period: "2019 - 2020",
-    location: "Chile",
-    description: "Desarrollo del sistema de medición y registro para kinesiología, integrando hardware con software móvil. Implementación de herramientas para evaluar, analizar y estandarizar procedimientos cinéticos y fuerzas ejercidas para seguimiento clínico objetivo.",
-    tech: ["React Native", "IoT", "Mobile Development"]
-  },
-  {
-    company: "ESBrillante | Apreciasoft | Jamit Solution",
-    role: "Web Developer",
-    period: "2017 - 2019",
-    location: "LatAm",
-    description: "Desarrollo y mantenimiento de aplicaciones web personalizadas, implementación de funcionalidades frontend y soporte técnico en la construcción de productos digitales modernos para múltiples clientes y agencias en México y Argentina.",
-    tech: ["JavaScript", "HTML/CSS", "PHP", "SQL"]
-  }
-];
+type TerminalView = 'terminal' | 'about' | 'experience' | 'projects' | 'contact' | 'cv';
 
-const aboutData = {
-  name: "Roiner Hernandez",
-  title: "Ingeniero de Software Full Stack",
-  bio: "Ingeniero de Software Full Stack con más de 8 años de experiencia construyendo soluciones web y móviles escalables. Especializado en transformar problemas ambiguos en productos funcionales de extremo a extremo, conectando interfaces, APIs, bases de datos y lógica de negocio. Sólida experiencia en arquitecturas modernas y desarrollo centrado en el producto.",
-  location: "Valencia, Venezuela",
-  email: "roiner123@gmail.com",
-  specialties: ["Arquitecturas Modernas", "Desarrollo centrado en el producto", "IA & Automación", "Escalabilidad"],
-  skills: {
-    frontend: ["React", "Next.js", "React Native", "TypeScript", "Tailwind", "GraphQL"],
-    backend: ["Node.js", "Python", "FastAPI", "REST APIs", "SQL", "NoSQL", "AWS", "Firebase"],
-    tools_ia: ["Git", "Docker", "AI Agents", "MCPs", "n8n", "LLMs"]
-  },
-  education: "Ingeniería en Informática (UNEG)",
-  status: "OPEN_FOR_NEW_PROJECTS",
-  projects: [
-    {
-      name: "Flashcardia",
-      description: "App móvil para aprendizaje con flashcards, enfocada en la práctica y retención a largo plazo.",
-      tech: ["React Native", "Firebase", "Algorithms"]
-    },
-    {
-      name: "Automatización IA",
-      description: "Diseño de flujos complejos con n8n, LLMs y agentes autónomos para automatizar tareas y generación de contenido.",
-      tech: ["n8n", "OpenAI", "LangChain", "Python"]
-    }
-  ]
-};
+type TerminalMode = 'shell' | 'ai';
 
-const cvData = {
-  summaryEs: "Ingeniero de Software Full Stack con más de 8 años de experiencia construyendo soluciones web y móviles escalables. Especializado en transformar problemas ambiguos en productos funcionales de extremo a extremo, conectando interfaces, APIs, bases de datos y lógica de negocio.",
-  summaryEn: "Senior Full Stack Software Engineer with 8+ years of experience building scalable web and mobile products. Skilled at turning complex requirements into end-to-end solutions across frontend, backend, databases, APIs, and AI-powered workflows.",
-  languages: [
-    { label: 'Español', level: 'Nativo' },
-    { label: 'English', level: 'B1 - B2' }
-  ],
-  downloads: [
-    {
-      label: 'Descargar CV ES',
-      href: '/cv-roiner-hernandez-es.pdf',
-      detail: 'PDF oficial en español'
-    },
-    {
-      label: 'Download CV EN',
-      href: '/cv-roiner-hernandez-en.pdf',
-      detail: 'Official PDF in English'
-    }
-  ]
-};
+type ChatRole = 'assistant' | 'user' | 'system';
 
-type ProjectLink = {
-  label: string;
-  href: string;
-};
-
-type ProjectImage = {
-  src: string;
-  caption: string;
-};
-
-type ProjectPresentation = 'media-first' | 'info-first';
-
-type ProjectStatus = {
-  label: string;
-  value?: string;
-};
-
-type ProjectFallbackVisual = {
-  title: string;
-  lines: string[];
-};
-
-type ProjectEntry = {
+type ChatMessage = {
   id: string;
-  terminalName: string;
-  displayName: string;
-  subtitle: string;
-  category: string;
-  role: string;
-  impact: string;
-  presentation: ProjectPresentation;
-  description: string;
-  highlights: string[];
-  tech: string[];
-  heroImage?: ProjectImage;
-  secondaryImages?: ProjectImage[];
-  links: ProjectLink[];
-  status?: ProjectStatus;
-  fallbackVisual?: ProjectFallbackVisual;
-  focusAreas?: string;
-  deliveryScope?: string;
+  role: ChatRole;
+  content: string;
 };
 
-const projectEntries: ProjectEntry[] = [
-  {
-    id: 'flashcardia',
-    terminalName: 'Flashcardia',
-    displayName: 'Flashcardia AI Mastery',
-    subtitle: 'AI learning ecosystem',
-    category: 'Product',
-    role: 'Product design, UX and AI feature architecture',
-    impact: 'Transforms vocabulary practice into a structured mastery loop with generation, repetition and scored feedback.',
-    presentation: 'media-first',
-    description: 'Ecosistema de aprendizaje impulsado por IA para capturar conocimiento, practicarlo con intención y convertir memoria de corto plazo en dominio de largo plazo.',
-    highlights: [
-      'Genera nuevas flashcards con IA y voz para acelerar la creación de decks.',
-      'Usa repetición espaciada para decidir qué repasar y cuándo hacerlo.',
-      'Challenge Mode evalúa frases, asigna score y entrega feedback contextual.',
-    ],
-    tech: ['React Native', 'AI', 'Voice Input', 'SRS', 'Mobile UX'],
-    heroImage: {
-      src: '/project-media/flashcardia-challenge.png',
-      caption: 'Challenge Mode con evaluación automática y feedback accionable.',
+const AI_WELCOME_MESSAGE = 'bienvenido al modo ai, puedes preguntar lo que quieras y te respondere en base a mi conocimiento';
+const AI_HELP_MESSAGE = 'Puedes preguntarme sobre mis habilidades, experiencia, ubicacion, disponibilidad, educacion, proyectos, stack o contacto. Usa clear para limpiar y exit o back para salir del modo ai.';
+const AI_ERROR_MESSAGE = 'No pude conectarme con el modo ai en este momento. Revisa la configuracion de OPENROUTER_API_KEY o intenta de nuevo en unos segundos.';
+const AI_LOCAL_SETUP_MESSAGE = 'El endpoint /api/chat no esta disponible en este entorno. Para probar el modo ai real en local, inicia la app con `npm run dev:vercel` o `vercel dev`.';
+
+function createAiWelcomeHistory(): ChatMessage[] {
+  return [
+    {
+      id: 'ai-welcome',
+      role: 'assistant',
+      content: AI_WELCOME_MESSAGE,
     },
-    secondaryImages: [
-      {
-        src: '/project-media/flashcardia-ai-create.png',
-        caption: 'Creación de tarjetas guiada por IA para acelerar el aprendizaje.',
-      },
-    ],
-    links: [
-      {
-        label: 'LAUNCH_WEB_APPLICATION',
-        href: 'https://flashcardia-web.vercel.app/es',
-      },
-    ],
-    status: {
-      label: 'KNOWLEDGE_LOOP',
-      value: 'ACTIVE',
-    },
-  },
-  {
-    id: 'autostream',
-    terminalName: 'AutoStream_IA',
-    displayName: 'WhatsApp Commerce Agent',
-    subtitle: 'Prompt-configurable commerce bot',
-    category: 'Automation',
-    role: 'Conversational flow design and automation logic',
-    impact: 'Lets a business adapt sales logic, payment validation and responses without rewriting code.',
-    presentation: 'media-first',
-    description: 'Bot de WhatsApp configurable por prompt que puede actuar como tienda o asistente de negocio, adaptando sus reglas de respuesta sin tocar código.',
-    highlights: [
-      'Interpreta texto, audios e imágenes para sostener una conversación comercial natural.',
-      'Detecta comprobantes de pago, valida la intención y registra la venta para operación diaria.',
-      'La lógica del negocio se redefine con lenguaje natural para cambiar catálogo, tono y políticas.',
-    ],
-    tech: ['WhatsApp', 'LLMs', 'Payments OCR', 'Automation', 'Sheets'],
-    heroImage: {
-      src: '/project-media/autostream-chat.png',
-      caption: 'Flujo conversacional para ventas, catálogo y medios de pago.',
-    },
-    secondaryImages: [
-      {
-        src: '/project-media/autostream-payment.png',
-        caption: 'Procesamiento operativo listo para validar pagos y registrar pedidos.',
-      },
-    ],
-    links: [],
-    status: {
-      label: 'PROMPT_CONFIGURED',
-      value: 'LIVE_LOGIC',
-    },
-  },
-  {
-    id: 'ucrop',
-    terminalName: 'UCROP_IT',
-    displayName: 'ucrop.it Traceability Platform',
-    subtitle: 'Agri traceability and sustainability',
-    category: 'Platform',
-    role: 'Full stack delivery across product, services and operations',
-    impact: 'Connected traceability, field operations and sustainability reporting across web, mobile and backoffice systems.',
-    presentation: 'info-first',
-    description: 'Plataforma de trazabilidad agrícola y sustentabilidad donde participé de punta a punta, desde experiencia de usuario hasta microservicios, despliegues y backoffice.',
-    highlights: [
-      'Construcción de Crop Story, actividades, creación de crops, campos y reportes de producto.',
-      'Creación de campos dibujando polígonos sobre Google Maps para modelar la operación real.',
-      'Integración de trazabilidad y reportes de sustentabilidad conectando frontends, APIs y servicios.',
-    ],
-    tech: ['React', 'Next.js', 'Expo', 'NestJS', 'Python', 'Microservices'],
-    links: [
-      {
-        label: 'EXPLORE_PRODUCT_SITE',
-        href: 'https://ucrop.it/',
-      },
-      {
-        label: 'GET_ON_GOOGLE_PLAY',
-        href: 'https://play.google.com/store/apps/details?id=com.ucropit.ucropitapp&hl=es',
-      },
-    ],
-    status: {
-      label: 'END_TO_END_SCOPE',
-      value: 'FULL_STACK',
-    },
-    fallbackVisual: {
-      title: 'TRACEABILITY_PIPELINE',
-      lines: [
-        'crop_story -> sustainability_report',
-        'field_polygon -> activities -> compliance',
-        'web + mobile + microservices + backoffice',
-      ],
-    },
-    focusAreas: 'Crop creation, mapped fields, activity flows and sustainability-linked product reporting.',
-    deliveryScope: 'Frontend, backend, microservices, deployments and backoffice operations across the platform.',
-  },
-  {
-    id: 'calai',
-    terminalName: 'CalAI',
-    displayName: 'Cal AI Nutrition Scanner',
-    subtitle: 'Computer vision nutrition analysis',
-    category: 'AI Tool',
-    role: 'AI-assisted nutrition UX and analysis flow',
-    impact: 'Makes calorie and macro estimation fast, editable and conversational from a single food photo.',
-    presentation: 'media-first',
-    description: 'Analizador nutricional por imagen que estima calorías y macronutrientes a partir de una foto, con refinamiento posterior usando prompts conversacionales.',
-    highlights: [
-      'Convierte una imagen de comida en una estimación rápida de calorías, proteínas, carbohidratos y grasas.',
-      'Permite ajustar ingredientes o cantidades con prompts para mejorar precisión sin rehacer el análisis.',
-      'Diseñado para mantener el flujo rápido entre captura, lectura del resultado y corrección asistida.',
-    ],
-    tech: ['Computer Vision', 'Nutrition AI', 'Prompt Refinement', 'Mobile'],
-    heroImage: {
-      src: '/project-media/calai-results.png',
-      caption: 'Lectura nutricional detallada con calorías y macros por alimento.',
-    },
-    secondaryImages: [
-      {
-        src: '/project-media/calai-camera.png',
-        caption: 'Flujo de captura pensado para obtener una estimación inmediata.',
-      },
-    ],
-    links: [],
-    status: {
-      label: 'VISION_INFERENCE',
-      value: 'READY',
-    },
-  },
-];
+  ];
+}
+
+function normalizePrompt(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
 
 interface TerminalPanelProps {
   variant?: 'default' | 'floating' | 'centered';
@@ -438,15 +239,21 @@ function ProjectMediaPanel({
 }
 
 export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
+  const isMobile = useIsMobile();
   const [inputValue, setInputValue] = useState('');
-  const [activeView, setActiveView] = useState<'terminal' | 'about' | 'experience' | 'projects' | 'contact' | 'cv'>('terminal');
+  const [activeView, setActiveView] = useState<TerminalView>('terminal');
+  const [terminalMode, setTerminalMode] = useState<TerminalMode>('shell');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(createAiWelcomeHistory);
+  const [isAiThinking, setIsAiThinking] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState(projectEntries[0].id);
   const [activeProjectImageIndex, setActiveProjectImageIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [experienceRailHeight, setExperienceRailHeight] = useState(0);
   const [experienceNodeTargets, setExperienceNodeTargets] = useState<number[]>([]);
   const [aboutTypedLength, setAboutTypedLength] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const experienceRailRef = useRef<HTMLDivElement>(null);
   const experienceNodeRefs = useRef<Array<HTMLDivElement | null>>([]);
   const experiencePulseY = useMotionValue(-24);
@@ -454,17 +261,156 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
   const activeProjectIndex = projectEntries.findIndex((project) => project.id === activeProject.id);
   const hasNextProject = activeProjectIndex !== -1 && activeProjectIndex < projectEntries.length - 1;
   const usesProjectSplitScroll = isExpanded && activeView === 'projects';
-  const usesFullscreenExpandedLayout = isExpanded && (activeView === 'projects' || activeView === 'contact' || activeView === 'cv');
+  const isAiMode = terminalMode === 'ai';
+  const usesFullscreenExpandedLayout = isExpanded && (activeView === 'projects' || activeView === 'contact' || activeView === 'cv' || isAiMode);
+  const usesTouchNavigationCopy = isMobile || isCompactViewport;
+
+  const scrollToBottom = useCallback(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, []);
+
+  const enterAiMode = () => {
+    setTerminalMode('ai');
+    setActiveView('terminal');
+    setIsExpanded(true);
+    setInputValue('');
+    setChatHistory(createAiWelcomeHistory());
+  };
+
+  const exitAiMode = () => {
+    setTerminalMode('shell');
+    setActiveView('terminal');
+    setIsExpanded(false);
+    setInputValue('');
+  };
+
+  const resetAiConversation = () => {
+    setChatHistory(createAiWelcomeHistory());
+    setInputValue('');
+  };
+
+  const appendSystemMessage = (content: string) => {
+    setChatHistory((current) => [
+      ...current,
+      {
+        id: `system-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        role: 'system',
+        content,
+      },
+    ]);
+  };
+
+  const handleAiCommand = async (rawValue: string) => {
+    const trimmed = rawValue.trim();
+    const normalized = normalizePrompt(rawValue);
+
+    if (!trimmed || isAiThinking) {
+      return;
+    }
+
+    if (normalized === 'exit' || normalized === 'back') {
+      exitAiMode();
+      return;
+    }
+
+    if (normalized === 'clear') {
+      resetAiConversation();
+      return;
+    }
+
+    if (normalized === 'help') {
+      appendSystemMessage(AI_HELP_MESSAGE);
+      setInputValue('');
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: trimmed,
+    };
+
+    const outgoingHistory = [...chatHistory, userMessage]
+      .filter((message) => message.id !== 'ai-welcome' && message.role !== 'system')
+      .slice(-10)
+      .map((message) => ({
+        role: message.role as 'user' | 'assistant',
+        content: message.content,
+      }));
+
+    setChatHistory((current) => [...current, userMessage]);
+    setInputValue('');
+
+    try {
+      setIsAiThinking(true);
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: outgoingHistory,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      const assistantContent =
+        data?.message?.content && typeof data.message.content === 'string'
+          ? data.message.content
+          : response.ok
+            ? AI_ERROR_MESSAGE
+            : response.status === 404
+              ? AI_LOCAL_SETUP_MESSAGE
+            : data?.error && typeof data.error === 'string'
+              ? data.error
+              : AI_ERROR_MESSAGE;
+
+      setChatHistory((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          role: 'assistant',
+          content: assistantContent,
+        },
+      ]);
+    } catch {
+      setChatHistory((current) => [
+        ...current,
+        {
+          id: `assistant-error-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          role: 'assistant',
+          content: AI_ERROR_MESSAGE,
+        },
+      ]);
+    } finally {
+      setIsAiThinking(false);
+    }
+  };
 
   const handleCommand = (cmd: string) => {
     const cleanCmd = cmd.toLowerCase().trim();
+
+    if (!cleanCmd) {
+      setInputValue('');
+      return;
+    }
+
     if (['experience', 'about', 'projects', 'contact', 'cv'].includes(cleanCmd)) {
+      setTerminalMode('shell');
       setIsExpanded(true);
       setActiveView(cleanCmd as any);
     } else if (cleanCmd === 'ai') {
-      // Future AI integration
-      setActiveView('terminal');
+      enterAiMode();
+    } else if (!shellCommands.has(cleanCmd)) {
+      enterAiMode();
+      window.setTimeout(() => {
+        void handleAiCommand(cmd);
+      }, 0);
     } else {
+      setTerminalMode('shell');
       setActiveView('terminal');
     }
     setInputValue('');
@@ -483,12 +429,17 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
     const currentIndex = viewOrder.indexOf(activeView as any);
     if (currentIndex !== -1 && currentIndex < viewOrder.length - 1) {
       handleCommand(viewOrder[currentIndex + 1]);
+    } else if (activeView === 'cv') {
+      handleCommand('ai');
     } else if (activeView !== 'terminal') {
       closeExpanded();
     }
   };
 
   const closeExpanded = () => {
+    if (isAiMode) {
+      exitAiMode();
+    }
     setIsExpanded(false);
     setActiveView('terminal');
   };
@@ -519,11 +470,79 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCommand(inputValue);
+  const autocompleteShellCommand = () => {
+    const normalizedInput = inputValue.toLowerCase().trimStart();
+
+    if (!normalizedInput || isAiMode) {
+      return;
+    }
+
+    const matches = commands.filter((command) => command.startsWith(normalizedInput));
+
+    if (matches.length === 1) {
+      setInputValue(matches[0]);
+      return;
+    }
+
+    if (matches.length > 1) {
+      let sharedPrefix = matches[0];
+
+      for (const match of matches.slice(1)) {
+        let prefixLength = 0;
+
+        while (
+          prefixLength < sharedPrefix.length &&
+          prefixLength < match.length &&
+          sharedPrefix[prefixLength] === match[prefixLength]
+        ) {
+          prefixLength += 1;
+        }
+
+        sharedPrefix = sharedPrefix.slice(0, prefixLength);
+      }
+
+      if (sharedPrefix.length > normalizedInput.length) {
+        setInputValue(sharedPrefix);
+      }
     }
   };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isAiMode && e.ctrlKey && e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      exitAiMode();
+      return;
+    }
+
+    if (!isAiMode && e.key === 'Tab') {
+      e.preventDefault();
+      autocompleteShellCommand();
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (isAiMode && activeView === 'terminal') {
+        void handleAiCommand(inputValue);
+      } else {
+        handleCommand(inputValue);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isAiMode || activeView !== 'terminal') {
+      return;
+    }
+
+    inputRef.current?.focus();
+    chatScrollRef.current?.scrollTo({
+      top: chatScrollRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [chatHistory, isAiMode, activeView]);
 
   useEffect(() => {
     if (activeView !== 'experience') {
@@ -618,6 +637,20 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
     setActiveProjectImageIndex(0);
   }, [activeProjectId]);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 1023px)');
+    const syncCompactViewport = () => {
+      setIsCompactViewport(mediaQuery.matches);
+    };
+
+    syncCompactViewport();
+    mediaQuery.addEventListener('change', syncCompactViewport);
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncCompactViewport);
+    };
+  }, []);
+
   const panel = (
       <motion.div
         layout
@@ -672,7 +705,11 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
             <div className="flex items-center gap-2 text-zinc-400">
               <Terminal className="w-4 h-4" />
               <span className="text-xs font-mono tracking-tight">
-                {activeView === 'terminal' ? 'roiner@workspace:~' : `roiner@workspace:~/${activeView}`}
+                {activeView === 'terminal'
+                  ? isAiMode
+                    ? 'roiner@workspace:~/ai'
+                    : 'roiner@workspace:~'
+                  : `roiner@workspace:~/${activeView}`}
               </span>
             </div>
           </div>
@@ -707,56 +744,25 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                 exit={{ opacity: 0 }}
                 className="p-6 font-mono text-sm flex flex-col gap-6 h-full"
               >
-                {/* AI greeting */}
                 <div className="space-y-4">
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="flex items-start gap-4 p-5 bg-emerald-500/[0.03] backdrop-blur-md rounded-xl border border-emerald-500/10 relative overflow-hidden group"
-                  >
-                    <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:100%_4px] opacity-20" />
-                    
-                    <div className="relative flex-shrink-0">
-                      <div className="w-12 h-12 rounded-full border border-emerald-500/30 overflow-hidden bg-zinc-900 relative">
-                        <img src="/avatar3.png" alt="Avatar" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent" />
-                      </div>
-                    </div>
+                  <div className="text-[10px] font-mono text-zinc-400 flex items-center gap-2 uppercase tracking-[0.2em]">
+                    <div className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] ${isAiMode ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
+                    QUICK_ACCESS_COMMANDS
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {commands.map((cmd, i) => {
+                      const isActiveCommand =
+                        (cmd === 'ai' && isAiMode) ||
+                        (!isAiMode && activeView !== 'terminal' && activeView === cmd);
 
-                    <div className="space-y-2 relative z-10">
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 font-mono">Digital Guide</span>
-                          <div className="w-1 h-1 rounded-full bg-zinc-700" />
-                        </div>
-                        <div className="text-[9px] font-mono text-zinc-500 uppercase flex gap-3">
-                          <span>Session: {Math.random().toString(36).substring(7).toUpperCase()}</span>
-                          <span>Last login: {new Date().toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                      <p className="text-zinc-200 leading-snug">Welcome to my neural workspace. How can I assist your exploration today?</p>
-                      <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
-                        System ready. Use the terminal below to navigate or click a command.
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Command chips */}
-                  <div className="pt-2">
-                    <div className="text-[10px] font-mono text-zinc-400 mb-4 flex items-center gap-2 uppercase tracking-[0.2em]">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                      QUICK_ACCESS_COMMANDS
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {commands.map((cmd, i) => (
+                      return (
                         <motion.button
                           key={cmd}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: i * 0.05 }}
-                          whileHover={{ 
-                            backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                          whileHover={{
+                            backgroundColor: isActiveCommand ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.05)',
                             borderColor: 'rgba(16, 185, 129, 0.4)',
                             shadow: '2px 2px 0px rgba(16, 185, 129, 0.3)',
                             y: -2,
@@ -767,14 +773,133 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                             e.stopPropagation();
                             handleCommand(cmd);
                           }}
-                          className="px-2 py-3 bg-transparent border border-zinc-800 text-zinc-500 hover:text-emerald-400 transition-all text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-center hover:shadow-[3px_3px_0px_rgba(16,185,129,0.2)]"
+                          className={`
+                            px-2 py-3 border transition-all text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-center
+                            ${isActiveCommand
+                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[3px_3px_0px_rgba(16,185,129,0.18)]'
+                              : 'bg-transparent border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:shadow-[3px_3px_0px_rgba(16,185,129,0.2)]'}
+                          `}
                         >
                           {cmd}
                         </motion.button>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
+
+                {isAiMode ? (
+                  <div className="flex min-h-0 flex-1 flex-col gap-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex items-center justify-between border-b border-emerald-500/10 pb-4 mb-2"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-500/60">
+                          <span className="h-1 w-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                          AI_NEURAL_LINK :: ACTIVE
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          exitAiMode();
+                        }}
+                        className="group flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/80 backdrop-blur-sm px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-400 transition-all hover:border-emerald-500/40 hover:bg-emerald-950/20 hover:text-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] active:scale-95"
+                      >
+                        <X size={12} className="text-zinc-500 transition-colors group-hover:text-emerald-400" />
+                        EXIT_AI_LINK
+                      </button>
+                    </motion.div>
+
+                    <div
+                      ref={chatScrollRef}
+                      className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pt-2"
+                    >
+                      {chatHistory.map((message, index) => (
+                        <motion.div
+                          key={message.id}
+                          initial={{ opacity: 0, x: -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index === chatHistory.length - 1 ? 0.04 : 0 }}
+                          className="flex flex-col gap-1.5"
+                        >
+                          <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-widest opacity-40">
+                            <span className={
+                              message.role === 'user' ? 'text-zinc-100' : 'text-emerald-500'
+                            }>
+                              {message.role === 'user' ? 'guest@workspace' : 'ai@neural-link'}
+                            </span>
+                            <span className="text-zinc-500">:: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          </div>
+                          <div className={`
+                            text-sm leading-relaxed font-mono
+                            ${message.role === 'user' ? 'text-zinc-200' : 'text-emerald-400/90'}
+                          `}>
+                            {message.role === 'user' && <span className="mr-2 text-zinc-600">$</span>}
+                            {message.role !== 'user' && index === chatHistory.length - 1 ? (
+                              <TypewriterText text={message.content} onTick={scrollToBottom} />
+                            ) : (
+                              message.content
+                            )}
+                          </div>
+                        </motion.div>
+                      ))}
+
+                      {isAiThinking && (
+                        <motion.div
+                          initial={{ opacity: 0, x: -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="flex flex-col gap-1.5"
+                        >
+                          <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-widest opacity-40">
+                            <span className="text-emerald-500">ai@neural-link</span>
+                            <span className="text-zinc-500">:: thinking...</span>
+                          </div>
+                          <div className="text-sm leading-relaxed font-mono text-emerald-400/90">
+                            <TypewriterText text="consultando conocimiento del portfolio..." onTick={scrollToBottom} />
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      className="flex items-start gap-4 p-5 bg-emerald-500/[0.03] backdrop-blur-md rounded-xl border border-emerald-500/10 relative overflow-hidden group"
+                    >
+                      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:100%_4px] opacity-20" />
+                      
+                      <div className="relative flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full border border-emerald-500/30 overflow-hidden bg-zinc-900 relative">
+                          <img src="/avatar3.png" alt="Avatar" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 relative z-10">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 font-mono">Digital Guide</span>
+                            <div className="w-1 h-1 rounded-full bg-zinc-700" />
+                          </div>
+                          <div className="text-[9px] font-mono text-zinc-500 uppercase flex gap-3">
+                            <span>Session: {Math.random().toString(36).substring(7).toUpperCase()}</span>
+                            <span>Last login: {new Date().toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <p className="text-zinc-200 leading-snug">Welcome to my neural workspace. How can I assist your exploration today?</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
+                          System ready. Use the terminal below to navigate or click a command.
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
 
                 {/* Interactive Terminal Input (Bottom) */}
                 <div className="mt-auto pb-8 pt-6">
@@ -792,8 +917,9 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                         onKeyDown={handleKeyDown}
                         spellCheck={false}
                         autoComplete="off"
-                        placeholder="Escribe lo que quieras aquí..."
-                        className="w-full bg-transparent border-none outline-none p-0 font-mono text-sm text-white caret-transparent placeholder:text-white/20"
+                        disabled={isAiMode && isAiThinking}
+                        placeholder={isAiMode ? 'Pregunta sobre habilidades, experiencia, ubicacion, disponibilidad...' : 'Escribe lo que quieras aquí...'}
+                        className="w-full bg-transparent border-none outline-none p-0 font-mono text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60"
                         autoFocus
                       />
                         <motion.div
@@ -1583,7 +1709,7 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                           </div>
 
                           <div className="space-y-6">
-                            <div className="p-6 bg-zinc-900/40 border border-emerald-500/20 rounded-3xl space-y-5 sticky top-0">
+                            <div className="p-6 bg-zinc-900/40 border border-emerald-500/20 rounded-3xl space-y-5">
                               <div className="space-y-2">
                                 <span className="text-[10px] text-emerald-500 font-mono uppercase tracking-[0.25em]">Official Downloads</span>
                                 <p className="text-sm text-zinc-400 leading-relaxed">
@@ -1627,75 +1753,83 @@ export function TerminalPanel({ variant = 'default' }: TerminalPanelProps) {
                         </div>
                       </div>
                     )}
-                  </div>
-
-                  {/* Integrated Navigation Prompt */}
                     {activeView !== 'terminal' && activeView !== 'projects' && (
                       <motion.div
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
                         viewport={{ once: false, amount: 0.1 }}
                         onClick={handleNext}
-                        className={`cursor-pointer group/prompt inline-block ${
-                          activeView === 'contact' || activeView === 'cv' ? 'mt-4 mb-4 self-start' : 'mt-8 mb-12'
+                        className={`cursor-pointer group/prompt inline-block w-full relative z-10 ${
+                          activeView === 'contact' || activeView === 'cv' ? 'mt-8 mb-6 self-start' : 'mt-8 mb-12'
                         }`}
                       >
-                        <div className="flex items-center gap-2 text-white/40 font-mono text-sm group-hover/prompt:text-white/80 transition-colors">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-white/40 font-mono text-sm group-hover/prompt:text-white/80 transition-colors">
                           <span className="group-hover/prompt:text-emerald-500 transition-colors">$</span>
                           <span>
-                            Presiona <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all shadow-[0_0_15px_rgba(255,255,255,0.05)]">ENTER</span> para {
-                              viewOrder.indexOf(activeView as any) !== -1 && 
-                              viewOrder.indexOf(activeView as any) < viewOrder.length - 1 
-                                ? 'continuar' 
-                                : 'finalizar'
-                            }
+                            {usesTouchNavigationCopy ? (
+                              activeView === 'cv'
+                                ? 'Toca aqui para entrar al modo ai'
+                                : 'Toca aqui para ir a la siguiente seccion'
+                            ) : (
+                              <>
+                                Presiona <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all shadow-[0_0_15px_rgba(255,255,255,0.05)]">ENTER</span> para {
+                                  activeView === 'cv'
+                                    ? 'abrir modo ai'
+                                    : viewOrder.indexOf(activeView as any) !== -1 &&
+                                      viewOrder.indexOf(activeView as any) < viewOrder.length - 1
+                                      ? 'continuar'
+                                      : 'finalizar'
+                                }
+                              </>
+                            )}
                           </span>
-                          <div 
-                            className="w-2 h-4 bg-white/40 group-hover/prompt:bg-emerald-500" 
-                          />
+                          <div className="w-2 h-4 bg-white/40 group-hover/prompt:bg-emerald-500 shrink-0" />
                         </div>
                       </motion.div>
                     )}
                   </div>
+                  </div>
                 </div>
 
                 {/* Terminal Status Bar for Expanded View */}
-                <div className="border-t border-zinc-800/50 bg-black/60 px-6 py-3 flex items-center justify-between font-mono text-[10px]">
-                  <div className="flex items-center gap-6">
-                    <div className="flex gap-4 text-zinc-500">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-emerald-500/50">L</span> {activeView === 'about' ? '1' : '124'}
+                <div className="border-t border-zinc-800/50 bg-black/60 px-4 py-3 font-mono text-[10px] sm:px-6">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                      <div className="flex gap-4 text-zinc-500">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-500/50">L</span> {activeView === 'about' ? '1' : '124'}
+                        </div>
+                        <div className="flex items-center gap-1.5 uppercase tracking-widest">
+                          UTF-8
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 uppercase tracking-widest">
-                        UTF-8
+
+                      {/* Quick Navigation Commands */}
+                      <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-800 pt-3 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0 lg:pl-6">
+                        <span className="text-zinc-600 shrink-0">GOTO:</span>
+                        {commands.map((cmd) => (
+                          <button
+                            key={cmd}
+                            onClick={() => handleCommand(cmd)}
+                            className={`
+                              px-2 py-0.5 rounded transition-colors shrink-0
+                              ${activeView === cmd ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}
+                            `}
+                          >
+                            {cmd.toUpperCase()}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Quick Navigation Commands */}
-                    <div className="hidden lg:flex items-center gap-3 border-l border-zinc-800 pl-6">
-                      <span className="text-zinc-600">GOTO:</span>
-                      {commands.map((cmd) => (
-                        <button
-                          key={cmd}
-                          onClick={() => handleCommand(cmd)}
-                          className={`
-                            px-2 py-0.5 rounded transition-colors
-                            ${activeView === cmd ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}
-                          `}
-                        >
-                          {cmd.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
+                    <button 
+                      onClick={closeExpanded}
+                      className="flex items-center gap-2 self-start px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 transition-all rounded group lg:self-auto"
+                    >
+                      <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                      RETURN_TO_SHELL
+                    </button>
                   </div>
-                  
-                  <button 
-                    onClick={closeExpanded}
-                    className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 transition-all rounded group"
-                  >
-                    <span className="group-hover:-translate-x-1 transition-transform">←</span>
-                    RETURN_TO_SHELL
-                  </button>
                 </div>
               </motion.div>
             )}

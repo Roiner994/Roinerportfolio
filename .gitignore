@@ -41,3 +41,4 @@ coverage/
 # pnpm
 # (Lock files like pnpm-lock.yaml or package-lock.json are typically committed)
 
+.vercel
