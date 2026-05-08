@@ -22,12 +22,37 @@ function figmaAssetResolver() {
  * with plain `npm run dev` (no need for `vercel dev`).
  */
 function apiChatDevMiddleware() {
+  let envLoaded = false
+
   return {
     name: 'api-chat-dev-middleware',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         if (req.url !== '/api/chat' || req.method !== 'POST') {
           return next()
+        }
+
+        // Load .env.local into process.env once (Vite SSR doesn't do this automatically)
+        if (!envLoaded) {
+          try {
+            const fs = await import('fs')
+            const envPath = path.resolve(__dirname, '.env.local')
+            if (fs.existsSync(envPath)) {
+              const raw = fs.readFileSync(envPath, 'utf8')
+              raw.split('\n').forEach((line) => {
+                const trimmed = line.trim()
+                if (!trimmed || trimmed.startsWith('#')) return
+                const sep = trimmed.indexOf('=')
+                if (sep === -1) return
+                const key = trimmed.slice(0, sep).trim()
+                const value = trimmed.slice(sep + 1).trim().replace(/^['"]|['"]$/g, '')
+                if (key && !process.env[key]) {
+                  process.env[key] = value
+                }
+              })
+            }
+          } catch { /* ignore */ }
+          envLoaded = true
         }
 
         try {
@@ -44,7 +69,7 @@ function apiChatDevMiddleware() {
           }
           const body = JSON.parse(Buffer.concat(chunks).toString())
 
-          // Build a minimal request/response adapter matching the handler signature
+          // Build a minimal request/response adapter matching the VercelRequest/VercelResponse interface
           const fakeReq = { method: 'POST', body }
           const fakeRes = {
             _status: 200,

@@ -1,26 +1,12 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { buildPortfolioKnowledgeContext } from '../src/data/portfolioProfile';
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 
 type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
 };
 
-type JsonResponse = {
-  status: (code: number) => JsonResponse;
-  json: (body: unknown) => void;
-  setHeader?: (name: string, value: string) => void;
-};
-
-type JsonRequest = {
-  method?: string;
-  body?: unknown;
-  on?: (event: 'data' | 'end' | 'error', callback: (chunk?: Buffer | string | Error) => void) => void;
-};
-
 const DEFAULT_MODEL = 'openai/gpt-4.1-mini';
-let cachedLocalEnv: Record<string, string> | null = null;
 
 function isChatMessageArray(value: unknown): value is ChatMessage[] {
   return Array.isArray(value) && value.every((message) => {
@@ -47,105 +33,34 @@ function buildSystemPrompt() {
   ].join('\n\n');
 }
 
-function readLocalEnvFile() {
-  if (cachedLocalEnv) {
-    return cachedLocalEnv;
-  }
-
-  const envPath = path.join(process.cwd(), '.env.local');
-  const values: Record<string, string> = {};
-
-  if (!existsSync(envPath)) {
-    cachedLocalEnv = values;
-    return values;
-  }
-
-  const raw = readFileSync(envPath, 'utf8');
-
-  raw.split('\n').forEach((line) => {
-    const trimmed = line.trim();
-
-    if (!trimmed || trimmed.startsWith('#')) {
-      return;
-    }
-
-    const separatorIndex = trimmed.indexOf('=');
-
-    if (separatorIndex === -1) {
-      return;
-    }
-
-    const key = trimmed.slice(0, separatorIndex).trim();
-    const value = trimmed.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, '');
-
-    if (key) {
-      values[key] = value;
-    }
-  });
-
-  cachedLocalEnv = values;
-  return values;
-}
-
-function getServerEnv(name: string) {
-  const runtimeValue = process.env[name];
-
-  if (runtimeValue && runtimeValue.trim()) {
-    return runtimeValue.trim();
-  }
-
-  const localValue = readLocalEnvFile()[name];
-  return localValue && localValue.trim() ? localValue.trim() : '';
-}
-
-async function readJsonBody(request: JsonRequest) {
-  if (request.body && typeof request.body === 'object') {
-    return request.body;
-  }
-
-  if (typeof request.body === 'string') {
-    return JSON.parse(request.body);
-  }
-
-  if (!request.on) {
-    return null;
-  }
-
-  const rawBody = await new Promise<string>((resolve, reject) => {
-    let data = '';
-
-    request.on?.('data', (chunk) => {
-      data += typeof chunk === 'string' ? chunk : chunk?.toString() ?? '';
-    });
-
-    request.on?.('end', () => resolve(data));
-    request.on?.('error', (error) => reject(error));
-  });
-
-  return rawBody ? JSON.parse(rawBody) : null;
+function getEnv(name: string): string {
+  return (process.env[name] ?? '').trim();
 }
 
 async function fetchOpenRouterReply(messages: ChatMessage[]) {
-  const apiKey = getServerEnv('OPENROUTER_API_KEY');
+  const apiKey = getEnv('OPENROUTER_API_KEY');
 
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY_MISSING');
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 20_000);
 
   try {
+    const appUrl = getEnv('APP_URL');
+    const appName = getEnv('APP_NAME');
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        ...(getServerEnv('APP_URL') ? { 'HTTP-Referer': getServerEnv('APP_URL') } : {}),
-        ...(getServerEnv('APP_NAME') ? { 'X-Title': getServerEnv('APP_NAME') } : {}),
+        ...(appUrl ? { 'HTTP-Referer': appUrl } : {}),
+        ...(appName ? { 'X-Title': appName } : {}),
       },
       body: JSON.stringify({
-        model: getServerEnv('OPENROUTER_MODEL') || DEFAULT_MODEL,
+        model: getEnv('OPENROUTER_MODEL') || DEFAULT_MODEL,
         max_tokens: 1024,
         messages: [
           {
@@ -176,28 +91,25 @@ async function fetchOpenRouterReply(messages: ChatMessage[]) {
 
     return {
       content: content.trim(),
-      model: data?.model || getServerEnv('OPENROUTER_MODEL') || DEFAULT_MODEL,
+      model: data?.model || getEnv('OPENROUTER_MODEL') || DEFAULT_MODEL,
     };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-export default async function handler(request: JsonRequest, response: JsonResponse) {
-  response.setHeader?.('Content-Type', 'application/json');
+export default async function handler(request: VercelRequest, response: VercelResponse) {
+  response.setHeader('Content-Type', 'application/json');
 
   if (request.method !== 'POST') {
-    response.status(405).json({ error: 'Method not allowed.' });
-    return;
+    return response.status(405).json({ error: 'Method not allowed.' });
   }
 
   try {
-    const payload = await readJsonBody(request);
-    const messages = (payload as { messages?: unknown } | null)?.messages;
+    const messages = request.body?.messages;
 
     if (!isChatMessageArray(messages) || messages.length === 0) {
-      response.status(400).json({ error: 'Invalid payload. Expected a non-empty messages array.' });
-      return;
+      return response.status(400).json({ error: 'Invalid payload. Expected a non-empty messages array.' });
     }
 
     const trimmedMessages = messages
@@ -209,13 +121,12 @@ export default async function handler(request: JsonRequest, response: JsonRespon
       .filter((message) => message.content.length > 0);
 
     if (trimmedMessages.length === 0) {
-      response.status(400).json({ error: 'No valid messages were provided.' });
-      return;
+      return response.status(400).json({ error: 'No valid messages were provided.' });
     }
 
     const reply = await fetchOpenRouterReply(trimmedMessages);
 
-    response.status(200).json({
+    return response.status(200).json({
       message: {
         role: 'assistant',
         content: reply.content,
@@ -227,20 +138,17 @@ export default async function handler(request: JsonRequest, response: JsonRespon
     const message = error instanceof Error ? error.message : 'Unexpected server error.';
 
     if (message === 'OPENROUTER_API_KEY_MISSING') {
-      response.status(500).json({ error: 'Missing OPENROUTER_API_KEY on the server.' });
-      return;
+      return response.status(500).json({ error: 'Missing OPENROUTER_API_KEY on the server.' });
     }
 
     if (message.includes('aborted')) {
-      response.status(504).json({ error: 'The AI request timed out. Please try again.' });
-      return;
+      return response.status(504).json({ error: 'The AI request timed out. Please try again.' });
     }
 
     if (message.includes('Unexpected token')) {
-      response.status(400).json({ error: 'Invalid JSON payload.' });
-      return;
+      return response.status(400).json({ error: 'Invalid JSON payload.' });
     }
 
-    response.status(500).json({ error: message });
+    return response.status(500).json({ error: message });
   }
 }
