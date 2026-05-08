@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { buildPortfolioKnowledgeContext } from '../src/data/portfolioProfile';
+import { buildPortfolioKnowledgeContext } from './_portfolioContext';
 
 type ChatMessage = {
   role: 'user' | 'assistant';
