@@ -8,6 +8,14 @@ type ChatMessage = {
 
 const DEFAULT_MODEL = 'openai/gpt-4.1-mini';
 
+function safeJsonParse<T>(value: string): T | null {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
 function isChatMessageArray(value: unknown): value is ChatMessage[] {
   return Array.isArray(value) && value.every((message) => {
     return (
@@ -118,7 +126,14 @@ async function fetchOpenRouterReply(messages: ChatMessage[], appUrl?: string) {
     });
 
     const rawResponse = await response.text();
-    const data = rawResponse ? JSON.parse(rawResponse) : null;
+    const data = rawResponse
+      ? safeJsonParse<{
+          error?: { message?: string };
+          message?: string;
+          model?: string;
+          choices?: Array<{ message?: { content?: string } }>;
+        }>(rawResponse)
+      : null;
 
     if (!response.ok) {
       const errorMessage =
@@ -152,7 +167,11 @@ export default async function handler(request: VercelRequest, response: VercelRe
   }
 
   try {
-    const messages = request.body?.messages;
+    const requestBody =
+      typeof request.body === 'string'
+        ? safeJsonParse<{ messages?: unknown }>(request.body)
+        : request.body;
+    const messages = requestBody?.messages;
 
     if (!isChatMessageArray(messages) || messages.length === 0) {
       return response.status(400).json({ error: 'Invalid payload. Expected a non-empty messages array.' });
@@ -182,6 +201,18 @@ export default async function handler(request: VercelRequest, response: VercelRe
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected server error.';
+
+    console.error('[api/chat] request failed', {
+      message,
+      method: request.method,
+      url: request.url,
+      host: request.headers.host,
+      forwardedHost: request.headers['x-forwarded-host'],
+      forwardedProto: request.headers['x-forwarded-proto'],
+      hasApiKey: Boolean(getEnv('OPENROUTER_API_KEY')),
+      model: getEnv('OPENROUTER_MODEL') || DEFAULT_MODEL,
+      resolvedAppUrl: resolveAppUrl(request),
+    });
 
     if (message === 'OPENROUTER_API_KEY_MISSING') {
       return response.status(500).json({ error: 'Missing OPENROUTER_API_KEY on the server.' });

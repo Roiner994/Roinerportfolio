@@ -149,6 +149,8 @@ const AI_ERROR_MESSAGE =
   "No pude conectarme con el modo ai en este momento. Revisa la configuracion de OPENROUTER_API_KEY o intenta de nuevo en unos segundos.";
 const AI_LOCAL_SETUP_MESSAGE =
   "El endpoint /api/chat no esta disponible en este entorno. Para probar el modo ai real en local, inicia la app con `npm run dev:vercel` o `vercel dev`.";
+const AI_FORBIDDEN_MESSAGE =
+  "El endpoint /api/chat devolvio 403 Forbidden. Revisa Vercel Authentication, Deployment Protection o cualquier regla que este bloqueando la funcion.";
 
 function createAiWelcomeHistory(): ChatMessage[] {
   return [
@@ -385,6 +387,23 @@ function ProjectMediaPanel({
   const images = getProjectMedia(project.id);
   const activeImage = images[selectedImageIndex] ?? images[0];
 
+  const [isImageLoading, setIsImageLoading] = useState(true);
+
+  // Reset loading state when image source changes
+  useEffect(() => {
+    setIsImageLoading(true);
+  }, [activeImage?.src]);
+
+  // Preload all project images for smoother transitions on Vercel
+  useEffect(() => {
+    if (images.length > 0) {
+      images.forEach((img) => {
+        const preloader = new window.Image();
+        preloader.src = img.src;
+      });
+    }
+  }, [images]);
+
   const nextImage = () => {
     onSelectImage((selectedImageIndex + 1) % images.length);
   };
@@ -401,12 +420,39 @@ function ProjectMediaPanel({
     <div className="group relative">
       <div className="overflow-hidden rounded-[2rem] bg-zinc-950/50 shadow-2xl transition-all duration-500">
         <div className="relative flex min-h-[400px] items-center justify-center p-4 sm:p-10 overflow-hidden">
+          {/* Loading indicator */}
+          <AnimatePresence>
+            {isImageLoading && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-0 flex items-center justify-center bg-zinc-950/20 backdrop-blur-sm"
+              >
+                <div className="flex flex-col items-center gap-4">
+                  <motion.div 
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      opacity: [0.3, 0.6, 0.3] 
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="w-16 h-16 rounded-full border-2 border-emerald-500/20 flex items-center justify-center"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30" />
+                  </motion.div>
+                  <span className="font-mono text-[10px] text-emerald-500/40 uppercase tracking-widest">Loading Media...</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="wait">
             <motion.img
-              key={selectedImageIndex}
+              key={activeImage.src}
               initial={{ opacity: 0, x: 20, scale: 0.98 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
+              animate={{ opacity: isImageLoading ? 0 : 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: -20, scale: 1.02 }}
+              onLoad={() => setIsImageLoading(false)}
               transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               src={activeImage.src}
               alt={project.displayName}
@@ -430,19 +476,19 @@ function ProjectMediaPanel({
 
           {images.length > 1 && (
             <>
-              {/* Full-height Side Navigation */}
-              <div className="absolute inset-y-0 left-0 w-16 z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              {/* Full-height Side Navigation - Always visible and green */}
+              <div className="absolute inset-y-0 left-0 w-16 z-30 flex items-center justify-center transition-opacity duration-300">
                 <button
                   onClick={prevImage}
-                  className="h-full w-full flex items-center justify-center bg-gradient-to-r from-black/60 to-transparent text-white/20 hover:text-emerald-500 transition-colors"
+                  className="h-full w-full flex items-center justify-center bg-gradient-to-r from-black/40 to-transparent text-emerald-500/60 hover:text-emerald-400 transition-colors"
                 >
                   <ChevronLeft className="w-8 h-8" />
                 </button>
               </div>
-              <div className="absolute inset-y-0 right-0 w-16 z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="absolute inset-y-0 right-0 w-16 z-30 flex items-center justify-center transition-opacity duration-300">
                 <button
                   onClick={nextImage}
-                  className="h-full w-full flex items-center justify-center bg-gradient-to-l from-black/60 to-transparent text-white/20 hover:text-emerald-500 transition-colors"
+                  className="h-full w-full flex items-center justify-center bg-gradient-to-l from-black/40 to-transparent text-emerald-500/60 hover:text-emerald-400 transition-colors"
                 >
                   <ChevronRight className="w-8 h-8" />
                 </button>
@@ -602,7 +648,20 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
         }),
       });
 
-      const data = await response.json().catch(() => null);
+      const rawBody = await response.text();
+      const data = rawBody
+        ? (() => {
+            try {
+              return JSON.parse(rawBody);
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+      const fallbackStatusMessage =
+        response.status === 403
+          ? AI_FORBIDDEN_MESSAGE
+          : `El endpoint /api/chat devolvio ${response.status} ${response.statusText || "Error"}.`;
       const assistantContent =
         data?.message?.content && typeof data.message.content === "string"
           ? data.message.content
@@ -612,7 +671,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
               ? AI_LOCAL_SETUP_MESSAGE
               : data?.error && typeof data.error === "string"
                 ? data.error
-                : AI_ERROR_MESSAGE;
+                : fallbackStatusMessage;
 
       setChatHistory((current) => [
         ...current,

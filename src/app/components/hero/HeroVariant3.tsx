@@ -72,8 +72,8 @@ export function HeroVariant3() {
                 de extremo a extremo.
               </motion.p>
 
-              {/* Feature highlights */}
-              <div className="grid grid-cols-3 gap-4">
+              {/* Feature highlights - Minimalist version */}
+              <div className="flex items-center gap-8 pt-4">
                 {[
                   { icon: Code2, label: 'Full Stack' },
                   { icon: Cpu, label: 'AI/ML' },
@@ -81,13 +81,18 @@ export function HeroVariant3() {
                 ].map((item, i) => (
                   <motion.div
                     key={item.label}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={{ delay: 1.3 + i * 0.1 }}
-                    className="flex flex-col items-center gap-2 p-4 bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/50 rounded-xl hover:border-emerald-500/50 transition-colors"
+                    className="flex items-center gap-3 group pointer-events-none"
                   >
-                    <item.icon className="w-6 h-6 text-emerald-400" />
-                    <span className="text-[10px] text-zinc-300 font-mono uppercase tracking-wider">{item.label}</span>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                      <item.icon className="w-5 h-5 text-emerald-400/70" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-emerald-500/50 font-mono uppercase tracking-[0.2em] leading-none mb-1">Expertise</span>
+                      <span className="text-xs text-zinc-400 font-mono uppercase tracking-wider">{item.label}</span>
+                    </div>
                   </motion.div>
                 ))}
               </div>
