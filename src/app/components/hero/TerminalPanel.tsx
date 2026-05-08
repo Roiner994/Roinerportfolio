@@ -223,76 +223,34 @@ function AnimatedContactAvatar({
 }: {
   isExternallyHovered?: boolean;
 }) {
-  const [hasSwappedToPeace, setHasSwappedToPeace] = useState(false);
-  const [isInitialSwapAccentActive, setIsInitialSwapAccentActive] =
-    useState(false);
   const handSwapTransition = {
     duration: 0.09,
     ease: "easeOut" as const,
   };
 
-  const handLayerClassName =
+  const poseLayerClassName =
     "absolute inset-0 h-full w-full object-cover pointer-events-none";
-  const handLayerStyle = {
+  const poseLayerStyle = {
     clipPath:
-      "polygon(0% 18%, 27% 18%, 34% 28%, 36% 44%, 35% 60%, 32% 77%, 25% 92%, 16% 100%, 0% 100%)",
+      "polygon(0% 6%, 82% 6%, 82% 67%, 71% 67%, 60% 61%, 46% 61%, 35% 70%, 24% 100%, 0% 100%)",
   };
-
-  useEffect(() => {
-    setHasSwappedToPeace(false);
-    setIsInitialSwapAccentActive(false);
-
-    const swapTimeoutId = window.setTimeout(() => {
-      setHasSwappedToPeace(true);
-      setIsInitialSwapAccentActive(true);
-    }, 1800);
-
-    const accentTimeoutId = window.setTimeout(() => {
-      setIsInitialSwapAccentActive(false);
-    }, 2920);
-
-    return () => {
-      window.clearTimeout(swapTimeoutId);
-      window.clearTimeout(accentTimeoutId);
-    };
-  }, []);
-
-  const isHovered = hasSwappedToPeace && isExternallyHovered;
-  const showPeace = hasSwappedToPeace && !isHovered;
+  const isHovered = isExternallyHovered;
+  const showPeace = isHovered;
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96, y: 0 }}
-      animate={{
-        opacity: 1,
-        scale: isHovered
-          ? 1.025
-          : isInitialSwapAccentActive
-            ? [1, 1.016, 1.006, 1]
-            : 1,
-        y: isHovered ? -4 : isInitialSwapAccentActive ? [0, -1.5, -0.5, 0] : 0,
-      }}
+      animate={{ opacity: 1, scale: isHovered ? 1.025 : 1, y: isHovered ? -4 : 0 }}
       transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
       className="relative group"
     >
       <motion.div
         className="absolute -inset-3 rounded-[1.7rem] bg-[radial-gradient(circle_at_30%_35%,rgba(16,185,129,0.22),transparent_58%)] opacity-0 blur-2xl pointer-events-none"
         animate={{
-          opacity: isHovered
-            ? 1
-            : isInitialSwapAccentActive
-              ? [0, 0.42, 0.14, 0]
-              : 0,
-          scale: isHovered
-            ? 1.04
-            : isInitialSwapAccentActive
-              ? [0.985, 1.025, 1.005, 1]
-              : 0.98,
+          opacity: isHovered ? 1 : 0,
+          scale: isHovered ? 1.04 : 0.98,
         }}
-        transition={{
-          duration: isInitialSwapAccentActive ? 0.34 : 0.18,
-          ease: "easeOut",
-        }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
       />
 
       <motion.div
@@ -300,27 +258,12 @@ function AnimatedContactAvatar({
         animate={{
           borderColor: isHovered
             ? "rgba(52, 211, 153, 0.55)"
-            : isInitialSwapAccentActive
-              ? [
-                  "rgba(16, 185, 129, 0.2)",
-                  "rgba(52, 211, 153, 0.5)",
-                  "rgba(16, 185, 129, 0.2)",
-                ]
-              : "rgba(16, 185, 129, 0.2)",
+            : "rgba(16, 185, 129, 0.2)",
           boxShadow: isHovered
             ? "0 30px 60px -24px rgba(16,185,129,0.38), 0 0 0 1px rgba(52,211,153,0.12)"
-            : isInitialSwapAccentActive
-              ? [
-                  "0 25px 50px -24px rgba(0,0,0,0.65)",
-                  "0 29px 60px -26px rgba(16,185,129,0.22), 0 0 0 1px rgba(52,211,153,0.08)",
-                  "0 25px 50px -24px rgba(0,0,0,0.65)",
-                ]
-              : "0 25px 50px -24px rgba(0,0,0,0.65)",
+            : "0 25px 50px -24px rgba(0,0,0,0.65)",
         }}
-        transition={{
-          duration: isInitialSwapAccentActive ? 0.34 : 0.2,
-          ease: "easeOut",
-        }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
       >
         <img
           src="/avatar_base.png"
@@ -332,8 +275,8 @@ function AnimatedContactAvatar({
           src="/avatar_hello.png"
           alt=""
           aria-hidden="true"
-          className={handLayerClassName}
-          style={handLayerStyle}
+          className={poseLayerClassName}
+          style={poseLayerStyle}
           animate={{
             opacity: showPeace ? 0 : 1,
             scale: isHovered ? 1.015 : 1,
@@ -348,8 +291,8 @@ function AnimatedContactAvatar({
           src="/avatar_peace.png"
           alt=""
           aria-hidden="true"
-          className={handLayerClassName}
-          style={handLayerStyle}
+          className={poseLayerClassName}
+          style={poseLayerStyle}
           animate={{
             opacity: showPeace ? 1 : 0,
             scale: isHovered ? 1.015 : 1,
@@ -362,14 +305,8 @@ function AnimatedContactAvatar({
 
         <motion.div
           className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_18%_42%,rgba(255,255,255,0.16),transparent_26%)]"
-          animate={{
-            opacity: isHovered
-              ? 0.24
-              : isInitialSwapAccentActive
-                ? [0.16, 0.21, 0.18, 0.16]
-                : 0.16,
-          }}
-          transition={{ duration: isInitialSwapAccentActive ? 0.34 : 0.2 }}
+          animate={{ opacity: isHovered ? 0.24 : 0.16 }}
+          transition={{ duration: 0.2 }}
         />
 
         <div className="absolute -top-1 -left-1 h-12 w-12 border-t-2 border-l-2 border-emerald-400/50 pointer-events-none" />
@@ -1460,6 +1397,14 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                   {aboutData.education}
                                 </p>
                               </div>
+                              <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
+                                <span className="text-[10px] text-zinc-500 uppercase font-mono">
+                                  Born
+                                </span>
+                                <p className="text-zinc-200 text-xs font-mono">
+                                  {aboutData.birthDate}
+                                </p>
+                              </div>
                               <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors col-span-2 sm:col-span-1">
                                 <span className="text-[10px] text-emerald-500/60 uppercase font-mono">
                                   Status
@@ -2032,7 +1977,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           </div>
                         </div>
 
-                        <div className="grid gap-12 xl:grid-cols-[0.8fr_1.2fr] xl:items-start">
+                        <div className="grid gap-10 xl:grid-cols-[0.8fr_1.2fr] xl:items-center">
                           <AnimatedContactAvatar
                             isExternallyHovered={isContactCardHovered}
                           />
@@ -2065,11 +2010,11 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             <div className="grid gap-3">
                               {[
                                 {
-                                  label: "MAIL",
-                                  cmd: "sendmail --to roiner@sys",
-                                  value: aboutData.email,
-                                  action: `mailto:${aboutData.email}`,
-                                  color: "text-blue-400",
+                                  label: "WHATSAPP",
+                                  cmd: "tel --dial +584148589600",
+                                  value: "+58 414 858 9600",
+                                  action: "https://wa.me/584148589600",
+                                  color: "text-emerald-400",
                                 },
                                 {
                                   label: "GITHUB",
@@ -2081,10 +2026,17 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                 {
                                   label: "LINKEDIN",
                                   cmd: "connect --relay linkedin",
-                                  value: "linkedin.com/in/roiner",
+                                  value: "linkedin.com/in/roiner-hernandez-a6314894",
                                   action:
-                                    "https://linkedin.com/in/roiner-hernandez-6701b212a",
-                                  color: "text-emerald-400",
+                                    "https://www.linkedin.com/in/roiner-hernandez-a6314894/",
+                                  color: "text-blue-400",
+                                },
+                                {
+                                  label: "MAIL",
+                                  cmd: "sendmail --to roiner@sys",
+                                  value: aboutData.email,
+                                  action: `mailto:${aboutData.email}`,
+                                  color: "text-blue-400",
                                 },
                               ].map((item, i) => (
                                 <motion.a

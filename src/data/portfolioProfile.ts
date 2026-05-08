@@ -27,6 +27,10 @@ export type AboutData = {
   };
   education: string;
   status: string;
+  birthDate: string;
+  phone: string;
+  remoteOnly: boolean;
+  willingToRelocate: boolean;
   projects: AboutProject[];
 };
 
@@ -140,6 +144,10 @@ export const aboutData: AboutData = {
   },
   education: "Ingeniería en Informática (UNEG)",
   status: "OPEN_FOR_NEW_PROJECTS",
+  birthDate: "15/05/1994",
+  phone: "+584148589600",
+  remoteOnly: true,
+  willingToRelocate: true,
   projects: [
     {
       name: "Flashcardia",
@@ -293,13 +301,24 @@ export const projectEntries: ProjectEntry[] = [
 ];
 
 export function buildPortfolioKnowledgeContext() {
+  const birthDate = new Date("1994-05-15");
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
   return [
     `Nombre: ${aboutData.name}`,
     `Rol: ${aboutData.title}`,
     `Bio: ${aboutData.bio}`,
+    `Fecha de Nacimiento: ${aboutData.birthDate} (Edad: ${age} años)`,
     `Ubicacion: ${aboutData.location}`,
     `Email: ${aboutData.email}`,
+    `Telefono: ${aboutData.phone} (WhatsApp disponible)`,
     `Estado profesional: ${aboutData.status}`,
+    `Preferencias laborales: Busco trabajo remoto principalmente, pero estoy dispuesto a mudarme de ciudad o pais si la situacion lo amerita.`,
     `Educacion: ${aboutData.education}`,
     `Especialidades: ${aboutData.specialties.join(', ')}`,
     `Skills frontend: ${aboutData.skills.frontend.join(', ')}`,

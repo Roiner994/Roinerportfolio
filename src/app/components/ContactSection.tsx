@@ -1,11 +1,11 @@
-import { Mail, Github, Linkedin, Twitter } from 'lucide-react';
+import { Mail, Github, Linkedin, MessageCircle, Twitter } from 'lucide-react';
 
 export function ContactSection() {
   const socialLinks = [
-    { icon: Github, label: 'GitHub', href: '#', username: '@tuusuario' },
-    { icon: Linkedin, label: 'LinkedIn', href: '#', username: '/in/tuusuario' },
-    { icon: Twitter, label: 'Twitter', href: '#', username: '@tuusuario' },
-    { icon: Mail, label: 'Email', href: 'mailto:tu@email.com', username: 'tu@email.com' },
+    { icon: Github, label: 'GitHub', href: 'https://github.com/Roiner994', username: 'github.com/Roiner994' },
+    { icon: Linkedin, label: 'LinkedIn', href: 'https://www.linkedin.com/in/roiner-hernandez-a6314894/', username: 'linkedin.com/in/roiner-hernandez-a6314894' },
+    { icon: MessageCircle, label: 'WhatsApp', href: 'https://wa.me/584148589600', username: '+58 414 858 9600' },
+    { icon: Mail, label: 'Email', href: 'mailto:roiner123@gmail.com', username: 'roiner123@gmail.com' },
   ];
 
   return (
@@ -92,7 +92,7 @@ export function ContactSection() {
 
             {/* Footer */}
             <div className="mt-8 pt-6 border-t border-zinc-800 text-zinc-600 text-sm">
-              <div>© 2026 Tu Nombre. Hecho con React + Tailwind</div>
+              <div>© 2026 Roiner Hernandez. Hecho con React + Tailwind</div>
             </div>
           </div>
         </div>

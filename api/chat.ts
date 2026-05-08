@@ -146,6 +146,7 @@ async function fetchOpenRouterReply(messages: ChatMessage[]) {
       },
       body: JSON.stringify({
         model: getServerEnv('OPENROUTER_MODEL') || DEFAULT_MODEL,
+        max_tokens: 1024,
         messages: [
           {
             role: 'system',
