@@ -43,6 +43,7 @@ import {
   type ProjectImage,
   type ProjectLink,
 } from "@/data/portfolioProfile";
+import { getProjectMedia } from "@/lib/projectMedia";
 import { useIsMobile } from "@/app/components/ui/use-mobile";
 
 const TypewriterText = ({
@@ -395,11 +396,33 @@ function TerminalLinkButton({
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, delay: index * 0.1 }}
       whileHover={{ x: 4 }}
-      className="group inline-flex items-center gap-2 py-1 transition-all"
+      className="group relative inline-flex items-center gap-2 py-1 transition-all"
     >
+      {/* Subtle arrow pulse indicator to call attention */}
+      <div className="absolute -left-5 flex items-center justify-center pointer-events-none">
+        <ChevronRight className="h-3 w-3 text-emerald-500/40" />
+        <motion.div
+          animate={{
+            scale: [1, 2],
+            opacity: [0.6, 0],
+            x: [0, 4],
+          }}
+          transition={{
+            duration: 2.2,
+            repeat: Infinity,
+            delay: index * 0.4,
+            ease: "easeOut",
+          }}
+          className="absolute"
+        >
+          <ChevronRight className="h-3 w-3 text-emerald-400" />
+        </motion.div>
+      </div>
+
       <span className="text-sm font-mono text-emerald-500 group-hover:text-emerald-400 transition-colors border-b border-transparent group-hover:border-emerald-500/40">
         {formattedLabel}
       </span>
+      
       <ArrowUpRight className="h-4 w-4 text-emerald-500 group-hover:text-emerald-400 transition-all transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
     </motion.a>
   );
@@ -422,9 +445,7 @@ function ProjectMediaPanel({
   selectedImageIndex: number;
   onSelectImage: (index: number) => void;
 }) {
-  const images = [project.heroImage, ...(project.secondaryImages ?? [])].filter(
-    Boolean,
-  ) as ProjectImage[];
+  const images = getProjectMedia(project.id);
   const activeImage = images[selectedImageIndex] ?? images[0];
 
   const nextImage = () => {

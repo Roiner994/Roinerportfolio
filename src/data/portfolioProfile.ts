@@ -82,8 +82,8 @@ export type ProjectEntry = {
   description: string;
   highlights: string[];
   tech: string[];
-  heroImage?: ProjectImage;
-  secondaryImages?: ProjectImage[];
+  heroImage?: ProjectImage; // Legacy: now loaded dynamically from src/assets/projects/[id]
+  secondaryImages?: ProjectImage[]; // Legacy: now loaded dynamically from src/assets/projects/[id]
   links: ProjectLink[];
   status?: ProjectStatus;
   fallbackVisual?: ProjectFallbackVisual;
@@ -192,16 +192,6 @@ export const projectEntries: ProjectEntry[] = [
       'Challenge Mode evalúa frases, asigna score y entrega feedback contextual.',
     ],
     tech: ['React Native', 'AI', 'Voice Input', 'SRS', 'Mobile UX'],
-    heroImage: {
-      src: '/project-media/flashcardia-challenge.png',
-      caption: 'Challenge Mode con evaluación automática y feedback accionable.',
-    },
-    secondaryImages: [
-      {
-        src: '/project-media/flashcardia-ai-create.png',
-        caption: 'Creación de tarjetas guiada por IA para acelerar el aprendizaje.',
-      },
-    ],
     links: [
       {
         label: 'LAUNCH_WEB_APPLICATION',
@@ -229,16 +219,7 @@ export const projectEntries: ProjectEntry[] = [
       'La lógica del negocio se redefine con lenguaje natural para cambiar catálogo, tono y políticas.',
     ],
     tech: ['WhatsApp', 'LLMs', 'Payments OCR', 'Automation', 'Sheets'],
-    heroImage: {
-      src: '/project-media/autostream-chat.png',
-      caption: 'Flujo conversacional para ventas, catálogo y medios de pago.',
-    },
-    secondaryImages: [
-      {
-        src: '/project-media/autostream-payment.png',
-        caption: 'Procesamiento operativo listo para validar pagos y registrar pedidos.',
-      },
-    ],
+    tech: ['WhatsApp', 'LLMs', 'Payments OCR', 'Automation', 'Sheets'],
     links: [],
     status: {
       label: 'PROMPT_CONFIGURED',
@@ -302,16 +283,7 @@ export const projectEntries: ProjectEntry[] = [
       'Diseñado para mantener el flujo rápido entre captura, lectura del resultado y corrección asistida.',
     ],
     tech: ['Computer Vision', 'Nutrition AI', 'Prompt Refinement', 'Mobile'],
-    heroImage: {
-      src: '/project-media/calai-results.png',
-      caption: 'Lectura nutricional detallada con calorías y macros por alimento.',
-    },
-    secondaryImages: [
-      {
-        src: '/project-media/calai-camera.png',
-        caption: 'Flujo de captura pensado para obtener una estimación inmediata.',
-      },
-    ],
+    tech: ['Computer Vision', 'Nutrition AI', 'Prompt Refinement', 'Mobile'],
     links: [],
     status: {
       label: 'VISION_INFERENCE',
