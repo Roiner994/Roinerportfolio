@@ -37,7 +37,52 @@ function getEnv(name: string): string {
   return (process.env[name] ?? '').trim();
 }
 
-async function fetchOpenRouterReply(messages: ChatMessage[]) {
+function normalizeHeaderValue(value?: string | string[]) {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+
+  return value ?? '';
+}
+
+function isPublicHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return false;
+    }
+
+    return !['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function resolveAppUrl(request: VercelRequest) {
+  const configuredUrl = getEnv('APP_URL');
+
+  if (configuredUrl && isPublicHttpUrl(configuredUrl)) {
+    return configuredUrl;
+  }
+
+  const forwardedProto = normalizeHeaderValue(request.headers['x-forwarded-proto']);
+  const forwardedHost = normalizeHeaderValue(request.headers['x-forwarded-host']);
+  const host = normalizeHeaderValue(request.headers.host);
+
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  if (host) {
+    return `https://${host}`;
+  }
+
+  const vercelUrl = getEnv('VERCEL_URL');
+  return vercelUrl ? `https://${vercelUrl}` : '';
+}
+
+async function fetchOpenRouterReply(messages: ChatMessage[], appUrl?: string) {
   const apiKey = getEnv('OPENROUTER_API_KEY');
 
   if (!apiKey) {
@@ -48,7 +93,6 @@ async function fetchOpenRouterReply(messages: ChatMessage[]) {
   const timeout = setTimeout(() => controller.abort(), 20_000);
 
   try {
-    const appUrl = getEnv('APP_URL');
     const appName = getEnv('APP_NAME');
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -57,7 +101,7 @@ async function fetchOpenRouterReply(messages: ChatMessage[]) {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         ...(appUrl ? { 'HTTP-Referer': appUrl } : {}),
-        ...(appName ? { 'X-Title': appName } : {}),
+        ...(appName ? { 'X-OpenRouter-Title': appName } : {}),
       },
       body: JSON.stringify({
         model: getEnv('OPENROUTER_MODEL') || DEFAULT_MODEL,
@@ -73,14 +117,16 @@ async function fetchOpenRouterReply(messages: ChatMessage[]) {
       signal: controller.signal,
     });
 
-    const data = await response.json().catch(() => null);
+    const rawResponse = await response.text();
+    const data = rawResponse ? JSON.parse(rawResponse) : null;
 
     if (!response.ok) {
       const errorMessage =
         data?.error?.message ||
         data?.message ||
+        rawResponse ||
         'No pude obtener una respuesta del proveedor AI.';
-      throw new Error(errorMessage);
+      throw new Error(`OpenRouter request failed (${response.status}): ${errorMessage}`);
     }
 
     const content = data?.choices?.[0]?.message?.content;
@@ -124,7 +170,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
       return response.status(400).json({ error: 'No valid messages were provided.' });
     }
 
-    const reply = await fetchOpenRouterReply(trimmedMessages);
+    const reply = await fetchOpenRouterReply(trimmedMessages, resolveAppUrl(request));
 
     return response.status(200).json({
       message: {

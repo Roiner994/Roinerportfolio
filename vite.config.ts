@@ -70,7 +70,15 @@ function apiChatDevMiddleware() {
           const body = JSON.parse(Buffer.concat(chunks).toString())
 
           // Build a minimal request/response adapter matching the VercelRequest/VercelResponse interface
-          const fakeReq = { method: 'POST', body }
+          const fakeReq = {
+            method: 'POST',
+            body,
+            headers: {
+              host: req.headers.host,
+              'x-forwarded-host': req.headers.host,
+              'x-forwarded-proto': 'http',
+            },
+          }
           const fakeRes = {
             _status: 200,
             status(code: number) {
