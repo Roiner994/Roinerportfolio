@@ -133,7 +133,7 @@ export const experienceData: ExperienceEntry[] = [
 export const aboutData: AboutData = {
   name: "Roiner Hernandez",
   title: "Ingeniero de Software Full Stack",
-  bio: "Ingeniero de Software Full Stack con más de 8 años de experiencia construyendo soluciones web y móviles escalables. Especializado en transformar problemas ambiguos en productos funcionales de extremo a extremo, conectando interfaces, APIs, bases de datos y lógica de negocio. Sólida experiencia en arquitecturas modernas y desarrollo centrado en el producto.",
+  bio: "Soy Ingeniero de Software Full Stack con casi una década de experiencia diseñando y construyendo productos web y móviles para problemas reales de negocio. Me especializo en transformar contextos ambiguos en soluciones funcionales, conectando interfaces, APIs, bases de datos, automatizaciones e integraciones con IA.Trabajo con mentalidad de producto: no solo implemento pantallas, también pienso en arquitectura, experiencia de usuario, escalabilidad y mantenibilidad.",
   location: "Valencia, Venezuela",
   email: "roiner123@gmail.com",
   specialties: ["Arquitecturas Modernas", "Desarrollo centrado en el producto", "IA & Automación", "Escalabilidad"],

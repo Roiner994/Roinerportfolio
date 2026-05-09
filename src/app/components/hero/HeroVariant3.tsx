@@ -53,8 +53,8 @@ export function HeroVariant3() {
                   className="flex items-center gap-3"
                 >
                   <div className="h-px w-12 bg-gradient-to-r from-emerald-500/50 to-transparent" />
-                  <p className="text-xl text-zinc-300 font-light whitespace-nowrap">
-                    Ingeniero de Software Full Stack
+                  <p className="text-xl text-zinc-300 font-light">
+                    Ingeniero de Software
                   </p>
                   <div className="h-px flex-1 bg-gradient-to-l from-emerald-500/50 to-transparent" />
                 </motion.div>
@@ -67,9 +67,7 @@ export function HeroVariant3() {
                 transition={{ delay: 1.1, duration: 0.8 }}
                 className="text-lg text-zinc-400 leading-relaxed max-w-xl"
               >
-                Más de 8 años de experiencia construyendo soluciones web y móviles escalables. 
-                Especializado en transformar problemas ambiguos en productos funcionales 
-                de extremo a extremo.
+                Me gusta construir productos que resuelvan problemas reales. Combino frontend, backend y criterio de producto para transformar ideas complejas en experiencias simples, útiles y escalables.
               </motion.p>
 
               {/* Feature highlights - Minimalist version */}

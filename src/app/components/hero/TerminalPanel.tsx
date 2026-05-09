@@ -1451,7 +1451,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                   <span>cat profile_summary.md</span>
                                 </div>
                                 <div className="relative min-h-[15rem]">
-                                  <p className="text-xl text-zinc-300 leading-relaxed font-light">
+                                  <p className="text-xl text-zinc-300 leading-relaxed font-light whitespace-pre-wrap">
                                     {`"${aboutData.bio}"`.slice(
                                       0,
                                       aboutTypedLength,
