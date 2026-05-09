@@ -532,6 +532,8 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     [],
   );
   const [aboutTypedLength, setAboutTypedLength] = useState(0);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [showAboutHint, setShowAboutHint] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const experienceRailRef = useRef<HTMLDivElement>(null);
@@ -696,6 +698,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
   };
 
   const handleCommand = (cmd: string) => {
+    setHasInteracted(true);
     const cleanCmd = cmd.toLowerCase().trim();
 
     if (!cleanCmd) {
@@ -750,6 +753,17 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     setIsExpanded(false);
     setActiveView("terminal");
   };
+
+  // Add hint effect for "about" command after 6 seconds of inactivity
+  useEffect(() => {
+    if (hasInteracted || activeView !== "terminal") return;
+
+    const timer = setTimeout(() => {
+      setShowAboutHint(true);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [hasInteracted, activeView]);
 
   // Lock body scroll and listen for Enter key when expanded
   useEffect(() => {
@@ -1105,7 +1119,23 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                       <motion.button
                         key={cmd}
                         initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
+                        animate={
+                          cmd === "about" && showAboutHint && !hasInteracted
+                            ? {
+                                opacity: 1,
+                                y: [0, -8, 0],
+                                transition: {
+                                  delay: i * 0.05,
+                                  y: {
+                                    duration: 0.6,
+                                    repeat: Infinity,
+                                    repeatDelay: 5,
+                                    ease: "easeOut",
+                                  },
+                                },
+                              }
+                            : { opacity: 1 }
+                        }
                         transition={{ delay: i * 0.05 }}
                         whileHover={{
                           backgroundColor: isActiveCommand
@@ -1126,7 +1156,11 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             ${
                               isActiveCommand
                                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[3px_3px_0px_rgba(16,185,129,0.18)]"
-                                : "bg-transparent border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:shadow-[3px_3px_0px_rgba(16,185,129,0.2)]"
+                                : cmd === "about" &&
+                                    showAboutHint &&
+                                    !hasInteracted
+                                  ? "bg-emerald-500/5 border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                                  : "bg-transparent border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:shadow-[3px_3px_0px_rgba(16,185,129,0.2)]"
                             }
                           `}
                       >
