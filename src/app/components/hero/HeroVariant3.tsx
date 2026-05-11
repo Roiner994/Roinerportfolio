@@ -38,7 +38,7 @@ export function HeroVariant3() {
                 </div>
                 <div className="flex items-center gap-2 text-zinc-500 text-sm font-mono">
                   <Zap className="w-4 h-4" />
-                  v1.0.2
+                  v1.1.0
                 </div>
               </motion.div>
 

@@ -142,7 +142,7 @@ type ChatMessage = {
 };
 
 const AI_WELCOME_MESSAGE =
-  "bienvenido al modo ai, puedes preguntar lo que quieras y te respondere en base a mi conocimiento";
+  "Bienvenido al modo IA. Puedes preguntarme sobre mi experiencia, proyectos, habilidades, disponibilidad y forma de trabajar.";
 const AI_HELP_MESSAGE =
   "Puedes preguntarme sobre mis habilidades, experiencia, ubicacion, disponibilidad, educacion, proyectos, stack o contacto. Usa clear para limpiar y exit o back para salir del modo ai.";
 const AI_ERROR_MESSAGE =
@@ -151,6 +151,15 @@ const AI_LOCAL_SETUP_MESSAGE =
   "El endpoint /api/chat no esta disponible en este entorno. Para probar el modo ai real en local, inicia la app con `npm run dev:vercel` o `vercel dev`.";
 const AI_FORBIDDEN_MESSAGE =
   "El endpoint /api/chat devolvio 403 Forbidden. Revisa Vercel Authentication, Deployment Protection o cualquier regla que este bloqueando la funcion.";
+
+const SUGGESTED_QUESTIONS = [
+  "¿Qué tipo de productos ha construido Roiner?",
+  "¿Cuál es su stack principal?",
+  "¿Qué experiencia tiene con IA y automatización?",
+  "¿Qué proyecto muestra mejor su experiencia full stack?",
+  "¿Está disponible para nuevas oportunidades?",
+  "¿Qué valor puede aportar Roiner a tu equipo?",
+];
 
 function createAiWelcomeHistory(): ChatMessage[] {
   return [
@@ -1260,6 +1269,43 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                       </motion.div>
                     ))}
 
+                    {isAiMode && chatHistory.length === 1 && !isAiThinking && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.5 }}
+                        className="mt-2 space-y-4 px-1"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-px w-6 bg-emerald-500/20" />
+                          <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-500/60 font-bold">
+                            PREGUNTAS_SUGERIDAS
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {SUGGESTED_QUESTIONS.map((q, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleAiCommand(q)}
+                              className="flex items-center gap-4 text-left group w-full max-w-3xl px-2 py-2 hover:bg-emerald-500/[0.03] border-l border-transparent hover:border-emerald-500/30 transition-all"
+                            >
+                              <div className="font-mono text-[9px] text-emerald-500/30 group-hover:text-emerald-500 uppercase tracking-widest shrink-0 transition-colors">
+                                [ EXEC ]
+                              </div>
+                              <div className="font-mono text-sm text-zinc-500 group-hover:text-emerald-400/90 transition-all duration-300 leading-tight group-hover:translate-x-1">
+                                {q}
+                              </div>
+                              <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-emerald-500 font-mono animate-pulse">
+                                  _
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+
                     {isAiThinking && (
                       <motion.div
                         initial={{ opacity: 0, x: -4 }}
@@ -1356,7 +1402,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                       disabled={isAiMode && isAiThinking}
                       placeholder={
                         isAiMode
-                          ? "Pregunta sobre habilidades, experiencia, ubicacion, disponibilidad..."
+                          ? "Pregunta sobre habilidades, experiencia, proyectos o disponibilidad..."
                           : "Escribe lo que quieras aquí..."
                       }
                       className="w-full bg-transparent border-none outline-none p-0 font-mono text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60"
