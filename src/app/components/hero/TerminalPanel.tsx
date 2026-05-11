@@ -225,6 +225,7 @@ function AnimatedContactAvatar({
 }: {
   isExternallyHovered?: boolean;
 }) {
+  const [isInternallyHovered, setIsInternallyHovered] = useState(false);
   const handSwapTransition = {
     duration: 0.09,
     ease: "easeOut" as const,
@@ -236,7 +237,7 @@ function AnimatedContactAvatar({
     clipPath:
       "polygon(0% 6%, 82% 6%, 82% 67%, 71% 67%, 60% 61%, 46% 61%, 35% 70%, 24% 100%, 0% 100%)",
   };
-  const isHovered = isExternallyHovered;
+  const isHovered = isExternallyHovered || isInternallyHovered;
   const showPeace = isHovered;
 
   return (
@@ -244,6 +245,8 @@ function AnimatedContactAvatar({
       initial={{ opacity: 0, scale: 0.96, y: 0 }}
       animate={{ opacity: 1, scale: isHovered ? 1.025 : 1, y: isHovered ? -4 : 0 }}
       transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+      onHoverStart={() => setIsInternallyHovered(true)}
+      onHoverEnd={() => setIsInternallyHovered(false)}
       className="relative group"
     >
       <motion.div
@@ -1861,7 +1864,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                     </div>
                                     <div className="flex flex-col gap-1.5 pb-4">
                                       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                        POSITION_CONTEXT
+                                        CONTEXTO_DEL_PROYECTO
                                       </span>
                                       <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                         {activeProject.role}
@@ -1879,7 +1882,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                     </div>
                                     <div className="flex flex-col gap-1.5 pb-4">
                                       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                        PRODUCT_IMPACT
+                                        IMPACTO_DEL_PRODUCTO
                                       </span>
                                       <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                         {activeProject.impact}
@@ -1904,10 +1907,21 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                           <ChevronRight className="w-6 h-6 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
                                           <div className="mt-2 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
                                         </div>
-
                                         <div className="flex flex-col gap-1.5 pb-2">
                                           <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 opacity-90 group-hover:text-zinc-200 group-hover:opacity-100 transition-all">
-                                            {highlight}
+                                            {highlight.includes(": ") ? (
+                                              <>
+                                                <span className="font-bold text-emerald-500/80">
+                                                  {highlight.split(": ")[0]}:
+                                                </span>{" "}
+                                                {highlight
+                                                  .split(": ")
+                                                  .slice(1)
+                                                  .join(": ")}
+                                              </>
+                                            ) : (
+                                              highlight
+                                            )}
                                           </p>
                                         </div>
                                       </motion.div>
@@ -2086,16 +2100,14 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               </div>
 
                               <h2 className="text-4xl font-bold tracking-tighter text-white md:text-5xl xl:text-6xl leading-none">
-                                Let&apos;s build the{" "}
+                                Construyamos algo{" "}
                                 <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8 decoration-2">
-                                  future
+                                  útil.
                                 </span>
-                                .
                               </h2>
 
                               <p className="max-w-md text-sm text-zinc-400 font-mono leading-relaxed">
-                                Handshake ready. Select a protocol to initiate a
-                                direct data link with my system.
+                                Estoy disponible para oportunidades full-time, proyectos freelance y colaboraciones de producto. Si tienes una idea, un equipo o un problema interesante, conversemos.
                               </p>
                             </div>
 
@@ -2104,21 +2116,18 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               {[
                                 {
                                   label: "WHATSAPP",
-                                  cmd: "tel --dial +584148589600",
                                   value: "+58 414 858 9600",
                                   action: "https://wa.me/584148589600",
                                   color: "text-emerald-400",
                                 },
                                 {
                                   label: "GITHUB",
-                                  cmd: "ssh git@github.com:roiner",
                                   value: "github.com/Roiner994",
                                   action: "https://github.com/Roiner994",
                                   color: "text-purple-400",
                                 },
                                 {
                                   label: "LINKEDIN",
-                                  cmd: "connect --relay linkedin",
                                   value: "linkedin.com/in/roiner-hernandez-a6314894",
                                   action:
                                     "https://www.linkedin.com/in/roiner-hernandez-a6314894/",
@@ -2126,7 +2135,6 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                 },
                                 {
                                   label: "MAIL",
-                                  cmd: "sendmail --to roiner@sys",
                                   value: aboutData.email,
                                   action: `mailto:${aboutData.email}`,
                                   color: "text-blue-400",
@@ -2154,9 +2162,6 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                         className={`font-mono text-[9px] font-black tracking-widest ${item.color} bg-white/5 px-1.5 py-0.5 rounded`}
                                       >
                                         {item.label}
-                                      </span>
-                                      <span className="font-mono text-[10px] text-zinc-600 group-hover:text-emerald-500/40 transition-colors">
-                                        {item.cmd}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">

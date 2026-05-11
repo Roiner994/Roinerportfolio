@@ -133,7 +133,7 @@ export const experienceData: ExperienceEntry[] = [
 export const aboutData: AboutData = {
   name: "Roiner Hernandez",
   title: "Ingeniero de Software Full Stack",
-  bio: "Soy Ingeniero de Software Full Stack con casi una década de experiencia diseñando y construyendo productos web y móviles para problemas reales de negocio. Me especializo en transformar contextos ambiguos en soluciones funcionales, conectando interfaces, APIs, bases de datos, automatizaciones e integraciones con IA.Trabajo con mentalidad de producto: no solo implemento pantallas, también pienso en arquitectura, experiencia de usuario, escalabilidad y mantenibilidad.",
+  bio: "Ingeniero de Software Full Stack con casi una década de experiencia diseñando y construyendo productos web y móviles escalables. Especializado en transformar contextos ambiguos en soluciones funcionales, conectando interfaces, APIs, bases de datos, automatizaciones e integraciones con IA.",
   location: "Valencia, Venezuela",
   email: "roiner123@gmail.com",
   specialties: ["Arquitecturas Modernas", "Desarrollo centrado en el producto", "IA & Automación", "Escalabilidad"],
@@ -151,8 +151,8 @@ export const aboutData: AboutData = {
   projects: [
     {
       name: "Flashcardia",
-      description: "App móvil para aprendizaje con flashcards, enfocada en la práctica y retención a largo plazo.",
-      tech: ["React Native", "Firebase", "Algorithms"]
+      description: "Plataforma de aprendizaje con IA diseñada para simplificar la creación y práctica de flashcards.",
+      tech: ["IA aplicada", "React Native", "Supabase"]
     },
     {
       name: "Automatización IA",
@@ -163,8 +163,8 @@ export const aboutData: AboutData = {
 };
 
 export const cvData: CvData = {
-  summaryEs: "Ingeniero de Software Full Stack con más de 8 años de experiencia construyendo soluciones web y móviles escalables. Especializado en transformar problemas ambiguos en productos funcionales de extremo a extremo, conectando interfaces, APIs, bases de datos y lógica de negocio.",
-  summaryEn: "Senior Full Stack Software Engineer with 8+ years of experience building scalable web and mobile products. Skilled at turning complex requirements into end-to-end solutions across frontend, backend, databases, APIs, and AI-powered workflows.",
+  summaryEs: "Ingeniero de Software Full Stack con casi una década de experiencia diseñando y construyendo productos web y móviles escalables. Especializado en transformar contextos ambiguos en soluciones funcionales, conectando interfaces, APIs, bases de datos, automatizaciones e integraciones con IA.",
+  summaryEn: "Senior Full Stack Software Engineer with nearly a decade of experience designing and building scalable web and mobile products. Skilled at turning ambiguous requirements into end-to-end solutions across frontend, backend, databases, APIs, automations, and AI-powered workflows.",
   languages: [
     { label: 'Español', level: 'Nativo' },
     { label: 'English', level: 'B1 - B2' }
@@ -187,19 +187,20 @@ export const projectEntries: ProjectEntry[] = [
   {
     id: 'flashcardia',
     terminalName: 'Flashcardia',
-    displayName: 'Flashcardia AI Mastery',
-    subtitle: 'AI learning ecosystem',
+    displayName: 'Flashcardia',
+    subtitle: 'De tarjetas manuales a práctica activa con IA.',
     category: 'Product',
-    role: 'Product design, UX and AI feature architecture',
-    impact: 'Transforms vocabulary practice into a structured mastery loop with generation, repetition and scored feedback.',
+    role: 'Diseño de producto, UX y arquitectura de funcionalidades con IA.',
+    impact: 'Transforma la práctica de vocabulario en un ciclo estructurado de aprendizaje con generación, repetición y feedback evaluado por IA.',
     presentation: 'media-first',
-    description: 'Ecosistema de aprendizaje impulsado por IA para capturar conocimiento, practicarlo con intención y convertir memoria de corto plazo en dominio de largo plazo.',
+    description: 'Plataforma de aprendizaje con IA que reduce la fricción de crear tarjetas de estudio y convierte la práctica de vocabulario en entrenamiento activo.',
     highlights: [
-      'Genera nuevas flashcards con IA y voz para acelerar la creación de decks.',
-      'Usa repetición espaciada para decidir qué repasar y cuándo hacerlo.',
-      'Challenge Mode evalúa frases, asigna score y entrega feedback contextual.',
+      'Problem: En herramientas como Anki, cada tarjeta debe crearse manualmente, lo que hace que preparar material de estudio sea lento y pesado.',
+      'Solution: Flashcardia genera tarjetas completas con definición, pronunciación y ejemplos de uso, reduciendo la fricción de estudiar.',
+      'Challenge Mode: Modo de práctica activa donde el usuario crea frases propias y recibe feedback de IA, una puntuación de 1 a 10 y ejemplos mejorados.',
+      'Explore: Módulo para descubrir decks públicos, copiarlos y empezar a practicar rápidamente.',
     ],
-    tech: ['React Native', 'AI', 'Voice Input', 'SRS', 'Mobile UX'],
+    tech: ['IA aplicada', 'Language Learning', 'Spaced Repetition', 'AI Feedback', 'Product Design', 'React Native', 'Supabase'],
     links: [
       {
         label: 'LAUNCH_WEB_APPLICATION',
@@ -213,20 +214,22 @@ export const projectEntries: ProjectEntry[] = [
   },
   {
     id: 'autostream',
-    terminalName: 'AutoStream_IA',
+    terminalName: 'Chatbot_AI',
     displayName: 'WhatsApp Commerce Agent',
-    subtitle: 'Prompt-configurable commerce bot',
+    subtitle: 'AGENTE COMERCIAL CONFIGURABLE PARA WHATSAPP',
     category: 'Automation',
-    role: 'Conversational flow design and automation logic',
-    impact: 'Lets a business adapt sales logic, payment validation and responses without rewriting code.',
+    role: 'Automatización comercial con n8n, WhatsApp, reglas dinámicas e IA multimodal.',
+    impact: 'Permite adaptar la lógica de atención y ventas desde un documento, sin reescribir código.',
     presentation: 'media-first',
-    description: 'Bot de WhatsApp configurable por prompt que puede actuar como tienda o asistente de negocio, adaptando sus reglas de respuesta sin tocar código.',
+    description: 'Agente comercial para WhatsApp construido con n8n. Automatiza atención, ventas y registro de pagos a partir de reglas de negocio escritas en lenguaje natural.',
     highlights: [
-      'Interpreta texto, audios e imágenes para sostener una conversación comercial natural.',
-      'Detecta comprobantes de pago, valida la intención y registra la venta para operación diaria.',
-      'La lógica del negocio se redefine con lenguaje natural para cambiar catálogo, tono y políticas.',
+      'Problem: Muchos negocios atienden clientes por WhatsApp de forma manual y dependen de procesos repetitivos para responder consultas, validar pagos y registrar operaciones.',
+      'Solution: El bot centraliza la atención y permite definir la lógica comercial desde un documento editable, sin modificar código.',
+      'Business Rules: El negocio puede cambiar tono, personalidad, catálogo, respuestas, políticas o incluso gestionar distintas tiendas escribiendo nuevas reglas en el documento.',
+      'Media Intelligence: El sistema interpreta mensajes, notas de audio e imágenes de WhatsApp para sostener conversaciones más naturales.',
+      'Payment Tracking: Cuando detecta un comprobante de pago, analiza la imagen, extrae el monto y registra la operación en Excel/Sheets para control diario.',
     ],
-    tech: ['WhatsApp', 'LLMs', 'Payments OCR', 'Automation', 'Sheets'],
+    tech: ['N8N', 'WhatsApp', 'LLMs', 'OCR', 'Speech-to-Text', 'Automatización', 'Excel', 'Prompt Logic'],
     links: [],
     status: {
       label: 'PROMPT_CONFIGURED',
@@ -237,18 +240,20 @@ export const projectEntries: ProjectEntry[] = [
     id: 'ucrop',
     terminalName: 'UCROP_IT',
     displayName: 'ucrop.it Traceability Platform',
-    subtitle: 'Agri traceability and sustainability',
+    subtitle: 'PLATAFORMA B2B DE TRAZABILIDAD AGRÍCOLA',
     category: 'Platform',
-    role: 'Full stack delivery across product, services and operations',
-    impact: 'Connected traceability, field operations and sustainability reporting across web, mobile and backoffice systems.',
+    role: 'Desarrollo full stack de funcionalidades web, mobile, APIs y backoffice para una plataforma agrícola de trazabilidad.',
+    impact: 'Centraliza datos de campo, actividades agrícolas, indicadores ambientales y reportes normativos para compañías y unidades productivas.',
     presentation: 'info-first',
-    description: 'Plataforma de trazabilidad agrícola y sustentabilidad donde participé de punta a punta, desde experiencia de usuario hasta microservicios, despliegues y backoffice.',
+    description: 'Plataforma B2B de trazabilidad agrícola, sostenibilidad y cumplimiento normativo que conecta campos, cultivos, actividades, datos geoespaciales e informes ambientales en un ecosistema web, móvil y backoffice.',
     highlights: [
-      'Construcción de Crop Story, actividades, creación de crops, campos y reportes de producto.',
-      'Creación de campos dibujando polígonos sobre Google Maps para modelar la operación real.',
-      'Integración de trazabilidad y reportes de sustentabilidad conectando frontends, APIs y servicios.',
+      'Traceability Flow: Construcción de flujos para registrar campos, cultivos y actividades, conectándolos con Crop Story y reportes de trazabilidad.',
+      'Geo Intelligence: Creación de campos desde Google Maps o importación KMZ, con soporte para polígonos, imágenes satelitales y análisis histórico del terreno.',
+      'Sustainability: Visualización de indicadores como huella de carbono, huella hídrica y CFT dentro de reportes ambientales asociados al cultivo.',
+      'Compliance: Cálculo y generación de informes para normativas como 2BSvs, EPA y EUDR aplicadas a unidades productivas y compañías agrícolas.',
+      'Delivery Scope: Desarrollo dentro de un equipo multidisciplinario de funcionalidades web, mobile, backoffice, APIs y servicios.',
     ],
-    tech: ['React', 'Next.js', 'Expo', 'NestJS', 'Python', 'Microservices'],
+    tech: ['React', 'Next.js', 'Expo', 'NestJS', 'Python', 'Google Maps', 'KMZ', 'Satellite Data', 'Traceability', 'Sustainability', 'Compliance'],
     links: [
       {
         label: 'EXPLORE_PRODUCT_SITE',
@@ -266,9 +271,11 @@ export const projectEntries: ProjectEntry[] = [
     fallbackVisual: {
       title: 'TRACEABILITY_PIPELINE',
       lines: [
-        'crop_story -> sustainability_report',
-        'field_polygon -> activities -> compliance',
-        'web + mobile + microservices + backoffice',
+        '01_ fields -> crops -> activities',
+        '02_ crop_story -> sustainability_report',
+        '03_ maps + kmz -> satellite_analysis',
+        '04_ productive_units -> compliance_reports',
+        '05_ web + mobile + backoffice + services',
       ],
     },
     focusAreas: 'Crop creation, mapped fields, activity flows and sustainability-linked product reporting.',
@@ -276,20 +283,21 @@ export const projectEntries: ProjectEntry[] = [
   },
   {
     id: 'calai',
-    terminalName: 'CalAI',
+    terminalName: 'Cal_AI',
     displayName: 'Cal AI Nutrition Scanner',
-    subtitle: 'Computer vision nutrition analysis',
+    subtitle: 'APP MOBILE DE REGISTRO NUTRICIONAL CON IA',
     category: 'AI Tool',
-    role: 'AI-assisted nutrition UX and analysis flow',
-    impact: 'Makes calorie and macro estimation fast, editable and conversational from a single food photo.',
+    role: 'UX mobile para registro nutricional, análisis visual y corrección asistida por IA.',
+    impact: 'Reduce la fricción de registrar comidas al convertir una foto en estimaciones editables de calorías y macronutrientes.',
     presentation: 'media-first',
-    description: 'Analizador nutricional por imagen que estima calorías y macronutrientes a partir de una foto, con refinamiento posterior usando prompts conversacionales.',
+    description: 'App mobile de registro nutricional con IA que estima calorías y macronutrientes a partir de una foto, permitiendo ajustar el resultado con correcciones en lenguaje natural.',
     highlights: [
-      'Convierte una imagen de comida en una estimación rápida de calorías, proteínas, carbohidratos y grasas.',
-      'Permite ajustar ingredientes o cantidades con prompts para mejorar precisión sin rehacer el análisis.',
-      'Diseñado para mantener el flujo rápido entre captura, lectura del resultado y corrección asistida.',
+      'Problem: Registrar comidas manualmente suele ser lento, impreciso y difícil de mantener como hábito diario.',
+      'Vision Analysis: Detecta ingredientes, estima porciones, calorías y macronutrientes a partir de una foto tomada con la cámara o importada desde la galería.',
+      'Conversational Refinement: Permite corregir el análisis con lenguaje natural, ajustando ingredientes o cantidades sin rehacer el registro.',
+      'Progress Tracking: Muestra gráficas semanales para comparar consumo, objetivos configurados y patrones de alimentación.',
     ],
-    tech: ['Computer Vision', 'Nutrition AI', 'Prompt Refinement', 'Mobile'],
+    tech: ['React Native', 'Computer Vision', 'LLMs', 'Nutrition AI', 'Data Visualization', 'Mobile UX'],
     links: [],
     status: {
       label: 'VISION_INFERENCE',
