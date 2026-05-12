@@ -4,8 +4,11 @@ import { Terminal, FileText, FolderOpen, Cpu, Zap, Code2, Monitor, Layers, Hash 
 import { NeuralBackground } from './NeuralBackground';
 import { TerminalPanel } from './TerminalPanel';
 import { HeroNameTreatment } from './HeroNameTreatment';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export function HeroVariant3() {
+  const { t } = useLanguage();
+
   return (
     <div className="relative min-h-screen bg-zinc-950 overflow-hidden flex flex-col">
       {/* Large neural network background */}
@@ -34,7 +37,7 @@ export function HeroVariant3() {
               >
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-sm">
                   <Cpu className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm text-emerald-300 font-mono">Neural System Active</span>
+                  <span className="text-sm text-emerald-300 font-mono">{t('SYSTEM_ACTIVE')}</span>
                 </div>
                 <div className="flex items-center gap-2 text-zinc-500 text-sm font-mono">
                   <Zap className="w-4 h-4" />
@@ -54,7 +57,7 @@ export function HeroVariant3() {
                 >
                   <div className="h-px w-12 bg-gradient-to-r from-emerald-500/50 to-transparent" />
                   <p className="text-xl text-zinc-300 font-light">
-                    Ingeniero de Software
+                    {t('HERO_TITLE')}
                   </p>
                   <div className="h-px flex-1 bg-gradient-to-l from-emerald-500/50 to-transparent" />
                 </motion.div>
@@ -67,7 +70,7 @@ export function HeroVariant3() {
                 transition={{ delay: 1.1, duration: 0.8 }}
                 className="text-lg text-zinc-400 leading-relaxed max-w-xl"
               >
-                Me gusta construir productos que resuelvan problemas reales. Combino frontend, backend y criterio de producto para transformar ideas complejas en experiencias simples, útiles y escalables.
+                {t('HERO_SUBTITLE')}
               </motion.p>
 
               {/* Feature highlights - Minimalist version */}
@@ -88,7 +91,7 @@ export function HeroVariant3() {
                       <item.icon className="w-5 h-5 text-emerald-400/70" />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-emerald-500/50 font-mono uppercase tracking-[0.2em] leading-none mb-1">Expertise</span>
+                      <span className="text-[10px] text-emerald-500/50 font-mono uppercase tracking-[0.2em] leading-none mb-1">{t('EXPERTISE')}</span>
                       <span className="text-xs text-zinc-400 font-mono uppercase tracking-wider">{item.label}</span>
                     </div>
                   </motion.div>

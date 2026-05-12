@@ -43,6 +43,7 @@ import {
   type ProjectImage,
   type ProjectLink,
 } from "@/data/portfolioProfile";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { getProjectMedia } from "@/lib/projectMedia";
 import { useIsMobile } from "@/app/components/ui/use-mobile";
 
@@ -141,32 +142,12 @@ type ChatMessage = {
   content: string;
 };
 
-const AI_WELCOME_MESSAGE =
-  "Bienvenido al modo IA. Puedes preguntarme sobre mi experiencia, proyectos, habilidades, disponibilidad y forma de trabajar.";
-const AI_HELP_MESSAGE =
-  "Puedes preguntarme sobre mis habilidades, experiencia, ubicacion, disponibilidad, educacion, proyectos, stack o contacto. Usa clear para limpiar y exit o back para salir del modo ai.";
-const AI_ERROR_MESSAGE =
-  "No pude conectarme con el modo ai en este momento. Revisa la configuracion de OPENROUTER_API_KEY o intenta de nuevo en unos segundos.";
-const AI_LOCAL_SETUP_MESSAGE =
-  "El endpoint /api/chat no esta disponible en este entorno. Para probar el modo ai real en local, inicia la app con `npm run dev:vercel` o `vercel dev`.";
-const AI_FORBIDDEN_MESSAGE =
-  "El endpoint /api/chat devolvio 403 Forbidden. Revisa Vercel Authentication, Deployment Protection o cualquier regla que este bloqueando la funcion.";
-
-const SUGGESTED_QUESTIONS = [
-  "¿Qué tipo de productos ha construido Roiner?",
-  "¿Cuál es su stack principal?",
-  "¿Qué experiencia tiene con IA y automatización?",
-  "¿Qué proyecto muestra mejor su experiencia full stack?",
-  "¿Está disponible para nuevas oportunidades?",
-  "¿Qué valor puede aportar Roiner a tu equipo?",
-];
-
-function createAiWelcomeHistory(): ChatMessage[] {
+function createAiWelcomeHistoryContext(welcomeMessage: string): ChatMessage[] {
   return [
     {
       id: "ai-welcome",
       role: "assistant",
-      content: AI_WELCOME_MESSAGE,
+      content: welcomeMessage,
     },
   ];
 }
@@ -526,12 +507,28 @@ function ProjectMediaPanel({
 }
 
 export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
+  const { t, language, toggleLanguage, data } = useLanguage();
+  const { about: aboutData, cv: cvData, experience: experienceData, projects: projectEntries } = data;
   const isMobile = useIsMobile();
+  const aboutStatusText =
+    aboutData.status === "OPEN_FOR_NEW_PROJECTS"
+      ? t("STATUS_OPEN_TO_NEW_PROJECTS")
+      : aboutData.status;
+
+  const SUGGESTED_QUESTIONS = [
+    t('SUGGESTED_Q1'),
+    t('SUGGESTED_Q2'),
+    t('SUGGESTED_Q3'),
+    t('SUGGESTED_Q4'),
+    t('SUGGESTED_Q5'),
+    t('SUGGESTED_Q6'),
+  ];
+
   const [inputValue, setInputValue] = useState("");
   const [activeView, setActiveView] = useState<TerminalView>("terminal");
   const [terminalMode, setTerminalMode] = useState<TerminalMode>("shell");
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(
-    createAiWelcomeHistory,
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() =>
+    createAiWelcomeHistoryContext(t('AI_WELCOME')),
   );
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState(projectEntries[0].id);
@@ -580,7 +577,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     setActiveView("terminal");
     setIsExpanded(true);
     setInputValue("");
-    setChatHistory(createAiWelcomeHistory());
+    setChatHistory(createAiWelcomeHistoryContext(t('AI_WELCOME')));
   };
 
   const exitAiMode = () => {
@@ -591,7 +588,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
   };
 
   const resetAiConversation = () => {
-    setChatHistory(createAiWelcomeHistory());
+    setChatHistory(createAiWelcomeHistoryContext(t('AI_WELCOME')));
     setInputValue("");
   };
 
@@ -625,7 +622,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     }
 
     if (normalized === "help") {
-      appendSystemMessage(AI_HELP_MESSAGE);
+      appendSystemMessage(t('AI_HELP'));
       setInputValue("");
       return;
     }
@@ -659,6 +656,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
         },
         body: JSON.stringify({
           messages: outgoingHistory,
+          language: language,
         }),
       });
 
@@ -674,15 +672,15 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
         : null;
       const fallbackStatusMessage =
         response.status === 403
-          ? AI_FORBIDDEN_MESSAGE
-          : `El endpoint /api/chat devolvio ${response.status} ${response.statusText || "Error"}.`;
+          ? t('AI_FORBIDDEN')
+          : `${t('AI_ENDPOINT_RETURNED')} ${response.status} ${response.statusText || "Error"}.`;
       const assistantContent =
         data?.message?.content && typeof data.message.content === "string"
           ? data.message.content
           : response.ok
-            ? AI_ERROR_MESSAGE
+            ? t('AI_ERROR')
             : response.status === 404
-              ? AI_LOCAL_SETUP_MESSAGE
+              ? t('AI_LOCAL_SETUP')
               : data?.error && typeof data.error === "string"
                 ? data.error
                 : fallbackStatusMessage;
@@ -701,7 +699,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
         {
           id: `assistant-error-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           role: "assistant",
-          content: AI_ERROR_MESSAGE,
+          content: t('AI_ERROR'),
         },
       ]);
     } finally {
@@ -1073,10 +1071,23 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleLanguage();
+            }}
+            className="flex items-center gap-2 px-2 py-1 rounded border border-zinc-800 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all group/lang"
+          >
+            <Languages className="w-3.5 h-3.5 text-zinc-500 group-hover/lang:text-emerald-400" />
+            <span className="text-[10px] font-mono font-bold text-zinc-400 group-hover/lang:text-emerald-300">
+              {language.toUpperCase()}
+            </span>
+          </button>
+
           {activeView !== "terminal" && (
             <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-500/50 px-2 py-0.5 border border-emerald-500/20 rounded">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-              READ_ONLY_MODE
+              {t('READ_ONLY_MODE')}
             </div>
           )}
           {isExpanded && (
@@ -1117,7 +1128,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                   <div
                     className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] ${isAiMode ? "bg-emerald-400" : "bg-emerald-500"}`}
                   />
-                  QUICK_ACCESS_COMMANDS
+                  {t('QUICK_ACCESS_COMMANDS')}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {commands.map((cmd, i) => {
@@ -1193,7 +1204,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-500/60">
                         <span className="h-1 w-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                        AI_NEURAL_LINK :: ACTIVE
+                        {t('AI_NEURAL_LINK')}
                       </div>
                     </div>
 
@@ -1208,7 +1219,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                         size={12}
                         className="text-zinc-500 transition-colors group-hover:text-emerald-400"
                       />
-                      EXIT_AI_LINK
+                      {t('EXIT_AI_LINK')}
                     </button>
                   </motion.div>
 
@@ -1279,7 +1290,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                         <div className="flex items-center gap-3">
                           <div className="h-px w-6 bg-emerald-500/20" />
                           <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-500/60 font-bold">
-                            PREGUNTAS_SUGERIDAS
+                            {t('SUGGESTED_QUESTIONS_LABEL')}
                           </span>
                         </div>
                         <div className="flex flex-col gap-2">
@@ -1316,11 +1327,11 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <span className="text-emerald-500">
                             ai@neural-link
                           </span>
-                          <span className="text-zinc-500">:: thinking...</span>
+                          <span className="text-zinc-500">:: {t('AI_THINKING')}</span>
                         </div>
                         <div className="text-sm leading-relaxed font-mono text-emerald-400/90">
                           <TypewriterText
-                            text="consultando conocimiento del portfolio..."
+                            text={t('AI_CONSULTING_CONTEXT')}
                             onTick={scrollToBottom}
                           />
                         </div>
@@ -1352,31 +1363,29 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 font-mono">
-                            Digital Guide
+                            {t('DIGITAL_GUIDE')}
                           </span>
                           <div className="w-1 h-1 rounded-full bg-zinc-700" />
                         </div>
                         <div className="text-[9px] font-mono text-zinc-500 uppercase flex gap-3">
                           <span>
-                            Session:{" "}
+                            {t('SESSION')}:{" "}
                             {Math.random()
                               .toString(36)
                               .substring(7)
                               .toUpperCase()}
                           </span>
                           <span>
-                            Last login: {new Date().toLocaleDateString()}
+                            {t('LAST_LOGIN')}: {new Date().toLocaleDateString()}
                           </span>
                         </div>
                       </div>
                       <p className="text-zinc-200 leading-snug">
-                        Welcome to my neural workspace. How can I assist your
-                        exploration today?
+                        {t('WELCOME_WORKSPACE')}
                       </p>
                       <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
-                        System ready. Use the terminal below to navigate or
-                        click a command.
+                        {t('SYSTEM_READY_NAVIGATION')}
                       </div>
                     </div>
                   </motion.div>
@@ -1402,8 +1411,8 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                       disabled={isAiMode && isAiThinking}
                       placeholder={
                         isAiMode
-                          ? "Pregunta sobre habilidades, experiencia, proyectos o disponibilidad..."
-                          : "Escribe lo que quieras aquí..."
+                          ? t('PLACEHOLDER_AI')
+                          : t('PLACEHOLDER_SHELL')
                       }
                       className="w-full bg-transparent border-none outline-none p-0 font-mono text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60"
                       autoFocus
@@ -1525,7 +1534,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                               <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
                                 <span className="text-[10px] text-zinc-500 uppercase font-mono">
-                                  Location
+                                  {t('LABEL_LOCATION')}
                                 </span>
                                 <p className="text-zinc-200 text-xs font-mono">
                                   {aboutData.location}
@@ -1533,7 +1542,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               </div>
                               <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
                                 <span className="text-[10px] text-zinc-500 uppercase font-mono">
-                                  Education
+                                  {t('LABEL_EDUCATION')}
                                 </span>
                                 <p className="text-zinc-200 text-xs font-mono">
                                   {aboutData.education}
@@ -1541,7 +1550,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               </div>
                               <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
                                 <span className="text-[10px] text-zinc-500 uppercase font-mono">
-                                  Born
+                                  {t('LABEL_BORN')}
                                 </span>
                                 <p className="text-zinc-200 text-xs font-mono">
                                   {aboutData.birthDate}
@@ -1549,12 +1558,12 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               </div>
                               <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors col-span-2 sm:col-span-1">
                                 <span className="text-[10px] text-emerald-500/60 uppercase font-mono">
-                                  Status
+                                  {t('LABEL_STATUS')}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
                                   <p className="text-emerald-400 text-xs font-mono">
-                                    {aboutData.status}
+                                    {aboutStatusText}
                                   </p>
                                 </div>
                               </div>
@@ -1567,7 +1576,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <div className="flex items-center gap-4">
                             <div className="h-px flex-1 bg-zinc-800" />
                             <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em]">
-                              Neural_Skill_Matrix
+                              {t('NEURAL_SKILL_MATRIX')}
                             </h3>
                             <div className="h-px flex-1 bg-zinc-800" />
                           </div>
@@ -1585,7 +1594,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                   <div className="flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
                                     <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">
-                                      {category.replace("_", " ")}
+                                      {t(`SKILL_${category.toUpperCase()}`)}
                                     </span>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
@@ -1617,7 +1626,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             </span>
                           </div>
                           <div className="text-[10px] font-mono text-zinc-600">
-                            Retrieving logs from secure-vault-01... [DONE]
+                            {t('SYSTEM_RETRIEVING_LOGS')}
                           </div>
                         </div>
 
@@ -1714,7 +1723,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <div className="border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between bg-zinc-900/20">
                             <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
                               <Terminal className="w-3 h-3 text-emerald-500/50" />
-                              <span>Explorer</span>
+                              <span>{t('EXPLORER')}</span>
                             </div>
                             <div className="flex gap-1.5">
                               <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
@@ -1725,7 +1734,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <div className="flex-1 overflow-y-auto custom-scrollbar p-2 pt-4 space-y-0.5">
                             <div className="px-2 pb-2 flex items-center justify-between">
                               <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
-                                Workspace
+                                {t('WORKSPACE')}
                               </span>
                               <ChevronDown className="w-3 h-3 text-zinc-700" />
                             </div>
@@ -1786,14 +1795,13 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                   $
                                 </span>
                                 <span>
-                                  Presiona{" "}
+                                  {t('PRESS')}{" "}
                                   <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all">
                                     ENTER
                                   </span>{" "}
-                                  para{" "}
                                   {hasNextProject
-                                    ? `abrir ${projectEntries[activeProjectIndex + 1].terminalName}`
-                                    : "ir a contacto"}
+                                    ? `${t('TO_OPEN')} ${projectEntries[activeProjectIndex + 1].terminalName}`
+                                    : t('TO_GO_CONTACT')}
                                 </span>
                                 <div className="h-3.5 w-1.5 bg-white/40 group-hover/prompt:bg-emerald-500" />
                               </div>
@@ -1875,7 +1883,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                     <div className="space-y-4 py-2">
                                       <div className="flex items-center gap-3">
                                         <ProjectSectionLabel>
-                                          External Resources
+                                        {t('PROJECT_EXTERNAL_RESOURCES')}
                                         </ProjectSectionLabel>
                                         <div className="h-px flex-1 bg-zinc-800/50" />
                                       </div>
@@ -1910,7 +1918,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                     </div>
                                     <div className="flex flex-col gap-1.5 pb-4">
                                       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                        CONTEXTO_DEL_PROYECTO
+                                        {t('PROJECT_CONTEXT')}
                                       </span>
                                       <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                         {activeProject.role}
@@ -1928,7 +1936,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                     </div>
                                     <div className="flex flex-col gap-1.5 pb-4">
                                       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                        IMPACTO_DEL_PRODUCTO
+                                        {t('PROJECT_IMPACT')}
                                       </span>
                                       <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                         {activeProject.impact}
@@ -1977,7 +1985,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
                                 <div className="space-y-4">
                                   <ProjectSectionLabel>
-                                    Stack
+                                    {t('PROJECT_STACK')}
                                   </ProjectSectionLabel>
                                   <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
                                     {activeProject.tech.map((tech, index) => (
@@ -2078,7 +2086,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                         </div>
                                         <div className="flex flex-col gap-2 pb-4">
                                           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                            CORE_FOCUS_AREAS
+                                            {t('PROJECT_CORE_FOCUS_AREAS')}
                                           </span>
                                           <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                             {activeProject.focusAreas ??
@@ -2097,7 +2105,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                         </div>
                                         <div className="flex flex-col gap-2 pb-4">
                                           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                            DELIVERY_SCOPE
+                                            {t('PROJECT_DELIVERY_SCOPE')}
                                           </span>
                                           <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                             {activeProject.deliveryScope ??
@@ -2125,8 +2133,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             </span>
                           </div>
                           <div className="text-[10px] font-mono text-zinc-600">
-                            Secure relay online. Preferred channels mounted and
-                            ready... [OK]
+                            {t('SYSTEM_SECURE_RELAY')}
                           </div>
                         </div>
 
@@ -2146,14 +2153,14 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               </div>
 
                               <h2 className="text-4xl font-bold tracking-tighter text-white md:text-5xl xl:text-6xl leading-none">
-                                Construyamos algo{" "}
+                                {t('CONTACT_TITLE')}{" "}
                                 <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8 decoration-2">
-                                  útil.
+                                  {t('CONTACT_TITLE_HIGHLIGHT')}
                                 </span>
                               </h2>
 
                               <p className="max-w-md text-sm text-zinc-400 font-mono leading-relaxed">
-                                Estoy disponible para oportunidades full-time, proyectos freelance y colaboraciones de producto. Si tienes una idea, un equipo o un problema interesante, conversemos.
+                                {t('CONTACT_SUBTITLE')}
                               </p>
                             </div>
 
@@ -2230,7 +2237,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
                                   <div className="flex flex-col items-end shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <span className="font-mono text-[8px] text-emerald-500/60 font-bold uppercase">
-                                      EXECUTE
+                                      {t('EXECUTE')}
                                     </span>
                                     <ArrowUpRight className="w-4 h-4 text-emerald-500" />
                                   </div>
@@ -2251,7 +2258,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             </span>
                           </div>
                           <div className="text-[10px] font-mono text-zinc-600">
-                            Reading system assets... [DONE]
+                            {t('SYSTEM_READING_ASSETS')}
                             <span className="ml-4 text-emerald-500/50">CRC: 0x88F2A</span>
                           </div>
                         </div>
@@ -2280,11 +2287,11 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                   </div>
                                   <div className="space-y-2">
                                     <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase leading-none">
-                                      Curriculum Vitae
+                                      {t('CURRICULUM_VITAE')}
                                     </h2>
                                     <div className="flex flex-wrap items-center gap-3">
                                       <span className="text-emerald-500 font-mono text-[10px] font-bold uppercase tracking-[0.3em]">
-                                        Professional Profile_v8.4
+                                        {t('PROFESSIONAL_PROFILE')}
                                       </span>
                                       <div className="h-px w-8 bg-zinc-800" />
                                       <span className="text-zinc-500 font-mono text-[9px] uppercase">
@@ -2297,7 +2304,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                 {/* Language Proficiency Section */}
                                 <div className="space-y-4 pt-2">
                                   <div className="flex items-center gap-3">
-                                    <ProjectSectionLabel>Language protocols</ProjectSectionLabel>
+                                    <ProjectSectionLabel>{t('LANGUAGE_PROTOCOLS')}</ProjectSectionLabel>
                                     <div className="h-px flex-1 bg-zinc-800/40" />
                                   </div>
                                   <div className="flex flex-wrap gap-3">
@@ -2360,12 +2367,12 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                  <div className="flex items-center justify-between">
                                    <div className="flex items-center gap-2">
                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
-                                     <span className="font-mono text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">Asset Terminal</span>
+                                     <span className="font-mono text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">{t('ASSET_TERMINAL')}</span>
                                    </div>
                                    <span className="font-mono text-[10px] text-zinc-700 font-bold">v1.0.4</span>
                                  </div>
                                  <p className="text-[12px] text-zinc-600 font-mono italic">
-                                   Select manifest to initialize download protocol.
+                                   {t('SELECT_MANIFEST')}
                                  </p>
                                </div>
 
@@ -2392,11 +2399,11 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
                                <div className="grid grid-cols-2 gap-4 pt-2 relative">
                                   <div className="px-4 py-2 bg-black/40 border border-zinc-800 rounded-lg flex items-center justify-between group/meta transition-colors hover:border-zinc-700">
-                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">Format</span>
+                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">{t('FORMAT')}</span>
                                     <span className="text-[10px] text-zinc-400 font-bold font-mono">PDF/A-1</span>
                                   </div>
                                   <div className="px-4 py-2 bg-black/40 border border-zinc-800 rounded-lg flex items-center justify-between group/meta transition-colors hover:border-zinc-700">
-                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">Access</span>
+                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">{t('ACCESS')}</span>
                                     <span className="text-[10px] text-zinc-400 font-bold font-mono">PUBLIC</span>
                                   </div>
                                </div>
@@ -2425,25 +2432,25 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <span>
                             {usesTouchNavigationCopy ? (
                               activeView === "cv" ? (
-                                "Toca aqui para entrar al modo ai"
+                                t('AI_TOUCH_HINT')
                               ) : (
-                                "Toca aqui para ir a la siguiente seccion"
+                                t('TOUCH_NEXT_SECTION')
                               )
                             ) : (
                               <>
-                                Presiona{" "}
+                                {t('PRESS')}{" "}
                                 <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all shadow-[0_0_15px_rgba(255,255,255,0.05)]">
                                   ENTER
                                 </span>{" "}
-                                para{" "}
+                                {t('PARA')}{" "}
                                 {activeView === "cv"
-                                  ? "abrir modo ai"
+                                  ? t('AI_OPEN_HINT')
                                   : viewOrder.indexOf(activeView as any) !==
                                         -1 &&
                                       viewOrder.indexOf(activeView as any) <
                                         viewOrder.length - 1
-                                    ? "continuar"
-                                    : "finalizar"}
+                                    ? t('CONTINUE')
+                                    : t('FINISH')}
                               </>
                             )}
                           </span>
@@ -2471,7 +2478,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
                     {/* Quick Navigation Commands */}
                     <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-800 pt-3 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0 lg:pl-6">
-                      <span className="text-zinc-600 shrink-0">GOTO:</span>
+                      <span className="text-zinc-600 shrink-0">{t('GOTO')}</span>
                       {commands.map((cmd) => (
                         <button
                           key={cmd}

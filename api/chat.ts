@@ -27,17 +27,42 @@ function isChatMessageArray(value: unknown): value is ChatMessage[] {
   });
 }
 
-function buildSystemPrompt() {
+function buildSystemPrompt(language: 'es' | 'en' = 'es') {
+  const prompts = {
+    es: {
+      identity: 'Eres el modo AI del portfolio de Roiner Hernandez.',
+      scope: 'Responde solo sobre su perfil profesional, experiencia, habilidades, proyectos, disponibilidad, CV, ubicación y contacto.',
+      constraint: 'Usa exclusivamente la fuente de verdad suministrada abajo. No inventes datos, fechas, clientes, enlaces, salarios, certificaciones ni experiencias que no aparezcan en el contexto.',
+      outOfScope: 'Si el usuario pregunta algo fuera del portfolio o fuera del contexto disponible, responde de forma amable que este modo AI solo puede hablar sobre Roiner y sus proyectos, e invita a preguntar sobre habilidades, experiencia, proyectos o contacto.',
+      tone: 'Habla principalmente en español, con tono claro, breve y profesional.',
+      contact: 'Si el usuario pide contacto, menciona el email disponible en la fuente de verdad.',
+      status: 'Si el usuario pregunta por disponibilidad, responde con el status indicado en la fuente de verdad.',
+      truth: 'Fuente de verdad:',
+    },
+    en: {
+      identity: "You are the AI mode of Roiner Hernandez's portfolio.",
+      scope: 'Respond only about his professional profile, experience, skills, projects, availability, CV, location, and contact.',
+      constraint: 'Exclusively use the truth source provided below. Do not invent facts, dates, clients, links, salaries, certifications, or experiences that do not appear in the context.',
+      outOfScope: 'If the user asks something outside the portfolio or context available, respond politely that this AI mode can only talk about Roiner and his projects, and invite them to ask about skills, experience, projects, or contact.',
+      tone: 'Speak primarily in English, with a clear, brief, and professional tone.',
+      contact: 'If the user asks for contact, mention the email available in the truth source.',
+      status: 'If the user asks about availability, respond with the status indicated in the truth source.',
+      truth: 'Truth source:',
+    }
+  };
+
+  const p = prompts[language];
+
   return [
-    'Eres el modo AI del portfolio de Roiner Hernandez.',
-    'Responde solo sobre su perfil profesional, experiencia, habilidades, proyectos, disponibilidad, CV, ubicacion y contacto.',
-    'Usa exclusivamente la fuente de verdad suministrada abajo. No inventes datos, fechas, clientes, links, salarios, certificaciones ni experiencias que no aparezcan en el contexto.',
-    'Si el usuario pregunta algo fuera del portfolio o fuera del contexto disponible, responde de forma amable que este modo AI solo puede hablar sobre Roiner y sus proyectos, e invita a preguntar sobre skills, experiencia, proyectos o contacto.',
-    'Habla principalmente en espanol, con tono claro, breve y profesional.',
-    'Si el usuario pide contacto, menciona el email disponible en la fuente de verdad.',
-    'Si el usuario pregunta por disponibilidad, responde con el status indicado en la fuente de verdad.',
-    'Fuente de verdad:',
-    buildPortfolioKnowledgeContext(),
+    p.identity,
+    p.scope,
+    p.constraint,
+    p.outOfScope,
+    p.tone,
+    p.contact,
+    p.status,
+    p.truth,
+    buildPortfolioKnowledgeContext(language),
   ].join('\n\n');
 }
 
@@ -90,7 +115,7 @@ function resolveAppUrl(request: VercelRequest) {
   return vercelUrl ? `https://${vercelUrl}` : '';
 }
 
-async function fetchOpenRouterReply(messages: ChatMessage[], appUrl?: string) {
+async function fetchOpenRouterReply(messages: ChatMessage[], language: 'es' | 'en', appUrl?: string) {
   const apiKey = getEnv('OPENROUTER_API_KEY');
 
   if (!apiKey) {
@@ -117,7 +142,7 @@ async function fetchOpenRouterReply(messages: ChatMessage[], appUrl?: string) {
         messages: [
           {
             role: 'system',
-            content: buildSystemPrompt(),
+            content: buildSystemPrompt(language),
           },
           ...messages,
         ],
@@ -140,14 +165,14 @@ async function fetchOpenRouterReply(messages: ChatMessage[], appUrl?: string) {
         data?.error?.message ||
         data?.message ||
         rawResponse ||
-        'No pude obtener una respuesta del proveedor AI.';
+        (language === 'es' ? 'No pude obtener una respuesta del proveedor AI.' : 'Could not get a response from the AI provider.');
       throw new Error(`OpenRouter request failed (${response.status}): ${errorMessage}`);
     }
 
     const content = data?.choices?.[0]?.message?.content;
 
     if (typeof content !== 'string' || !content.trim()) {
-      throw new Error('El proveedor AI no devolvio contenido util.');
+      throw new Error(language === 'es' ? 'El proveedor AI no devolvio contenido util.' : 'The AI provider did not return useful content.');
     }
 
     return {
@@ -169,9 +194,10 @@ export default async function handler(request: VercelRequest, response: VercelRe
   try {
     const requestBody =
       typeof request.body === 'string'
-        ? safeJsonParse<{ messages?: unknown }>(request.body)
+        ? safeJsonParse<{ messages?: unknown, language?: 'es' | 'en' }>(request.body)
         : request.body;
     const messages = requestBody?.messages;
+    const language = requestBody?.language === 'en' ? 'en' : 'es';
 
     if (!isChatMessageArray(messages) || messages.length === 0) {
       return response.status(400).json({ error: 'Invalid payload. Expected a non-empty messages array.' });
@@ -189,7 +215,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
       return response.status(400).json({ error: 'No valid messages were provided.' });
     }
 
-    const reply = await fetchOpenRouterReply(trimmedMessages, resolveAppUrl(request));
+    const reply = await fetchOpenRouterReply(trimmedMessages, language, resolveAppUrl(request));
 
     return response.status(200).json({
       message: {
