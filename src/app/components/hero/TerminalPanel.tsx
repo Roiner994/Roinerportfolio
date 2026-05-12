@@ -233,7 +233,11 @@ function AnimatedContactAvatar({
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96, y: 0 }}
-      animate={{ opacity: 1, scale: isHovered ? 1.025 : 1, y: isHovered ? -4 : 0 }}
+      animate={{
+        opacity: 1,
+        scale: isHovered ? 1.025 : 1,
+        y: isHovered ? -4 : 0,
+      }}
       transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
       onHoverStart={() => setIsInternallyHovered(true)}
       onHoverEnd={() => setIsInternallyHovered(false)}
@@ -354,7 +358,7 @@ function TerminalLinkButton({
       <span className="text-sm font-mono text-emerald-500 group-hover:text-emerald-400 transition-colors border-b border-transparent group-hover:border-emerald-500/40">
         {formattedLabel}
       </span>
-      
+
       <ArrowUpRight className="h-4 w-4 text-emerald-500 group-hover:text-emerald-400 transition-all transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
     </motion.a>
   );
@@ -416,24 +420,30 @@ function ProjectMediaPanel({
           {/* Loading indicator */}
           <AnimatePresence>
             {isImageLoading && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 z-0 flex items-center justify-center bg-zinc-950/20 backdrop-blur-sm"
               >
                 <div className="flex flex-col items-center gap-4">
-                  <motion.div 
-                    animate={{ 
+                  <motion.div
+                    animate={{
                       scale: [1, 1.1, 1],
-                      opacity: [0.3, 0.6, 0.3] 
+                      opacity: [0.3, 0.6, 0.3],
                     }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
                     className="w-16 h-16 rounded-full border-2 border-emerald-500/20 flex items-center justify-center"
                   >
                     <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30" />
                   </motion.div>
-                  <span className="font-mono text-[10px] text-emerald-500/40 uppercase tracking-widest">Loading Media...</span>
+                  <span className="font-mono text-[10px] text-emerald-500/40 uppercase tracking-widest">
+                    Loading Media...
+                  </span>
                 </div>
               </motion.div>
             )}
@@ -508,7 +518,12 @@ function ProjectMediaPanel({
 
 export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
   const { t, language, toggleLanguage, data } = useLanguage();
-  const { about: aboutData, cv: cvData, experience: experienceData, projects: projectEntries } = data;
+  const {
+    about: aboutData,
+    cv: cvData,
+    experience: experienceData,
+    projects: projectEntries,
+  } = data;
   const isMobile = useIsMobile();
   const aboutStatusText =
     aboutData.status === "OPEN_FOR_NEW_PROJECTS"
@@ -516,19 +531,19 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
       : aboutData.status;
 
   const SUGGESTED_QUESTIONS = [
-    t('SUGGESTED_Q1'),
-    t('SUGGESTED_Q2'),
-    t('SUGGESTED_Q3'),
-    t('SUGGESTED_Q4'),
-    t('SUGGESTED_Q5'),
-    t('SUGGESTED_Q6'),
+    t("SUGGESTED_Q1"),
+    t("SUGGESTED_Q2"),
+    t("SUGGESTED_Q3"),
+    t("SUGGESTED_Q4"),
+    t("SUGGESTED_Q5"),
+    t("SUGGESTED_Q6"),
   ];
 
   const [inputValue, setInputValue] = useState("");
   const [activeView, setActiveView] = useState<TerminalView>("terminal");
   const [terminalMode, setTerminalMode] = useState<TerminalMode>("shell");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() =>
-    createAiWelcomeHistoryContext(t('AI_WELCOME')),
+    createAiWelcomeHistoryContext(t("AI_WELCOME")),
   );
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState(projectEntries[0].id);
@@ -577,7 +592,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     setActiveView("terminal");
     setIsExpanded(true);
     setInputValue("");
-    setChatHistory(createAiWelcomeHistoryContext(t('AI_WELCOME')));
+    setChatHistory(createAiWelcomeHistoryContext(t("AI_WELCOME")));
   };
 
   const exitAiMode = () => {
@@ -588,7 +603,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
   };
 
   const resetAiConversation = () => {
-    setChatHistory(createAiWelcomeHistoryContext(t('AI_WELCOME')));
+    setChatHistory(createAiWelcomeHistoryContext(t("AI_WELCOME")));
     setInputValue("");
   };
 
@@ -622,7 +637,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     }
 
     if (normalized === "help") {
-      appendSystemMessage(t('AI_HELP'));
+      appendSystemMessage(t("AI_HELP"));
       setInputValue("");
       return;
     }
@@ -672,15 +687,15 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
         : null;
       const fallbackStatusMessage =
         response.status === 403
-          ? t('AI_FORBIDDEN')
-          : `${t('AI_ENDPOINT_RETURNED')} ${response.status} ${response.statusText || "Error"}.`;
+          ? t("AI_FORBIDDEN")
+          : `${t("AI_ENDPOINT_RETURNED")} ${response.status} ${response.statusText || "Error"}.`;
       const assistantContent =
         data?.message?.content && typeof data.message.content === "string"
           ? data.message.content
           : response.ok
-            ? t('AI_ERROR')
+            ? t("AI_ERROR")
             : response.status === 404
-              ? t('AI_LOCAL_SETUP')
+              ? t("AI_LOCAL_SETUP")
               : data?.error && typeof data.error === "string"
                 ? data.error
                 : fallbackStatusMessage;
@@ -699,7 +714,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
         {
           id: `assistant-error-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           role: "assistant",
-          content: t('AI_ERROR'),
+          content: t("AI_ERROR"),
         },
       ]);
     } finally {
@@ -1002,7 +1017,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
       }}
       onClick={handleTerminalClick}
       className={`
-          backdrop-blur-xl border overflow-hidden cursor-text flex flex-col w-full
+          backdrop-blur-xl border overflow-hidden cursor-text flex flex-col w-full min-w-0
           ${usesFullscreenExpandedLayout ? "h-screen" : isExpanded ? "min-h-screen" : "h-full"}
           ${variant === "floating" && !isExpanded ? "shadow-2xl shadow-emerald-500/10" : ""}
           ${variant === "centered" && !isExpanded ? "max-w-4xl mx-auto" : ""}
@@ -1019,8 +1034,8 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
       />
 
       {/* Terminal header */}
-      <div className="relative border-b border-zinc-800 px-5 py-3 flex items-center justify-between bg-black/40 flex-shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="relative flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-black/40 px-3 py-3 sm:flex-nowrap sm:px-5">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="flex gap-2 group/controls">
             <button
               onClick={(e) => {
@@ -1059,9 +1074,9 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
               />
             </button>
           </div>
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Terminal className="w-4 h-4" />
-            <span className="text-xs font-mono tracking-tight">
+          <div className="flex min-w-0 items-center gap-2 text-zinc-400">
+            <Terminal className="h-4 w-4 shrink-0" />
+            <span className="truncate text-[11px] font-mono tracking-tight sm:text-xs">
               {activeView === "terminal"
                 ? isAiMode
                   ? "roiner@workspace:~/ai"
@@ -1070,7 +1085,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-4">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -1085,9 +1100,9 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
           </button>
 
           {activeView !== "terminal" && (
-            <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-500/50 px-2 py-0.5 border border-emerald-500/20 rounded">
+            <div className="hidden items-center gap-2 rounded border border-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-500/50 sm:flex">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-              {t('READ_ONLY_MODE')}
+              {t("READ_ONLY_MODE")}
             </div>
           )}
           {isExpanded && (
@@ -1121,16 +1136,16 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="p-6 font-mono text-sm flex flex-col gap-6 h-full"
+              className="p-4 sm:p-6 font-mono text-sm flex flex-col gap-5 sm:gap-6 h-full min-w-0"
             >
-              <div className="space-y-4">
-                <div className="text-[10px] font-mono text-zinc-400 flex items-center gap-2 uppercase tracking-[0.2em]">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="text-[9px] sm:text-[10px] font-mono text-zinc-400 flex items-center gap-2 uppercase tracking-[0.18em] sm:tracking-[0.2em]">
                   <div
                     className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] ${isAiMode ? "bg-emerald-400" : "bg-emerald-500"}`}
                   />
-                  {t('QUICK_ACCESS_COMMANDS')}
+                  {t("QUICK_ACCESS_COMMANDS")}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
                   {commands.map((cmd, i) => {
                     const isActiveCommand =
                       (cmd === "ai" && isAiMode) ||
@@ -1175,7 +1190,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           handleCommand(cmd);
                         }}
                         className={`
-                            px-2 py-3 border transition-all text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-center
+                            px-2 py-2.5 sm:py-3 border transition-all text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-[0.16em] sm:tracking-[0.2em] text-center
                             ${
                               isActiveCommand
                                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[3px_3px_0px_rgba(16,185,129,0.18)]"
@@ -1195,7 +1210,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
               </div>
 
               {isAiMode ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-4">
+                <div className="flex min-h-0 flex-1 flex-col gap-4 min-w-0">
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -1204,7 +1219,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-500/60">
                         <span className="h-1 w-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                        {t('AI_NEURAL_LINK')}
+                        {t("AI_NEURAL_LINK")}
                       </div>
                     </div>
 
@@ -1219,7 +1234,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                         size={12}
                         className="text-zinc-500 transition-colors group-hover:text-emerald-400"
                       />
-                      {t('EXIT_AI_LINK')}
+                      {t("EXIT_AI_LINK")}
                     </button>
                   </motion.div>
 
@@ -1290,7 +1305,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                         <div className="flex items-center gap-3">
                           <div className="h-px w-6 bg-emerald-500/20" />
                           <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-500/60 font-bold">
-                            {t('SUGGESTED_QUESTIONS_LABEL')}
+                            {t("SUGGESTED_QUESTIONS_LABEL")}
                           </span>
                         </div>
                         <div className="flex flex-col gap-2">
@@ -1327,11 +1342,13 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <span className="text-emerald-500">
                             ai@neural-link
                           </span>
-                          <span className="text-zinc-500">:: {t('AI_THINKING')}</span>
+                          <span className="text-zinc-500">
+                            :: {t("AI_THINKING")}
+                          </span>
                         </div>
                         <div className="text-sm leading-relaxed font-mono text-emerald-400/90">
                           <TypewriterText
-                            text={t('AI_CONSULTING_CONTEXT')}
+                            text={t("AI_CONSULTING_CONTEXT")}
                             onTick={scrollToBottom}
                           />
                         </div>
@@ -1340,11 +1357,11 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 min-w-0">
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="flex items-start gap-4 p-5 bg-emerald-500/[0.03] backdrop-blur-md rounded-xl border border-emerald-500/10 relative overflow-hidden group"
+                    className="flex flex-col sm:flex-row items-start gap-4 p-4 sm:p-5 bg-emerald-500/[0.03] backdrop-blur-md rounded-xl border border-emerald-500/10 relative overflow-hidden group"
                   >
                     <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:100%_4px] opacity-20" />
 
@@ -1359,33 +1376,33 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                       </div>
                     </div>
 
-                    <div className="space-y-2 relative z-10">
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <div className="space-y-2 relative z-10 min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 font-mono">
-                            {t('DIGITAL_GUIDE')}
+                          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 font-mono">
+                            {t("DIGITAL_GUIDE")}
                           </span>
                           <div className="w-1 h-1 rounded-full bg-zinc-700" />
                         </div>
-                        <div className="text-[9px] font-mono text-zinc-500 uppercase flex gap-3">
-                          <span>
-                            {t('SESSION')}:{" "}
+                        <div className="text-[8px] sm:text-[9px] font-mono text-zinc-500 uppercase flex flex-wrap gap-x-3 gap-y-1">
+                          <span className="whitespace-nowrap">
+                            {t("SESSION")}:{" "}
                             {Math.random()
                               .toString(36)
                               .substring(7)
                               .toUpperCase()}
                           </span>
-                          <span>
-                            {t('LAST_LOGIN')}: {new Date().toLocaleDateString()}
+                          <span className="whitespace-nowrap">
+                            {t("LAST_LOGIN")}: {new Date().toLocaleDateString()}
                           </span>
                         </div>
                       </div>
-                      <p className="text-zinc-200 leading-snug">
-                        {t('WELCOME_WORKSPACE')}
+                      <p className="text-zinc-200 leading-snug text-[15px] sm:text-base max-w-prose">
+                        {t("WELCOME_WORKSPACE")}
                       </p>
-                      <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
+                      <div className="flex items-start gap-1.5 text-[9px] sm:text-[10px] text-zinc-500 font-mono max-w-prose">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
-                        {t('SYSTEM_READY_NAVIGATION')}
+                        {t("SYSTEM_READY_NAVIGATION")}
                       </div>
                     </div>
                   </motion.div>
@@ -1393,8 +1410,8 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
               )}
 
               {/* Interactive Terminal Input (Bottom) */}
-              <div className="mt-auto pb-8 pt-6">
-                <div className="flex items-center gap-3 text-white transition-colors px-1">
+              <div className="mt-auto pb-6 pt-4 sm:pb-8 sm:pt-6">
+                <div className="flex items-center gap-3 text-white transition-colors px-1 min-w-0">
                   <div className="flex items-center shrink-0 text-sm font-mono font-bold text-white/40">
                     <span>$</span>
                   </div>
@@ -1410,11 +1427,9 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                       autoComplete="off"
                       disabled={isAiMode && isAiThinking}
                       placeholder={
-                        isAiMode
-                          ? t('PLACEHOLDER_AI')
-                          : t('PLACEHOLDER_SHELL')
+                        isAiMode ? t("PLACEHOLDER_AI") : t("PLACEHOLDER_SHELL")
                       }
-                      className="w-full bg-transparent border-none outline-none p-0 font-mono text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60"
+                      className="w-full bg-transparent border-none outline-none p-0 font-mono text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60 min-w-0"
                       autoFocus
                     />
                     <motion.div
@@ -1510,13 +1525,13 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                 </div>
                                 <div className="relative min-h-[15rem]">
                                   <p className="text-xl text-zinc-300 leading-relaxed font-light whitespace-pre-wrap">
-                                    {`"${aboutData.bio}"`.slice(
+                                    {`${aboutData.bio}`.slice(
                                       0,
                                       aboutTypedLength,
                                     )}
                                   </p>
                                   {aboutTypedLength <
-                                    `"${aboutData.bio}"`.length && (
+                                    `${aboutData.bio}`.length && (
                                     <motion.span
                                       animate={{ opacity: [1, 0, 1] }}
                                       transition={{
@@ -1534,7 +1549,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                               <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
                                 <span className="text-[10px] text-zinc-500 uppercase font-mono">
-                                  {t('LABEL_LOCATION')}
+                                  {t("LABEL_LOCATION")}
                                 </span>
                                 <p className="text-zinc-200 text-xs font-mono">
                                   {aboutData.location}
@@ -1542,27 +1557,19 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               </div>
                               <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
                                 <span className="text-[10px] text-zinc-500 uppercase font-mono">
-                                  {t('LABEL_EDUCATION')}
+                                  {t("LABEL_EDUCATION")}
                                 </span>
                                 <p className="text-zinc-200 text-xs font-mono">
                                   {aboutData.education}
                                 </p>
                               </div>
-                              <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
-                                <span className="text-[10px] text-zinc-500 uppercase font-mono">
-                                  {t('LABEL_BORN')}
-                                </span>
-                                <p className="text-zinc-200 text-xs font-mono">
-                                  {aboutData.birthDate}
-                                </p>
-                              </div>
-                              <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors col-span-2 sm:col-span-1">
-                                <span className="text-[10px] text-emerald-500/60 uppercase font-mono">
-                                  {t('LABEL_STATUS')}
+                              <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-1 col-span-2 sm:col-span-1">
+                                <span className="text-[10px] text-emerald-500/70 uppercase font-mono">
+                                  {t("LABEL_STATUS")}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
-                                  <p className="text-emerald-400 text-xs font-mono">
+                                  <p className="text-emerald-300 text-xs font-mono">
                                     {aboutStatusText}
                                   </p>
                                 </div>
@@ -1576,7 +1583,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <div className="flex items-center gap-4">
                             <div className="h-px flex-1 bg-zinc-800" />
                             <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em]">
-                              {t('NEURAL_SKILL_MATRIX')}
+                              {t("NEURAL_SKILL_MATRIX")}
                             </h3>
                             <div className="h-px flex-1 bg-zinc-800" />
                           </div>
@@ -1626,7 +1633,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             </span>
                           </div>
                           <div className="text-[10px] font-mono text-zinc-600">
-                            {t('SYSTEM_RETRIEVING_LOGS')}
+                            {t("SYSTEM_RETRIEVING_LOGS")}
                           </div>
                         </div>
 
@@ -1723,7 +1730,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <div className="border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between bg-zinc-900/20">
                             <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
                               <Terminal className="w-3 h-3 text-emerald-500/50" />
-                              <span>{t('EXPLORER')}</span>
+                              <span>{t("EXPLORER")}</span>
                             </div>
                             <div className="flex gap-1.5">
                               <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
@@ -1734,7 +1741,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <div className="flex-1 overflow-y-auto custom-scrollbar p-2 pt-4 space-y-0.5">
                             <div className="px-2 pb-2 flex items-center justify-between">
                               <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
-                                {t('WORKSPACE')}
+                                {t("WORKSPACE")}
                               </span>
                               <ChevronDown className="w-3 h-3 text-zinc-700" />
                             </div>
@@ -1795,13 +1802,13 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                   $
                                 </span>
                                 <span>
-                                  {t('PRESS')}{" "}
+                                  {t("PRESS")}{" "}
                                   <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all">
                                     ENTER
                                   </span>{" "}
                                   {hasNextProject
-                                    ? `${t('TO_OPEN')} ${projectEntries[activeProjectIndex + 1].terminalName}`
-                                    : t('TO_GO_CONTACT')}
+                                    ? `${t("TO_OPEN")} ${projectEntries[activeProjectIndex + 1].terminalName}`
+                                    : t("TO_GO_CONTACT")}
                                 </span>
                                 <div className="h-3.5 w-1.5 bg-white/40 group-hover/prompt:bg-emerald-500" />
                               </div>
@@ -1883,7 +1890,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                     <div className="space-y-4 py-2">
                                       <div className="flex items-center gap-3">
                                         <ProjectSectionLabel>
-                                        {t('PROJECT_EXTERNAL_RESOURCES')}
+                                          {t("PROJECT_EXTERNAL_RESOURCES")}
                                         </ProjectSectionLabel>
                                         <div className="h-px flex-1 bg-zinc-800/50" />
                                       </div>
@@ -1918,7 +1925,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                     </div>
                                     <div className="flex flex-col gap-1.5 pb-4">
                                       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                        {t('PROJECT_CONTEXT')}
+                                        {t("PROJECT_CONTEXT")}
                                       </span>
                                       <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                         {activeProject.role}
@@ -1936,7 +1943,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                     </div>
                                     <div className="flex flex-col gap-1.5 pb-4">
                                       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                        {t('PROJECT_IMPACT')}
+                                        {t("PROJECT_IMPACT")}
                                       </span>
                                       <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                         {activeProject.impact}
@@ -1985,7 +1992,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
                                 <div className="space-y-4">
                                   <ProjectSectionLabel>
-                                    {t('PROJECT_STACK')}
+                                    {t("PROJECT_STACK")}
                                   </ProjectSectionLabel>
                                   <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
                                     {activeProject.tech.map((tech, index) => (
@@ -2086,7 +2093,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                         </div>
                                         <div className="flex flex-col gap-2 pb-4">
                                           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                            {t('PROJECT_CORE_FOCUS_AREAS')}
+                                            {t("PROJECT_CORE_FOCUS_AREAS")}
                                           </span>
                                           <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                             {activeProject.focusAreas ??
@@ -2105,7 +2112,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                         </div>
                                         <div className="flex flex-col gap-2 pb-4">
                                           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                            {t('PROJECT_DELIVERY_SCOPE')}
+                                            {t("PROJECT_DELIVERY_SCOPE")}
                                           </span>
                                           <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
                                             {activeProject.deliveryScope ??
@@ -2133,7 +2140,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             </span>
                           </div>
                           <div className="text-[10px] font-mono text-zinc-600">
-                            {t('SYSTEM_SECURE_RELAY')}
+                            {t("SYSTEM_SECURE_RELAY")}
                           </div>
                         </div>
 
@@ -2153,14 +2160,14 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               </div>
 
                               <h2 className="text-4xl font-bold tracking-tighter text-white md:text-5xl xl:text-6xl leading-none">
-                                {t('CONTACT_TITLE')}{" "}
+                                {t("CONTACT_TITLE")}{" "}
                                 <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8 decoration-2">
-                                  {t('CONTACT_TITLE_HIGHLIGHT')}
+                                  {t("CONTACT_TITLE_HIGHLIGHT")}
                                 </span>
                               </h2>
 
                               <p className="max-w-md text-sm text-zinc-400 font-mono leading-relaxed">
-                                {t('CONTACT_SUBTITLE')}
+                                {t("CONTACT_SUBTITLE")}
                               </p>
                             </div>
 
@@ -2181,7 +2188,8 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                 },
                                 {
                                   label: "LINKEDIN",
-                                  value: "linkedin.com/in/roiner-hernandez-a6314894",
+                                  value:
+                                    "linkedin.com/in/roiner-hernandez-a6314894",
                                   action:
                                     "https://www.linkedin.com/in/roiner-hernandez-a6314894/",
                                   color: "text-blue-400",
@@ -2237,7 +2245,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
                                   <div className="flex flex-col items-end shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <span className="font-mono text-[8px] text-emerald-500/60 font-bold uppercase">
-                                      {t('EXECUTE')}
+                                      {t("EXECUTE")}
                                     </span>
                                     <ArrowUpRight className="w-4 h-4 text-emerald-500" />
                                   </div>
@@ -2258,8 +2266,10 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             </span>
                           </div>
                           <div className="text-[10px] font-mono text-zinc-600">
-                            {t('SYSTEM_READING_ASSETS')}
-                            <span className="ml-4 text-emerald-500/50">CRC: 0x88F2A</span>
+                            {t("SYSTEM_READING_ASSETS")}
+                            <span className="ml-4 text-emerald-500/50">
+                              CRC: 0x88F2A
+                            </span>
                           </div>
                         </div>
 
@@ -2287,11 +2297,11 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                   </div>
                                   <div className="space-y-2">
                                     <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase leading-none">
-                                      {t('CURRICULUM_VITAE')}
+                                      {t("CURRICULUM_VITAE")}
                                     </h2>
                                     <div className="flex flex-wrap items-center gap-3">
                                       <span className="text-emerald-500 font-mono text-[10px] font-bold uppercase tracking-[0.3em]">
-                                        {t('PROFESSIONAL_PROFILE')}
+                                        {t("PROFESSIONAL_PROFILE")}
                                       </span>
                                       <div className="h-px w-8 bg-zinc-800" />
                                       <span className="text-zinc-500 font-mono text-[9px] uppercase">
@@ -2304,19 +2314,27 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                 {/* Language Proficiency Section */}
                                 <div className="space-y-4 pt-2">
                                   <div className="flex items-center gap-3">
-                                    <ProjectSectionLabel>{t('LANGUAGE_PROTOCOLS')}</ProjectSectionLabel>
+                                    <ProjectSectionLabel>
+                                      {t("LANGUAGE_PROTOCOLS")}
+                                    </ProjectSectionLabel>
                                     <div className="h-px flex-1 bg-zinc-800/40" />
                                   </div>
                                   <div className="flex flex-wrap gap-3">
                                     {cvData.languages.map((lang, idx) => (
-                                      <div 
+                                      <div
                                         key={idx}
                                         className="flex items-center gap-3 px-4 py-2 bg-black/40 border border-zinc-800 rounded-xl hover:border-emerald-500/30 transition-colors group/lang"
                                       >
                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/30 group-hover/lang:bg-emerald-500 transition-colors" />
-                                        <span className="font-mono text-xs text-zinc-300">{lang.label}</span>
-                                        <span className="text-zinc-700 font-mono text-[10px]">::</span>
-                                        <span className="font-mono text-[10px] font-bold text-emerald-500/60 group-hover/lang:text-emerald-500 transition-colors uppercase tracking-widest">{lang.level}</span>
+                                        <span className="font-mono text-xs text-zinc-300">
+                                          {lang.label}
+                                        </span>
+                                        <span className="text-zinc-700 font-mono text-[10px]">
+                                          ::
+                                        </span>
+                                        <span className="font-mono text-[10px] font-bold text-emerald-500/60 group-hover/lang:text-emerald-500 transition-colors uppercase tracking-widest">
+                                          {lang.level}
+                                        </span>
                                       </div>
                                     ))}
                                   </div>
@@ -2358,58 +2376,69 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
                           <div className="space-y-8">
                             <div className="space-y-6">
-                             {/* Download panel */}
-                             <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-6 relative overflow-hidden group/actions">
+                              {/* Download panel */}
+                              <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-6 relative overflow-hidden group/actions">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.05),transparent_40%)]" />
 
-                               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.05),transparent_40%)]" />
-                               
-                               <div className="space-y-3 relative">
-                                 <div className="flex items-center justify-between">
-                                   <div className="flex items-center gap-2">
-                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
-                                     <span className="font-mono text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">{t('ASSET_TERMINAL')}</span>
-                                   </div>
-                                   <span className="font-mono text-[10px] text-zinc-700 font-bold">v1.0.4</span>
-                                 </div>
-                                 <p className="text-[12px] text-zinc-600 font-mono italic">
-                                   {t('SELECT_MANIFEST')}
-                                 </p>
-                               </div>
+                                <div className="space-y-3 relative">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
+                                      <span className="font-mono text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">
+                                        {t("ASSET_TERMINAL")}
+                                      </span>
+                                    </div>
+                                    <span className="font-mono text-[10px] text-zinc-700 font-bold">
+                                      v1.0.4
+                                    </span>
+                                  </div>
+                                  <p className="text-[12px] text-zinc-600 font-mono italic">
+                                    {t("SELECT_MANIFEST")}
+                                  </p>
+                                </div>
 
-                               <div className="space-y-4 relative">
-                                 {cvData.downloads.map((file, i) => (
-                                   <a
-                                     key={file.href}
-                                     href={file.href}
-                                     download
-                                     className="group/dl block relative"
-                                   >
-                                     <div className="flex items-center justify-between px-5 py-3 bg-black/40 border border-zinc-800 rounded-xl group-hover/dl:border-emerald-500/50 group-hover/dl:bg-emerald-500/[0.02] transition-all duration-300">
-                                       <div className="flex items-center gap-4">
+                                <div className="space-y-4 relative">
+                                  {cvData.downloads.map((file, i) => (
+                                    <a
+                                      key={file.href}
+                                      href={file.href}
+                                      download
+                                      className="group/dl block relative"
+                                    >
+                                      <div className="flex items-center justify-between px-5 py-3 bg-black/40 border border-zinc-800 rounded-xl group-hover/dl:border-emerald-500/50 group-hover/dl:bg-emerald-500/[0.02] transition-all duration-300">
+                                        <div className="flex items-center gap-4">
                                           <Download className="w-4 h-4 text-zinc-600 group-hover/dl:text-emerald-500 transition-colors" />
                                           <span className="font-mono text-xs font-bold text-zinc-400 group-hover/dl:text-emerald-500 uppercase tracking-widest">
                                             {file.label}
                                           </span>
-                                       </div>
-                                       <ArrowUpRight className="w-4 h-4 text-zinc-800 group-hover/dl:text-emerald-500 transition-all" />
-                                     </div>
-                                   </a>
-                                 ))}
-                               </div>
+                                        </div>
+                                        <ArrowUpRight className="w-4 h-4 text-zinc-800 group-hover/dl:text-emerald-500 transition-all" />
+                                      </div>
+                                    </a>
+                                  ))}
+                                </div>
 
-                               <div className="grid grid-cols-2 gap-4 pt-2 relative">
+                                <div className="grid grid-cols-2 gap-4 pt-2 relative">
                                   <div className="px-4 py-2 bg-black/40 border border-zinc-800 rounded-lg flex items-center justify-between group/meta transition-colors hover:border-zinc-700">
-                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">{t('FORMAT')}</span>
-                                    <span className="text-[10px] text-zinc-400 font-bold font-mono">PDF/A-1</span>
+                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+                                      {t("FORMAT")}
+                                    </span>
+                                    <span className="text-[10px] text-zinc-400 font-bold font-mono">
+                                      PDF/A-1
+                                    </span>
                                   </div>
                                   <div className="px-4 py-2 bg-black/40 border border-zinc-800 rounded-lg flex items-center justify-between group/meta transition-colors hover:border-zinc-700">
-                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">{t('ACCESS')}</span>
-                                    <span className="text-[10px] text-zinc-400 font-bold font-mono">PUBLIC</span>
+                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+                                      {t("ACCESS")}
+                                    </span>
+                                    <span className="text-[10px] text-zinc-400 font-bold font-mono">
+                                      PUBLIC
+                                    </span>
                                   </div>
-                               </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
                         </div>
                       </div>
                     )}
@@ -2432,25 +2461,25 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                           <span>
                             {usesTouchNavigationCopy ? (
                               activeView === "cv" ? (
-                                t('AI_TOUCH_HINT')
+                                t("AI_TOUCH_HINT")
                               ) : (
-                                t('TOUCH_NEXT_SECTION')
+                                t("TOUCH_NEXT_SECTION")
                               )
                             ) : (
                               <>
-                                {t('PRESS')}{" "}
+                                {t("PRESS")}{" "}
                                 <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all shadow-[0_0_15px_rgba(255,255,255,0.05)]">
                                   ENTER
                                 </span>{" "}
-                                {t('PARA')}{" "}
+                                {t("PARA")}{" "}
                                 {activeView === "cv"
-                                  ? t('AI_OPEN_HINT')
+                                  ? t("AI_OPEN_HINT")
                                   : viewOrder.indexOf(activeView as any) !==
                                         -1 &&
                                       viewOrder.indexOf(activeView as any) <
                                         viewOrder.length - 1
-                                    ? t('CONTINUE')
-                                    : t('FINISH')}
+                                    ? t("CONTINUE")
+                                    : t("FINISH")}
                               </>
                             )}
                           </span>
@@ -2466,7 +2495,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
               <div className="border-t border-zinc-800/50 bg-black/60 px-4 py-3 font-mono text-[10px] sm:px-6">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <div className="flex gap-4 text-zinc-500">
+                    <div className="flex gap-4 text-zinc-500 text-[9px] sm:text-[10px]">
                       <div className="flex items-center gap-1.5">
                         <span className="text-emerald-500/50">L</span>{" "}
                         {activeView === "about" ? "1" : "124"}
@@ -2478,7 +2507,9 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
                     {/* Quick Navigation Commands */}
                     <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-800 pt-3 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0 lg:pl-6">
-                      <span className="text-zinc-600 shrink-0">{t('GOTO')}</span>
+                      <span className="text-zinc-600 shrink-0">
+                        {t("GOTO")}
+                      </span>
                       {commands.map((cmd) => (
                         <button
                           key={cmd}

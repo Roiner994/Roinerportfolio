@@ -8,7 +8,7 @@ import { LanguageProvider } from '../lib/i18n/LanguageContext';
 export default function App() {
   return (
     <LanguageProvider>
-      <div className="bg-zinc-950 text-zinc-100 selection:bg-emerald-500/30">
+      <div className="overflow-x-hidden bg-zinc-950 text-zinc-100 selection:bg-emerald-500/30">
         <TerminalOverlay />
         <main>
           <HeroVariant3 />

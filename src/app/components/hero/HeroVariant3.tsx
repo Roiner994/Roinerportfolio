@@ -10,7 +10,7 @@ export function HeroVariant3() {
   const { t } = useLanguage();
 
   return (
-    <div className="relative min-h-screen bg-zinc-950 overflow-hidden flex flex-col">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden overflow-y-hidden bg-zinc-950">
       {/* Large neural network background */}
       <NeuralBackground />
 
@@ -23,23 +23,23 @@ export function HeroVariant3() {
       <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[size:100px_100px]" />
 
       {/* Main content */}
-      <div className="relative z-10 flex-1 flex flex-col max-w-7xl mx-auto px-6 w-full">
-        <div className="flex-1 flex items-center">
-          <div className="grid lg:grid-cols-12 gap-12 items-center w-full">
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 sm:px-6">
+        <div className="flex flex-1 items-start py-10 sm:py-12 lg:items-center">
+          <div className="grid w-full items-center gap-10 lg:grid-cols-12 lg:gap-12">
             {/* Left side - Text content (spans 6 columns) */}
-            <div className="lg:col-span-6 space-y-8">
+            <div className="min-w-0 space-y-6 sm:space-y-8 lg:col-span-6">
               {/* System status */}
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="flex items-center gap-4"
+                className="flex flex-wrap items-center gap-3 sm:gap-4"
               >
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-sm">
                   <Cpu className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm text-emerald-300 font-mono">{t('SYSTEM_ACTIVE')}</span>
+                  <span className="text-xs text-emerald-300 font-mono sm:text-sm">{t('SYSTEM_ACTIVE')}</span>
                 </div>
-                <div className="flex items-center gap-2 text-zinc-500 text-sm font-mono">
+                <div className="flex items-center gap-2 text-xs font-mono text-zinc-500 sm:text-sm">
                   <Zap className="w-4 h-4" />
                   v1.1.0
                 </div>
@@ -55,8 +55,8 @@ export function HeroVariant3() {
                   transition={{ delay: 1, duration: 1 }}
                   className="flex items-center gap-3"
                 >
-                  <div className="h-px w-12 bg-gradient-to-r from-emerald-500/50 to-transparent" />
-                  <p className="text-xl text-zinc-300 font-light">
+                  <div className="hidden h-px w-12 bg-gradient-to-r from-emerald-500/50 to-transparent sm:block" />
+                  <p className="text-lg font-light text-zinc-300 sm:text-xl">
                     {t('HERO_TITLE')}
                   </p>
                   <div className="h-px flex-1 bg-gradient-to-l from-emerald-500/50 to-transparent" />
@@ -68,13 +68,13 @@ export function HeroVariant3() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.1, duration: 0.8 }}
-                className="text-lg text-zinc-400 leading-relaxed max-w-xl"
+                className="max-w-xl text-base leading-relaxed text-zinc-400 sm:text-lg"
               >
                 {t('HERO_SUBTITLE')}
               </motion.p>
 
               {/* Feature highlights - Minimalist version */}
-              <div className="flex items-center gap-8 pt-4">
+              <div className="grid grid-cols-2 gap-4 pt-2 sm:flex sm:flex-wrap sm:items-center sm:gap-8 sm:pt-4">
                 {[
                   { icon: Code2, label: 'Full Stack' },
                   { icon: Cpu, label: 'AI/ML' },
@@ -100,7 +100,7 @@ export function HeroVariant3() {
             </div>
 
             {/* Right side - Floating terminal panel (spans 6 columns) */}
-            <div className="lg:col-span-6 relative flex items-center h-full lg:translate-y-10">
+            <div className="relative flex min-w-0 items-center lg:col-span-6 lg:h-full lg:translate-y-10">
               {/* Ambient glow behind terminal */}
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -119,7 +119,7 @@ export function HeroVariant3() {
                   stiffness: 50,
                   damping: 20
                 }}
-                className="relative w-full"
+                className="relative w-full min-w-0"
               >
                 <TerminalPanel variant="floating" />
               </motion.div>
@@ -132,7 +132,7 @@ export function HeroVariant3() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1 }}
-          className="pb-12 border-t border-zinc-800/50 pt-8"
+          className="border-t border-zinc-800/50 pb-10 pt-6 sm:pb-12 sm:pt-8"
         >
           <div className="flex flex-wrap justify-center gap-3">
             {['React', 'Next.js', 'React Native', 'Node.js', 'TypeScript', 'Python', 'FastAPI', 'GraphQL', 'AWS', 'Docker', 'Firebase', 'n8n'].map((tech, i) => (

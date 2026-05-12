@@ -29,7 +29,7 @@ function BlockLetter({
       style={{ 
         gridTemplateColumns: `repeat(${pattern[0].length}, minmax(0, 1fr))`,
         width: 'var(--block-letter-width)',
-        '--block-letter-width': `calc(${pattern[0].length} * clamp(2.5px, 1.1vw, 11px))`
+        '--block-letter-width': `calc(${pattern[0].length} * clamp(3px, 1vw + 1.15px, 12px))`
       } as any}
     >
       {pattern.flat().map((active, i) => (
@@ -56,7 +56,7 @@ export function HeroNameTreatment() {
 
   return (
     <div className="space-y-4 md:space-y-8 lg:space-y-12 py-2 md:py-4 w-full max-w-full">
-      <div className="flex flex-nowrap items-center gap-1 md:gap-2.5 lg:gap-4 overflow-visible">
+      <div className="flex max-w-full origin-left scale-[1.2] items-center gap-[2px] sm:scale-100 sm:gap-1 md:gap-2.5 lg:gap-4 overflow-visible">
         {"ROINER".split("").map((char, i) => (
           <motion.div
             key={i}
@@ -73,7 +73,7 @@ export function HeroNameTreatment() {
           </motion.div>
         ))}
       </div>
-      <div className="flex flex-nowrap items-center gap-1 md:gap-2.5 lg:gap-4 md:ml-6 lg:ml-12 overflow-visible">
+      <div className="flex max-w-full origin-left scale-[1.2] items-center gap-[2px] sm:scale-100 sm:gap-1 md:gap-2.5 lg:gap-4 sm:ml-3 md:ml-6 lg:ml-12 overflow-visible">
         {"HERNANDEZ".split("").map((char, i) => (
           <motion.div
             key={i}
@@ -90,7 +90,7 @@ export function HeroNameTreatment() {
           </motion.div>
         ))}
         <div
-          className="w-2 md:w-3 lg:w-4 h-6 md:h-8 lg:h-10 bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] rounded-sm ml-2 md:ml-4"
+          className="hidden rounded-sm bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] sm:ml-2 sm:block sm:h-6 sm:w-2 md:ml-4 md:h-8 md:w-3 lg:h-10 lg:w-4"
         />
       </div>
     </div>
