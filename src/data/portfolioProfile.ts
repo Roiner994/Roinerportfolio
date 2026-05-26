@@ -397,7 +397,12 @@ const projectEntriesEs: ProjectEntry[] = [
       "Excel",
       "Prompt Logic",
     ],
-    links: [],
+    links: [
+      {
+        label: "VER_CÓDIGO_EN_GITHUB",
+        href: "https://github.com/Roiner994/whatsapp-automatization",
+      },
+    ],
     status: {
       label: "REGLAS_CONFIGURADAS",
       value: "LÓGICA_EN_VIVO",
@@ -566,7 +571,12 @@ const projectEntriesEn: ProjectEntry[] = [
       "Excel",
       "Prompt Logic",
     ],
-    links: [],
+    links: [
+      {
+        label: "VIEW_GITHUB_REPOSITORY",
+        href: "https://github.com/Roiner994/whatsapp-automatization",
+      },
+    ],
     status: {
       label: "PROMPT_CONFIGURED",
       value: "LIVE_LOGIC",
