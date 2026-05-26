@@ -6,7 +6,11 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "dev:vercel": "vercel dev"
+    "dev:vercel": "vercel dev",
+    "graphify:init": "./scripts/graphify.sh init .",
+    "graphify:detect": "./scripts/graphify.sh detect .",
+    "graphify:extract": "./scripts/graphify.sh extract .",
+    "graphify:update": "./scripts/graphify.sh update ."
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
