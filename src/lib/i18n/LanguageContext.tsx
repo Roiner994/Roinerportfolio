@@ -176,7 +176,19 @@ const uiStrings = {
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('portfolio-language');
-    return (saved === 'en' || saved === 'es') ? saved : 'es';
+    if (saved === 'en' || saved === 'es') {
+      return saved;
+    }
+    if (typeof navigator !== 'undefined') {
+      const browserLang = navigator.language;
+      if (browserLang) {
+        const langCode = browserLang.split('-')[0].toLowerCase();
+        if (langCode === 'es') {
+          return 'es';
+        }
+      }
+    }
+    return 'en';
   });
 
   const setLanguage = (lang: Language) => {

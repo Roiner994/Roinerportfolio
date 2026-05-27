@@ -3571,7 +3571,7 @@
       "label": "useLanguage()",
       "file_type": "code",
       "source_file": "src/lib/i18n/LanguageContext.tsx",
-      "source_location": "L215",
+      "source_location": "L227",
       "id": "i18n_languagecontext_uselanguage",
       "community": 2,
       "norm_label": "uselanguage()"
@@ -11562,5 +11562,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "d6c620183185d331eb8028191fd78d45adaaf5e2"
+  "built_at_commit": "e12a5cea1106ada7f1c5dfc72b2cf8eccb568aab"
 }
