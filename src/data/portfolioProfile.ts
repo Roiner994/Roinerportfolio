@@ -295,12 +295,12 @@ const cvDataEs: CvData = {
   downloads: [
     {
       label: "Descargar CV ES",
-      href: "/cv-roiner-hernandez-es.pdf",
+      href: "/Roiner-Hernandez-cv-es.pdf",
       detail: "PDF oficial en español",
     },
     {
       label: "Download CV EN",
-      href: "/cv-roiner-hernandez-en.pdf",
+      href: "/Roiner-Hernandez-cv-en.pdf",
       detail: "Official PDF in English",
     },
   ],
@@ -318,12 +318,12 @@ const cvDataEn: CvData = {
   downloads: [
     {
       label: "Download CV ES",
-      href: "/cv-roiner-hernandez-es.pdf",
+      href: "/Roiner-Hernandez-cv-es.pdf",
       detail: "Official PDF in Spanish",
     },
     {
       label: "Download CV EN",
-      href: "/cv-roiner-hernandez-en.pdf",
+      href: "/Roiner-Hernandez-cv-en.pdf",
       detail: "Official PDF in English",
     },
   ],
