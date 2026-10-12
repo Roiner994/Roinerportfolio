@@ -381,7 +381,11 @@ function ProjectMediaPanel({
   selectedImageIndex: number;
   onSelectImage: (index: number) => void;
 }) {
-  const images = getProjectMedia(project.id);
+  const images =
+    project.gallery && project.gallery.length > 0
+      ? project.gallery
+      : getProjectMedia(project.id);
+  const isLandscape = project.galleryVariant === "landscape";
   const activeImage = images[selectedImageIndex] ?? images[0];
 
   const [isImageLoading, setIsImageLoading] = useState(true);
@@ -414,9 +418,21 @@ function ProjectMediaPanel({
   }
 
   return (
-    <div className="group relative">
-      <div className="overflow-hidden rounded-[2rem] bg-zinc-950/50 shadow-2xl transition-all duration-500">
-        <div className="relative flex min-h-[400px] items-center justify-center p-4 sm:p-10 overflow-hidden">
+    <div className="group relative w-full min-w-0">
+      <div
+        className={`overflow-hidden rounded-[2rem] shadow-2xl transition-all duration-500 ${
+          isLandscape
+            ? "border border-zinc-800/80 bg-zinc-950"
+            : "bg-zinc-950/50"
+        }`}
+      >
+        <div
+          className={`relative flex items-center justify-center overflow-hidden ${
+            isLandscape
+              ? "aspect-[16/10] w-full p-3 sm:p-5"
+              : "min-h-[400px] p-4 sm:p-10"
+          }`}
+        >
           {/* Loading indicator */}
           <AnimatePresence>
             {isImageLoading && (
@@ -458,11 +474,19 @@ function ProjectMediaPanel({
               onLoad={() => setIsImageLoading(false)}
               transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               src={activeImage.src}
-              alt={project.displayName}
-              className="max-h-[550px] w-full object-contain drop-shadow-[0_0_50px_rgba(16,185,129,0.1)] relative z-10"
-              style={{
-                filter: "contrast(1.05) brightness(1.05)",
-              }}
+              alt={activeImage.caption || project.displayName}
+              className={`relative z-10 w-full object-contain ${
+                isLandscape
+                  ? "max-h-full bg-zinc-950"
+                  : "max-h-[550px] drop-shadow-[0_0_50px_rgba(16,185,129,0.1)]"
+              }`}
+              style={
+                isLandscape
+                  ? undefined
+                  : {
+                      filter: "contrast(1.05) brightness(1.05)",
+                    }
+              }
             />
           </AnimatePresence>
 
@@ -511,6 +535,15 @@ function ProjectMediaPanel({
             </>
           )}
         </div>
+        {activeImage.caption && (
+          <p
+            className={`border-t px-4 py-3 font-mono text-[11px] leading-relaxed text-zinc-500 ${
+              isLandscape ? "border-zinc-800 bg-black/40" : "border-zinc-800/50"
+            }`}
+          >
+            {activeImage.caption}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -1849,8 +1882,14 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                               </div>
                             </div>
 
-                            <div className="grid gap-10 p-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:p-8">
-                              <div className="space-y-8">
+                            <div
+                              className={`grid gap-10 p-6 lg:p-8 ${
+                                activeProject.galleryVariant === "landscape"
+                                  ? "grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+                                  : "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+                              }`}
+                            >
+                              <div className="space-y-8 min-w-0">
                                 <div className="space-y-5">
                                   <div className="space-y-4">
                                     <div className="flex items-center gap-4">
@@ -2017,7 +2056,13 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                 </div>
                               </div>
 
-                              <div className="space-y-6">
+                              <div
+                                className={`space-y-6 min-w-0 ${
+                                  activeProject.galleryVariant === "landscape"
+                                    ? "w-full"
+                                    : ""
+                                }`}
+                              >
                                 {activeProject.presentation ===
                                 "media-first" ? (
                                   <ProjectMediaPanel
