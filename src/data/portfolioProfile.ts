@@ -335,177 +335,6 @@ const cvDataEn: CvData = {
 
 const projectEntriesEs: ProjectEntry[] = [
   {
-    id: "flashcardia",
-    terminalName: "Flashcardia",
-    displayName: "Flashcardia",
-    subtitle: "De tarjetas manuales a práctica activa con IA.",
-    category: "Product",
-    role: "Diseño de producto, UX y arquitectura de funcionalidades con IA.",
-    impact:
-      "Transforma la práctica de vocabulario en un ciclo estructurado de aprendizaje con generación, repetición y feedback evaluado por IA.",
-    presentation: "media-first",
-    description:
-      "Plataforma de aprendizaje con IA que reduce la fricción de crear tarjetas de estudio y convierte la práctica de vocabulario en entrenamiento activo.",
-    highlights: [
-      "Problema: En herramientas como Anki, cada tarjeta debe crearse manualmente, lo que hace que preparar material de estudio sea lento y pesado.",
-      "Solución: Flashcardia genera tarjetas completas con definición, pronunciación y ejemplos de uso, reduciendo la fricción de estudiar.",
-      "Modo Challenge: Modo de práctica activa donde el usuario crea frases propias y recibe feedback de IA, una puntuación de 1 a 10 y ejemplos mejorados.",
-      "Explorar: Módulo para descubrir decks públicos, copiarlos y empezar a practicar rápidamente.",
-    ],
-    tech: [
-      "IA aplicada",
-      "Language Learning",
-      "Spaced Repetition",
-      "AI Feedback",
-      "Product Design",
-      "React Native",
-      "Supabase",
-    ],
-    links: [
-      {
-        label: "ABRIR_APLICACIÓN_WEB",
-        href: "https://flashcardia-web.vercel.app/",
-      },
-    ],
-    status: {
-      label: "CICLO_DE_APRENDIZAJE",
-      value: "ACTIVO",
-    },
-  },
-  {
-    id: "autostream",
-    terminalName: "Chatbot_AI",
-    displayName: "WhatsApp Commerce Agent",
-    subtitle: "AGENTE COMERCIAL CONFIGURABLE PARA WHATSAPP",
-    category: "Automation",
-    role: "Automatización comercial con n8n, WhatsApp, reglas dinámicas e IA multimodal.",
-    impact:
-      "Permite adaptar la lógica de atención y ventas desde un documento, sin reescribir código.",
-    presentation: "media-first",
-    description:
-      "Agente comercial para WhatsApp construido con n8n. Automatiza atención, ventas y registro de pagos a partir de reglas de negocio escritas en lenguaje natural.",
-    highlights: [
-      "Problema: Muchos negocios atienden clientes por WhatsApp de forma manual y dependen de procesos repetitivos para responder consultas, validar pagos y registrar operaciones.",
-      "Solución: El bot centraliza la atención y permite definir la lógica comercial desde un documento editable, sin modificar código.",
-      "Reglas de negocio: El negocio puede cambiar tono, personalidad, catálogo, respuestas, políticas o incluso gestionar distintas tiendas escribiendo nuevas reglas en el documento.",
-      "Inteligencia de medios: El sistema interpreta mensajes, notas de audio e imágenes de WhatsApp para sostener conversaciones más naturales.",
-      "Seguimiento de pagos: Cuando detecta un comprobante de pago, analiza la imagen, extrae el monto y registra la operación en Excel/Sheets para control diario.",
-    ],
-    tech: [
-      "N8N",
-      "WhatsApp",
-      "LLMs",
-      "OCR",
-      "Speech-to-Text",
-      "Automatización",
-      "Excel",
-      "Prompt Logic",
-    ],
-    links: [
-      {
-        label: "VER_CÓDIGO_EN_GITHUB",
-        href: "https://github.com/Roiner994/whatsapp-automatization",
-      },
-    ],
-    status: {
-      label: "REGLAS_CONFIGURADAS",
-      value: "LÓGICA_EN_VIVO",
-    },
-  },
-  {
-    id: "ucrop",
-    terminalName: "UCROP_IT",
-    displayName: "ucrop.it Traceability Platform",
-    subtitle: "PLATAFORMA B2B DE TRAZABILIDAD AGRÍCOLA",
-    category: "Platform",
-    role: "Desarrollo full stack de funcionalidades web, mobile, APIs y backoffice para una plataforma agrícola de trazabilidad.",
-    impact:
-      "Centraliza datos de campo, actividades agrícolas, indicadores ambientales y reportes normativos para compañías y unidades productivas.",
-    presentation: "info-first",
-    description:
-      "Plataforma B2B de trazabilidad agrícola, sostenibilidad y cumplimiento normativo que conecta campos, cultivos, actividades, datos geoespaciales e informes ambientales en un ecosistema web, móvil y backoffice.",
-    highlights: [
-      "Flujo de trazabilidad: Construcción de flujos para registrar campos, cultivos y actividades, conectándolos con Crop Story y reportes de trazabilidad.",
-      "Inteligencia geoespacial: Creación de campos desde Google Maps o importación KMZ, con soporte para polígonos, imágenes satelitales y análisis histórico del terreno.",
-      "Sostenibilidad: Visualización de indicadores como huella de carbono, huella hídrica y CFT dentro de reportes ambientales asociados al cultivo.",
-      "Cumplimiento: Cálculo y generación de informes para normativas como 2BSvs, EPA y EUDR aplicadas a unidades productivas y compañías agrícolas.",
-      "Alcance de entrega: Desarrollo dentro de un equipo multidisciplinario de funcionalidades web, mobile, backoffice, APIs y servicios.",
-    ],
-    tech: [
-      "React",
-      "Next.js",
-      "Expo",
-      "NestJS",
-      "Python",
-      "Google Maps",
-      "KMZ",
-      "Satellite Data",
-      "Traceability",
-      "Sustainability",
-      "Compliance",
-    ],
-    links: [
-      {
-        label: "EXPLORE_PRODUCT_SITE",
-        href: "https://ucrop.it/",
-      },
-      {
-        label: "GET_ON_GOOGLE_PLAY",
-        href: "https://play.google.com/store/apps/details?id=com.ucropit.ucropitapp&hl=es",
-      },
-    ],
-    status: {
-      label: "ALCANCE_TOTAL",
-      value: "FULL_STACK",
-    },
-    fallbackVisual: {
-      title: "PIPELINE_DE_TRAZABILIDAD",
-      lines: [
-        "01_ fields -> crops -> activities",
-        "02_ crop_story -> sustainability_report",
-        "03_ maps + kmz -> satellite_analysis",
-        "04_ productive_units -> compliance_reports",
-        "05_ web + mobile + backoffice + services",
-      ],
-    },
-    focusAreas:
-      "Creación de cultivos, campos mapeados, flujos de actividades e informes de producto vinculados a sostenibilidad.",
-    deliveryScope:
-      "Frontend, backend, microservicios, despliegues y operaciones de backoffice en toda la plataforma.",
-  },
-  {
-    id: "calai",
-    terminalName: "Cal_AI",
-    displayName: "Cal AI Nutrition Scanner",
-    subtitle: "APP MOBILE DE REGISTRO NUTRICIONAL CON IA",
-    category: "AI Tool",
-    role: "UX mobile para registro nutricional, análisis visual y corrección asistida por IA.",
-    impact:
-      "Reduce la fricción de registrar comidas al convertir una foto en estimaciones editables de calorías y macronutrientes.",
-    presentation: "media-first",
-    description:
-      "App mobile de registro nutricional con IA que estima calorías y macronutrientes a partir de una foto, permitiendo ajustar el resultado con correcciones en lenguaje natural.",
-    highlights: [
-      "Problema: Registrar comidas manualmente suele ser lento, impreciso y difícil de mantener como hábito diario.",
-      "Análisis visual: Detecta ingredientes, estima porciones, calorías y macronutrientes a partir de una foto tomada con la cámara o importada desde la galería.",
-      "Ajuste conversacional: Permite corregir el análisis con lenguaje natural, ajustando ingredientes o cantidades sin rehacer el registro.",
-      "Seguimiento de progreso: Muestra gráficas semanales para comparar consumo, objetivos configurados y patrones de alimentación.",
-    ],
-    tech: [
-      "React Native",
-      "Computer Vision",
-      "LLMs",
-      "Nutrition AI",
-      "Data Visualization",
-      "Mobile UX",
-    ],
-    links: [],
-    status: {
-      label: "INFERENCIA_VISUAL",
-      value: "LISTO",
-    },
-  },
-  {
     id: "plunkton",
     terminalName: "Plunkton",
     displayName: "Plunkton",
@@ -687,29 +516,26 @@ const projectEntriesEs: ProjectEntry[] = [
       value: "ACTIVO",
     },
   },
-];
-
-const projectEntriesEn: ProjectEntry[] = [
   {
     id: "flashcardia",
     terminalName: "Flashcardia",
     displayName: "Flashcardia",
-    subtitle: "From manual cards to active practice with AI.",
+    subtitle: "De tarjetas manuales a práctica activa con IA.",
     category: "Product",
-    role: "Product design, UX, and AI feature architecture.",
+    role: "Diseño de producto, UX y arquitectura de funcionalidades con IA.",
     impact:
-      "Transforms vocabulary practice into a structured learning cycle with AI-evaluated generation, repetition, and feedback.",
+      "Transforma la práctica de vocabulario en un ciclo estructurado de aprendizaje con generación, repetición y feedback evaluado por IA.",
     presentation: "media-first",
     description:
-      "AI learning platform that reduces study card creation friction and turns vocabulary practice into active training.",
+      "Plataforma de aprendizaje con IA que reduce la fricción de crear tarjetas de estudio y convierte la práctica de vocabulario en entrenamiento activo.",
     highlights: [
-      "Problem: In tools like Anki, each card must be created manually, making study material preparation slow and tedious.",
-      "Solution: Flashcardia generates complete cards with definition, pronunciation, and usage examples, reducing study friction.",
-      "Challenge Mode: Active practice mode where the user creates their own sentences and receives AI feedback, a score from 1 to 10, and improved examples.",
-      "Explore: Module to discover public decks, copy them, and start practicing quickly.",
+      "Problema: En herramientas como Anki, cada tarjeta debe crearse manualmente, lo que hace que preparar material de estudio sea lento y pesado.",
+      "Solución: Flashcardia genera tarjetas completas con definición, pronunciación y ejemplos de uso, reduciendo la fricción de estudiar.",
+      "Modo Challenge: Modo de práctica activa donde el usuario crea frases propias y recibe feedback de IA, una puntuación de 1 a 10 y ejemplos mejorados.",
+      "Explorar: Módulo para descubrir decks públicos, copiarlos y empezar a practicar rápidamente.",
     ],
     tech: [
-      "Applied AI",
+      "IA aplicada",
       "Language Learning",
       "Spaced Repetition",
       "AI Feedback",
@@ -719,33 +545,33 @@ const projectEntriesEn: ProjectEntry[] = [
     ],
     links: [
       {
-        label: "LAUNCH_WEB_APPLICATION",
+        label: "ABRIR_APLICACIÓN_WEB",
         href: "https://flashcardia-web.vercel.app/",
       },
     ],
     status: {
-      label: "KNOWLEDGE_LOOP",
-      value: "ACTIVE",
+      label: "CICLO_DE_APRENDIZAJE",
+      value: "ACTIVO",
     },
   },
   {
     id: "autostream",
     terminalName: "Chatbot_AI",
     displayName: "WhatsApp Commerce Agent",
-    subtitle: "CONFIGURABLE COMMERCIAL AGENT FOR WHATSAPP",
+    subtitle: "AGENTE COMERCIAL CONFIGURABLE PARA WHATSAPP",
     category: "Automation",
-    role: "Commercial automation with n8n, WhatsApp, dynamic rules, and multimodal AI.",
+    role: "Automatización comercial con n8n, WhatsApp, reglas dinámicas e IA multimodal.",
     impact:
-      "Allows adapting support and sales logic from a document, without rewriting code.",
+      "Permite adaptar la lógica de atención y ventas desde un documento, sin reescribir código.",
     presentation: "media-first",
     description:
-      "Commercial agent for WhatsApp built with n8n. Automates support, sales, and payment registration from business rules written in natural language.",
+      "Agente comercial para WhatsApp construido con n8n. Automatiza atención, ventas y registro de pagos a partir de reglas de negocio escritas en lenguaje natural.",
     highlights: [
-      "Problem: Many businesses handle WhatsApp customers manually and rely on repetitive processes to answer queries, validate payments, and register operations.",
-      "Solution: The bot centralizes support and allows defining business logic from an editable document, without code modification.",
-      "Business Rules: The business can change tone, personality, catalog, responses, policies, or even manage different stores by writing new rules in the document.",
-      "Media Intelligence: The system interprets WhatsApp messages, audio notes, and images to maintain more natural conversations.",
-      "Payment Tracking: When it detects a payment receipt, it analyzes the image, extracts the amount, and registers the operation in Excel/Sheets for daily control.",
+      "Problema: Muchos negocios atienden clientes por WhatsApp de forma manual y dependen de procesos repetitivos para responder consultas, validar pagos y registrar operaciones.",
+      "Solución: El bot centraliza la atención y permite definir la lógica comercial desde un documento editable, sin modificar código.",
+      "Reglas de negocio: El negocio puede cambiar tono, personalidad, catálogo, respuestas, políticas o incluso gestionar distintas tiendas escribiendo nuevas reglas en el documento.",
+      "Inteligencia de medios: El sistema interpreta mensajes, notas de audio e imágenes de WhatsApp para sostener conversaciones más naturales.",
+      "Seguimiento de pagos: Cuando detecta un comprobante de pago, analiza la imagen, extrae el monto y registra la operación en Excel/Sheets para control diario.",
     ],
     tech: [
       "N8N",
@@ -753,39 +579,39 @@ const projectEntriesEn: ProjectEntry[] = [
       "LLMs",
       "OCR",
       "Speech-to-Text",
-      "Automation",
+      "Automatización",
       "Excel",
       "Prompt Logic",
     ],
     links: [
       {
-        label: "VIEW_GITHUB_REPOSITORY",
+        label: "VER_CÓDIGO_EN_GITHUB",
         href: "https://github.com/Roiner994/whatsapp-automatization",
       },
     ],
     status: {
-      label: "PROMPT_CONFIGURED",
-      value: "LIVE_LOGIC",
+      label: "REGLAS_CONFIGURADAS",
+      value: "LÓGICA_EN_VIVO",
     },
   },
   {
     id: "ucrop",
     terminalName: "UCROP_IT",
     displayName: "ucrop.it Traceability Platform",
-    subtitle: "AGRICULTURAL TRACEABILITY B2B PLATFORM",
+    subtitle: "PLATAFORMA B2B DE TRAZABILIDAD AGRÍCOLA",
     category: "Platform",
-    role: "Full stack development of web, mobile, API, and backoffice functionalities for an agricultural traceability platform.",
+    role: "Desarrollo full stack de funcionalidades web, mobile, APIs y backoffice para una plataforma agrícola de trazabilidad.",
     impact:
-      "Centralizes field data, agricultural activities, environmental indicators, and regulatory reports for companies and production units.",
+      "Centraliza datos de campo, actividades agrícolas, indicadores ambientales y reportes normativos para compañías y unidades productivas.",
     presentation: "info-first",
     description:
-      "B2B platform for agricultural traceability, sustainability, and regulatory compliance that connects fields, crops, activities, geospatial data, and environmental reports in a web, mobile, and backoffice ecosystem.",
+      "Plataforma B2B de trazabilidad agrícola, sostenibilidad y cumplimiento normativo que conecta campos, cultivos, actividades, datos geoespaciales e informes ambientales en un ecosistema web, móvil y backoffice.",
     highlights: [
-      "Traceability Flow: Construction of flows to register fields, crops, and activities, connecting them with Crop Story and traceability reports.",
-      "Geo Intelligence: Field creation from Google Maps or KMZ import, with support for polygons, satellite imagery, and historical terrain analysis.",
-      "Sustainability: Visualization of indicators such as carbon footprint, water footprint, and CFT within environmental reports associated with the crop.",
-      "Compliance: Calculation and generation of reports for regulations such as 2BSvs, EPA, and EUDR applied to production units and agricultural companies.",
-      "Delivery Scope: Development within a multidisciplinary team of web, mobile, backoffice, APIs, and services.",
+      "Flujo de trazabilidad: Construcción de flujos para registrar campos, cultivos y actividades, conectándolos con Crop Story y reportes de trazabilidad.",
+      "Inteligencia geoespacial: Creación de campos desde Google Maps o importación KMZ, con soporte para polígonos, imágenes satelitales y análisis histórico del terreno.",
+      "Sostenibilidad: Visualización de indicadores como huella de carbono, huella hídrica y CFT dentro de reportes ambientales asociados al cultivo.",
+      "Cumplimiento: Cálculo y generación de informes para normativas como 2BSvs, EPA y EUDR aplicadas a unidades productivas y compañías agrícolas.",
+      "Alcance de entrega: Desarrollo dentro de un equipo multidisciplinario de funcionalidades web, mobile, backoffice, APIs y servicios.",
     ],
     tech: [
       "React",
@@ -811,11 +637,11 @@ const projectEntriesEn: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "END_TO_END_SCOPE",
+      label: "ALCANCE_TOTAL",
       value: "FULL_STACK",
     },
     fallbackVisual: {
-      title: "TRACEABILITY_PIPELINE",
+      title: "PIPELINE_DE_TRAZABILIDAD",
       lines: [
         "01_ fields -> crops -> activities",
         "02_ crop_story -> sustainability_report",
@@ -825,27 +651,27 @@ const projectEntriesEn: ProjectEntry[] = [
       ],
     },
     focusAreas:
-      "Crop creation, mapped fields, activity flows and sustainability-linked product reporting.",
+      "Creación de cultivos, campos mapeados, flujos de actividades e informes de producto vinculados a sostenibilidad.",
     deliveryScope:
-      "Frontend, backend, microservices, deployments and backoffice operations across the platform.",
+      "Frontend, backend, microservicios, despliegues y operaciones de backoffice en toda la plataforma.",
   },
   {
     id: "calai",
     terminalName: "Cal_AI",
     displayName: "Cal AI Nutrition Scanner",
-    subtitle: "AI NUTRITION LOGGING MOBILE APP",
+    subtitle: "APP MOBILE DE REGISTRO NUTRICIONAL CON IA",
     category: "AI Tool",
-    role: "Mobile UX for nutritional logging, visual analysis, and AI-assisted correction.",
+    role: "UX mobile para registro nutricional, análisis visual y corrección asistida por IA.",
     impact:
-      "Reduces the friction of logging meals by converting a photo into editable estimates of calories and macronutrients.",
+      "Reduce la fricción de registrar comidas al convertir una foto en estimaciones editables de calorías y macronutrientes.",
     presentation: "media-first",
     description:
-      "AI nutritional logging mobile app that estimates calories and macronutrients from a photo, allowing adjustments with natural language corrections.",
+      "App mobile de registro nutricional con IA que estima calorías y macronutrientes a partir de una foto, permitiendo ajustar el resultado con correcciones en lenguaje natural.",
     highlights: [
-      "Problem: Logging meals manually is usually slow, imprecise, and hard to maintain as a daily habit.",
-      "Vision Analysis: Detects ingredients, estimates portions, calories, and macronutrients from a photo taken with the camera or imported from the gallery.",
-      "Conversational Refinement: Allows correcting the analysis with natural language, adjusting ingredients or quantities without redoing the record.",
-      "Progress Tracking: Shows weekly charts to compare intake, configured goals, and eating patterns.",
+      "Problema: Registrar comidas manualmente suele ser lento, impreciso y difícil de mantener como hábito diario.",
+      "Análisis visual: Detecta ingredientes, estima porciones, calorías y macronutrientes a partir de una foto tomada con la cámara o importada desde la galería.",
+      "Ajuste conversacional: Permite corregir el análisis con lenguaje natural, ajustando ingredientes o cantidades sin rehacer el registro.",
+      "Seguimiento de progreso: Muestra gráficas semanales para comparar consumo, objetivos configurados y patrones de alimentación.",
     ],
     tech: [
       "React Native",
@@ -857,10 +683,14 @@ const projectEntriesEn: ProjectEntry[] = [
     ],
     links: [],
     status: {
-      label: "VISION_INFERENCE",
-      value: "READY",
+      label: "INFERENCIA_VISUAL",
+      value: "LISTO",
     },
-  },
+  }
+
+];
+
+const projectEntriesEn: ProjectEntry[] = [
   {
     id: "plunkton",
     terminalName: "Plunkton",
@@ -1041,6 +871,178 @@ const projectEntriesEn: ProjectEntry[] = [
       value: "ACTIVE",
     },
   },
+  {
+    id: "flashcardia",
+    terminalName: "Flashcardia",
+    displayName: "Flashcardia",
+    subtitle: "From manual cards to active practice with AI.",
+    category: "Product",
+    role: "Product design, UX, and AI feature architecture.",
+    impact:
+      "Transforms vocabulary practice into a structured learning cycle with AI-evaluated generation, repetition, and feedback.",
+    presentation: "media-first",
+    description:
+      "AI learning platform that reduces study card creation friction and turns vocabulary practice into active training.",
+    highlights: [
+      "Problem: In tools like Anki, each card must be created manually, making study material preparation slow and tedious.",
+      "Solution: Flashcardia generates complete cards with definition, pronunciation, and usage examples, reducing study friction.",
+      "Challenge Mode: Active practice mode where the user creates their own sentences and receives AI feedback, a score from 1 to 10, and improved examples.",
+      "Explore: Module to discover public decks, copy them, and start practicing quickly.",
+    ],
+    tech: [
+      "Applied AI",
+      "Language Learning",
+      "Spaced Repetition",
+      "AI Feedback",
+      "Product Design",
+      "React Native",
+      "Supabase",
+    ],
+    links: [
+      {
+        label: "LAUNCH_WEB_APPLICATION",
+        href: "https://flashcardia-web.vercel.app/",
+      },
+    ],
+    status: {
+      label: "KNOWLEDGE_LOOP",
+      value: "ACTIVE",
+    },
+  },
+  {
+    id: "autostream",
+    terminalName: "Chatbot_AI",
+    displayName: "WhatsApp Commerce Agent",
+    subtitle: "CONFIGURABLE COMMERCIAL AGENT FOR WHATSAPP",
+    category: "Automation",
+    role: "Commercial automation with n8n, WhatsApp, dynamic rules, and multimodal AI.",
+    impact:
+      "Allows adapting support and sales logic from a document, without rewriting code.",
+    presentation: "media-first",
+    description:
+      "Commercial agent for WhatsApp built with n8n. Automates support, sales, and payment registration from business rules written in natural language.",
+    highlights: [
+      "Problem: Many businesses handle WhatsApp customers manually and rely on repetitive processes to answer queries, validate payments, and register operations.",
+      "Solution: The bot centralizes support and allows defining business logic from an editable document, without code modification.",
+      "Business Rules: The business can change tone, personality, catalog, responses, policies, or even manage different stores by writing new rules in the document.",
+      "Media Intelligence: The system interprets WhatsApp messages, audio notes, and images to maintain more natural conversations.",
+      "Payment Tracking: When it detects a payment receipt, it analyzes the image, extracts the amount, and registers the operation in Excel/Sheets for daily control.",
+    ],
+    tech: [
+      "N8N",
+      "WhatsApp",
+      "LLMs",
+      "OCR",
+      "Speech-to-Text",
+      "Automation",
+      "Excel",
+      "Prompt Logic",
+    ],
+    links: [
+      {
+        label: "VIEW_GITHUB_REPOSITORY",
+        href: "https://github.com/Roiner994/whatsapp-automatization",
+      },
+    ],
+    status: {
+      label: "PROMPT_CONFIGURED",
+      value: "LIVE_LOGIC",
+    },
+  },
+  {
+    id: "ucrop",
+    terminalName: "UCROP_IT",
+    displayName: "ucrop.it Traceability Platform",
+    subtitle: "AGRICULTURAL TRACEABILITY B2B PLATFORM",
+    category: "Platform",
+    role: "Full stack development of web, mobile, API, and backoffice functionalities for an agricultural traceability platform.",
+    impact:
+      "Centralizes field data, agricultural activities, environmental indicators, and regulatory reports for companies and production units.",
+    presentation: "info-first",
+    description:
+      "B2B platform for agricultural traceability, sustainability, and regulatory compliance that connects fields, crops, activities, geospatial data, and environmental reports in a web, mobile, and backoffice ecosystem.",
+    highlights: [
+      "Traceability Flow: Construction of flows to register fields, crops, and activities, connecting them with Crop Story and traceability reports.",
+      "Geo Intelligence: Field creation from Google Maps or KMZ import, with support for polygons, satellite imagery, and historical terrain analysis.",
+      "Sustainability: Visualization of indicators such as carbon footprint, water footprint, and CFT within environmental reports associated with the crop.",
+      "Compliance: Calculation and generation of reports for regulations such as 2BSvs, EPA, and EUDR applied to production units and agricultural companies.",
+      "Delivery Scope: Development within a multidisciplinary team of web, mobile, backoffice, APIs, and services.",
+    ],
+    tech: [
+      "React",
+      "Next.js",
+      "Expo",
+      "NestJS",
+      "Python",
+      "Google Maps",
+      "KMZ",
+      "Satellite Data",
+      "Traceability",
+      "Sustainability",
+      "Compliance",
+    ],
+    links: [
+      {
+        label: "EXPLORE_PRODUCT_SITE",
+        href: "https://ucrop.it/",
+      },
+      {
+        label: "GET_ON_GOOGLE_PLAY",
+        href: "https://play.google.com/store/apps/details?id=com.ucropit.ucropitapp&hl=es",
+      },
+    ],
+    status: {
+      label: "END_TO_END_SCOPE",
+      value: "FULL_STACK",
+    },
+    fallbackVisual: {
+      title: "TRACEABILITY_PIPELINE",
+      lines: [
+        "01_ fields -> crops -> activities",
+        "02_ crop_story -> sustainability_report",
+        "03_ maps + kmz -> satellite_analysis",
+        "04_ productive_units -> compliance_reports",
+        "05_ web + mobile + backoffice + services",
+      ],
+    },
+    focusAreas:
+      "Crop creation, mapped fields, activity flows and sustainability-linked product reporting.",
+    deliveryScope:
+      "Frontend, backend, microservices, deployments and backoffice operations across the platform.",
+  },
+  {
+    id: "calai",
+    terminalName: "Cal_AI",
+    displayName: "Cal AI Nutrition Scanner",
+    subtitle: "AI NUTRITION LOGGING MOBILE APP",
+    category: "AI Tool",
+    role: "Mobile UX for nutritional logging, visual analysis, and AI-assisted correction.",
+    impact:
+      "Reduces the friction of logging meals by converting a photo into editable estimates of calories and macronutrients.",
+    presentation: "media-first",
+    description:
+      "AI nutritional logging mobile app that estimates calories and macronutrients from a photo, allowing adjustments with natural language corrections.",
+    highlights: [
+      "Problem: Logging meals manually is usually slow, imprecise, and hard to maintain as a daily habit.",
+      "Vision Analysis: Detects ingredients, estimates portions, calories, and macronutrients from a photo taken with the camera or imported from the gallery.",
+      "Conversational Refinement: Allows correcting the analysis with natural language, adjusting ingredients or quantities without redoing the record.",
+      "Progress Tracking: Shows weekly charts to compare intake, configured goals, and eating patterns.",
+    ],
+    tech: [
+      "React Native",
+      "Computer Vision",
+      "LLMs",
+      "Nutrition AI",
+      "Data Visualization",
+      "Mobile UX",
+    ],
+    links: [],
+    status: {
+      label: "VISION_INFERENCE",
+      value: "READY",
+    },
+  }
+
 ];
 
 export const portfolioData = {

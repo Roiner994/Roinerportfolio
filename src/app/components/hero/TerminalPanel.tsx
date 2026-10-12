@@ -579,7 +579,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     createAiWelcomeHistoryContext(t("AI_WELCOME")),
   );
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const [activeProjectId, setActiveProjectId] = useState(projectEntries[0].id);
+  const [activeProjectId, setActiveProjectId] = useState("plunkton");
   const [activeProjectImageIndex, setActiveProjectImageIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
