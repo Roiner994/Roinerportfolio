@@ -1885,7 +1885,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                             <div
                               className={`grid gap-10 p-6 lg:p-8 ${
                                 activeProject.galleryVariant === "landscape"
-                                  ? "grid-cols-1"
+                                  ? "grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
                                   : "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
                               }`}
                             >
