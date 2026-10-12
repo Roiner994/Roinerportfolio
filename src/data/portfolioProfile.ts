@@ -74,6 +74,8 @@ export type ProjectFallbackVisual = {
   lines: string[];
 };
 
+export type ProjectGalleryVariant = "portrait" | "landscape";
+
 export type ProjectEntry = {
   id: string;
   terminalName: string;
@@ -88,6 +90,8 @@ export type ProjectEntry = {
   tech: string[];
   heroImage?: ProjectImage;
   secondaryImages?: ProjectImage[];
+  gallery?: ProjectImage[];
+  galleryVariant?: ProjectGalleryVariant;
   links: ProjectLink[];
   status?: ProjectStatus;
   fallbackVisual?: ProjectFallbackVisual;
@@ -501,6 +505,188 @@ const projectEntriesEs: ProjectEntry[] = [
       value: "LISTO",
     },
   },
+  {
+    id: "plunkton",
+    terminalName: "Plunkton",
+    displayName: "Plunkton",
+    subtitle: "DE CHATS DISPERSOS A LEADS CALIFICADOS CON IA.",
+    category: "Platform",
+    role:
+      "IA conversacional, captación de leads multicanal y CRM multi-tenant para concesionarios de autos.",
+    impact:
+      "Convierte conversaciones dispersas en leads calificados y priorizados, listos para que un vendedor los tome.",
+    presentation: "media-first",
+    galleryVariant: "landscape",
+    description:
+      "Plataforma de ventas con IA para concesionarios de autos, en producción. Un asistente atiende a los leads por WhatsApp, Instagram y un widget de chat web, mientras un CRM los prioriza y los deriva al vendedor indicado.",
+    highlights: [
+      "Problema: Los concesionarios reciben consultas por WhatsApp, Instagram y su sitio web. Los leads quedan repartidos entre canales, sin una señal clara de cuáles están listos para comprar.",
+      "Asistente IA: Responde preguntas sobre modelos y stock, califica la intención de compra con un score y una temperatura, y registra los productos que le interesan a cada lead.",
+      "CRM inteligente: Centraliza los leads con resúmenes consolidados por IA y un próximo paso sugerido, una cola de prioridad y un dashboard de conversión.",
+      "Integraciones: WhatsApp vía Meta Cloud API o Twilio; DMs de Instagram y respuestas privadas automáticas a comentarios; widget de chat web embebible; sincronización bidireccional con Pilot CRM (leads, contactos y estados); y Tokko para propiedades. Cada canal muestra su estado de conexión en un solo panel.",
+      "Derivación a humanos: Deriva cada lead a un vendedor según el tipo de equipo (0 km, postventa, planes de ahorro) y le avisa por WhatsApp.",
+      "Multi-tenant: Cada concesionario gestiona su propio equipo, sucursales, catálogo de productos, integraciones de canales y la personalización del asistente.",
+    ],
+    tech: [
+      "IA aplicada",
+      "IA conversacional",
+      "Django",
+      "DRF",
+      "Celery",
+      "Vue 3",
+      "n8n",
+      "LiteLLM",
+      "WhatsApp Cloud API / Twilio",
+      "Instagram API",
+      "Postgres + pgvector",
+      "Pilot CRM",
+    ],
+    gallery: [
+      {
+        src: "/projects/plunkton/01-leads-produccion.webp",
+        caption:
+          "Bandeja de leads en producción: pendientes, esperando respuesta y sin asignar, con resúmenes de IA.",
+      },
+      {
+        src: "/projects/plunkton/02-lead-conversacion.webp",
+        caption:
+          "Conversación de un lead de Instagram: respuesta privada al comentario, asistente IA y vendedor en un mismo hilo.",
+      },
+      {
+        src: "/projects/plunkton/03-lead-detalle.webp",
+        caption:
+          "Detalle del lead con insights consolidados por IA, etapa, intención y score de lead caliente.",
+      },
+      {
+        src: "/projects/plunkton/09-lead-detalle-ia.webp",
+        caption:
+          "Detalle del lead con resumen consolidado por IA, score de intención de compra y próximo paso sugerido.",
+      },
+      {
+        src: "/projects/plunkton/04-integraciones-conexion.webp",
+        caption:
+          "Estado de conexión de WhatsApp, Instagram, chat web, Pilot CRM y Tokko.",
+      },
+      {
+        src: "/projects/plunkton/05-integraciones-estado.webp",
+        caption:
+          "Panel de integraciones con el asistente virtual y la configuración de reactividad de derivación.",
+      },
+      {
+        src: "/projects/plunkton/06-integracion-pilot-crm.webp",
+        caption:
+          "Conexión con Pilot CRM y sincronización bidireccional configurable.",
+      },
+      {
+        src: "/projects/plunkton/07-dashboard.webp",
+        caption:
+          "Dashboard de conversión: leads nuevos, intención de compra, tasa de cierre y fuentes.",
+      },
+      {
+        src: "/projects/plunkton/08-equipo.webp",
+        caption:
+          "Equipo organizado por tipo: ventas 0 km, postventa y planes de ahorro.",
+      },
+    ],
+    links: [
+      {
+        label: "ABRIR_PLATAFORMA_CRM",
+        href: "https://crm.plunkton.com",
+      },
+    ],
+    status: {
+      label: "MOTOR_DE_LEADS",
+      value: "ACTIVO",
+    },
+  },
+  {
+    id: "goscale",
+    terminalName: "GoScale",
+    displayName: "GoScale",
+    subtitle: "DE LA ESTRATEGIA A LA VENTA EN UN SOLO SISTEMA DE LANZAMIENTO.",
+    category: "Platform",
+    role:
+      "Plataforma de operación de lanzamientos con planificación guiada e integraciones de email, WhatsApp, checkouts y Meta Ads.",
+    impact:
+      "Conecta cada etapa del lanzamiento en un flujo guiado, desde la planificación hasta los resultados de venta.",
+    presentation: "media-first",
+    galleryVariant: "landscape",
+    description:
+      "SaaS para lanzadores de productos digitales en LATAM. Reúne todo un lanzamiento en un solo lugar: estrategia, oferta, copy, tráfico pago, captación por WhatsApp, finanzas y ventas.",
+    highlights: [
+      "Flujo guiado: Cada lanzamiento va de Cliente > Producto > Lanzamiento y luego pasa por seis pilares: Estratega, Copy, Tráfico, Plataformas, Finanzas y Ventas.",
+      "Planificación estratégica: La planificación calcula fechas y CPL y desbloquea Concepción, Oferta y Métricas en vivo, con seguimiento planificado vs. real.",
+      "Tráfico y WhatsApp Analytics: Dashboards de embudo y calidad de lead, control de presupuesto diario y analítica de captación por WhatsApp que compara los leads del gestor con los que ingresaron a WhatsApp, por fuente (Meta, TikTok, orgánico, listas anteriores).",
+      "Integraciones: ConvertKit para email, Sendflow para grupos de WhatsApp, Stripe y ThriveCart para checkouts y cobro en cuotas, y Meta Ads para campañas e inversión.",
+      "Finanzas y ventas: Presupuesto vs. inversión real, balance entre socios, resultados de venta, cobro de cuotas y lead score, con roles Admin, Editor y Viewer.",
+    ],
+    tech: [
+      "SaaS",
+      "Marketing Ops",
+      "NestJS",
+      "React",
+      "TypeScript",
+      "Vite",
+      "Monorepo",
+      "Cloudflare Pages",
+      "Meta Ads API",
+      "Stripe",
+      "ThriveCart",
+      "ConvertKit",
+    ],
+    gallery: [
+      {
+        src: "/projects/goscale/01-whatsapp-analytics.webp",
+        caption:
+          "Analítica de captación por WhatsApp: leads del gestor vs. WhatsApp por fuente (Meta, TikTok, orgánico, listas).",
+      },
+      {
+        src: "/projects/goscale/02-resultados-lanzamiento.webp",
+        caption:
+          "Resultados del lanzamiento: facturación, ROAS, ROI, margen e inversión desglosada.",
+      },
+      {
+        src: "/projects/goscale/03-metricas-en-vivo.webp",
+        caption:
+          "Métricas en vivo: planificado vs. real en todo el embudo.",
+      },
+      {
+        src: "/projects/goscale/04-trafico-vision-general.webp",
+        caption:
+          "Visión general de tráfico: inversión, CPL, leads y conversión de un vistazo.",
+      },
+      {
+        src: "/projects/goscale/05-resumen-leads.webp",
+        caption:
+          "Resumen de leads por canal: Meta (Instagram/Facebook), TikTok y orgánico.",
+      },
+      {
+        src: "/projects/goscale/06-calidad-de-lead.webp",
+        caption:
+          "Calidad de lead a partir de encuestas, por campaña y público.",
+      },
+      {
+        src: "/projects/goscale/07-integraciones-producto.webp",
+        caption:
+          "Integraciones del producto: ConvertKit, Sendflow, Stripe y ThriveCart conectados.",
+      },
+      {
+        src: "/projects/goscale/08-pilares-lanzamiento.webp",
+        caption:
+          "Un lanzamiento dividido en seis pilares: Estratega, Copy, Tráfico, Plataformas, Finanzas y Ventas.",
+      },
+    ],
+    links: [
+      {
+        label: "ABRIR_APLICACION_WEB",
+        href: "https://go-scale.pages.dev",
+      },
+    ],
+    status: {
+      label: "MOTOR_DE_LANZAMIENTOS",
+      value: "ACTIVO",
+    },
+  },
 ];
 
 const projectEntriesEn: ProjectEntry[] = [
@@ -673,6 +859,186 @@ const projectEntriesEn: ProjectEntry[] = [
     status: {
       label: "VISION_INFERENCE",
       value: "READY",
+    },
+  },
+  {
+    id: "plunkton",
+    terminalName: "Plunkton",
+    displayName: "Plunkton",
+    subtitle: "FROM SCATTERED CHATS TO QUALIFIED LEADS WITH AI.",
+    category: "Platform",
+    role:
+      "Conversational AI, multichannel lead capture, and a multi-tenant CRM for car dealerships.",
+    impact:
+      "Turns scattered conversations into qualified, prioritized leads that are ready for a salesperson.",
+    presentation: "media-first",
+    galleryVariant: "landscape",
+    description:
+      "AI sales platform for car dealerships, running in production. An assistant serves leads over WhatsApp, Instagram, and a web chat widget, while a CRM prioritizes them and hands them off to the right salesperson.",
+    highlights: [
+      "Problem: Dealerships receive inquiries through WhatsApp, Instagram, and their website. Those leads end up spread across channels, with no clear signal of which ones are ready to buy.",
+      "AI Assistant: Answers questions about models and stock, qualifies purchase intent with a score and temperature, and records each lead's product interests.",
+      "Smart CRM: Centralizes leads with AI-consolidated summaries and a suggested next step, a priority queue, and a conversion dashboard.",
+      "Integrations: WhatsApp through the Meta Cloud API or Twilio; Instagram DMs plus automatic private replies to post comments; an embeddable web chat widget; bidirectional sync with Pilot CRM (leads, contacts, and status); and Tokko for real-estate listings. Each channel shows its connection status in one panel.",
+      "Human Handoff: Routes each lead to a salesperson by team type (new cars, after-sales, savings plans) and notifies them over WhatsApp.",
+      "Multi-tenant: Each dealership manages its own team, branches, product catalog, channel integrations, and assistant personalization.",
+    ],
+    tech: [
+      "Applied AI",
+      "Conversational AI",
+      "Django",
+      "DRF",
+      "Celery",
+      "Vue 3",
+      "n8n",
+      "LiteLLM",
+      "WhatsApp Cloud API / Twilio",
+      "Instagram API",
+      "Postgres + pgvector",
+      "Pilot CRM",
+    ],
+    gallery: [
+      {
+        src: "/projects/plunkton/01-leads-produccion.webp",
+        caption:
+          "Production lead inbox: pending, awaiting reply, and unassigned queues with AI summaries.",
+      },
+      {
+        src: "/projects/plunkton/02-lead-conversacion.webp",
+        caption:
+          "An Instagram lead conversation: comment private reply, AI assistant, and salesperson in one thread.",
+      },
+      {
+        src: "/projects/plunkton/03-lead-detalle.webp",
+        caption:
+          "Lead detail with AI-consolidated insights, stage, intent, and a hot-lead score.",
+      },
+      {
+        src: "/projects/plunkton/09-lead-detalle-ia.webp",
+        caption:
+          "Lead detail with AI-consolidated summary, purchase-intent score, and suggested next step.",
+      },
+      {
+        src: "/projects/plunkton/04-integraciones-conexion.webp",
+        caption:
+          "Connection status for WhatsApp, Instagram, web chat, Pilot CRM, and Tokko.",
+      },
+      {
+        src: "/projects/plunkton/05-integraciones-estado.webp",
+        caption:
+          "Integrations panel with the virtual assistant and handoff reactivity settings.",
+      },
+      {
+        src: "/projects/plunkton/06-integracion-pilot-crm.webp",
+        caption:
+          "Pilot CRM connection with bidirectional sync toggles.",
+      },
+      {
+        src: "/projects/plunkton/07-dashboard.webp",
+        caption:
+          "Conversion dashboard: new leads, purchase intent, close rate, and lead sources.",
+      },
+      {
+        src: "/projects/plunkton/08-equipo.webp",
+        caption:
+          "Team organized by type: new-car sales, after-sales, and savings plans.",
+      },
+    ],
+    links: [
+      {
+        label: "LAUNCH_CRM_PLATFORM",
+        href: "https://crm.plunkton.com",
+      },
+    ],
+    status: {
+      label: "LEAD_ENGINE",
+      value: "ACTIVE",
+    },
+  },
+  {
+    id: "goscale",
+    terminalName: "GoScale",
+    displayName: "GoScale",
+    subtitle: "FROM STRATEGY TO SALES IN ONE LAUNCH SYSTEM.",
+    category: "Platform",
+    role:
+      "Launch operations platform with guided planning and integrations for email, WhatsApp, checkouts, and Meta Ads.",
+    impact:
+      "Connects every stage of a launch in one guided flow, from planning to sales results.",
+    presentation: "media-first",
+    galleryVariant: "landscape",
+    description:
+      "SaaS for digital product launchers in LATAM. It brings a whole launch into one place: strategy, offer, copy, paid traffic, WhatsApp capture, finance, and sales.",
+    highlights: [
+      "Guided Flow: Each launch goes Client > Product > Launch, then through six pillars: Strategist, Copy, Traffic, Platforms, Finance, and Sales.",
+      "Strategic Planning: Planning calculates dates and CPL and unlocks the Concept, Offer, and Live Metrics modules, with planned vs. actual tracking.",
+      "Traffic & WhatsApp Analytics: Funnel and lead-quality dashboards, daily budget control, and WhatsApp capture analytics that compare leads in the manager against leads who joined WhatsApp, broken down by source (Meta, TikTok, organic, previous lists).",
+      "Integrations: ConvertKit for email, Sendflow for WhatsApp groups, Stripe and ThriveCart for checkouts and installment billing, and Meta Ads for campaigns and spend.",
+      "Finance & Sales: Budget vs. actual investment, partner balance, sales results, installment collection, and lead scoring, with Admin, Editor, and Viewer roles.",
+    ],
+    tech: [
+      "SaaS",
+      "Marketing Ops",
+      "NestJS",
+      "React",
+      "TypeScript",
+      "Vite",
+      "Monorepo",
+      "Cloudflare Pages",
+      "Meta Ads API",
+      "Stripe",
+      "ThriveCart",
+      "ConvertKit",
+    ],
+    gallery: [
+      {
+        src: "/projects/goscale/01-whatsapp-analytics.webp",
+        caption:
+          "WhatsApp capture analytics: manager vs. WhatsApp leads by source (Meta, TikTok, organic, lists).",
+      },
+      {
+        src: "/projects/goscale/02-resultados-lanzamiento.webp",
+        caption:
+          "Launch results: revenue, ROAS, ROI, margin, and investment breakdown.",
+      },
+      {
+        src: "/projects/goscale/03-metricas-en-vivo.webp",
+        caption: "Live metrics: planned vs. actual across the funnel.",
+      },
+      {
+        src: "/projects/goscale/04-trafico-vision-general.webp",
+        caption:
+          "Traffic overview: spend, CPL, leads, and conversion at a glance.",
+      },
+      {
+        src: "/projects/goscale/05-resumen-leads.webp",
+        caption:
+          "Leads summary by channel: Meta (Instagram/Facebook), TikTok, and organic.",
+      },
+      {
+        src: "/projects/goscale/06-calidad-de-lead.webp",
+        caption: "Lead quality from surveys, by campaign and audience.",
+      },
+      {
+        src: "/projects/goscale/07-integraciones-producto.webp",
+        caption:
+          "Product integrations: ConvertKit, Sendflow, Stripe, and ThriveCart connected.",
+      },
+      {
+        src: "/projects/goscale/08-pilares-lanzamiento.webp",
+        caption:
+          "A launch split into six pillars: Strategist, Copy, Traffic, Platforms, Finance, and Sales.",
+      },
+    ],
+    links: [
+      {
+        label: "LAUNCH_WEB_APPLICATION",
+        href: "https://go-scale.pages.dev",
+      },
+    ],
+    status: {
+      label: "LAUNCH_ENGINE",
+      value: "ACTIVE",
     },
   },
 ];
