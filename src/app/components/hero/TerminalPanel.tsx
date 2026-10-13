@@ -114,7 +114,202 @@ const ScanningEffect = () => (
   </motion.div>
 );
 
-const shellCommands = new Set(commands);
+type AvatarPose =
+  | "idle"
+  | "wave"
+  | "coffee"
+  | "laptop"
+  | "sleep"
+  | "bug"
+  | "dance"
+  | "gym"
+  | "ball";
+
+const AVATAR_POSES: AvatarPose[] = [
+  "idle",
+  "wave",
+  "coffee",
+  "laptop",
+  "sleep",
+  "bug",
+  "dance",
+  "gym",
+  "ball",
+];
+
+const AVATAR_CHIP_COMMANDS = [
+  "help",
+  "coffee",
+  "deploy",
+  "bug",
+  "dance",
+  "gym",
+  "sleep",
+  "wake",
+  "clear",
+] as const;
+
+const AVATAR_COMMAND_CONFIG: Record<
+  string,
+  {
+    pose?: AvatarPose;
+    stay?: boolean;
+    fx?: "rocket";
+    hidden?: boolean;
+    descKey?: string;
+    lines?: { en: string[]; es: string[] };
+  }
+> = {
+  help: {
+    pose: "wave",
+    descKey: "AVATAR_DESC_HELP",
+  },
+  info: {
+    pose: "wave",
+    descKey: "AVATAR_DESC_INFO",
+  },
+  coffee: {
+    pose: "coffee",
+    descKey: "AVATAR_DESC_COFFEE",
+    lines: {
+      en: [
+        "brewing… caffeine levels: 87% → 100%. ☕",
+        "coffee.exe loaded. productivity +42.",
+        "espresso is just a hotfix for sleep.",
+      ],
+      es: [
+        "preparando café… nivel de cafeína: 87% → 100%. ☕",
+        "coffee.exe cargado. productividad +42.",
+        "un espresso es básicamente un hotfix para el sueño.",
+      ],
+    },
+  },
+  deploy: {
+    pose: "laptop",
+    descKey: "AVATAR_DESC_DEPLOY",
+    fx: "rocket",
+    lines: {
+      en: [
+        "git push origin main… 🚀 deployed on a Monday. bold.",
+        "build passed. tests passed. vibes passed. 🚀",
+        "shipping to prod. no, it's fine. it's fine. 🚀",
+      ],
+      es: [
+        "git push origin main… 🚀 desplegado un lunes. sin miedo al éxito.",
+        "build pasó. tests pasaron. las vibras pasaron. 🚀",
+        "subiendo a prod. sí, todo está bien. todo fino. 🚀",
+      ],
+    },
+  },
+  bug: {
+    pose: "bug",
+    descKey: "AVATAR_DESC_BUG",
+    lines: {
+      en: [
+        "found one in prod. *stomp* — fixed.",
+        "bug squashed. it was a missing semicolon. it's always a semicolon.",
+        "404: bug not found (anymore).",
+      ],
+      es: [
+        "encontré uno en prod. *pisa* — arreglado.",
+        "bug aplastado. faltaba un punto y coma. siempre es un punto y coma.",
+        "404: bug no encontrado (ya pasó a mejor vida).",
+      ],
+    },
+  },
+  sleep: {
+    pose: "sleep",
+    stay: true,
+    descKey: "AVATAR_DESC_SLEEP",
+    lines: {
+      en: [
+        "entering low-power mode… zzz. type `wake` to resume.",
+        "sleeping. dreams compiled with 0 warnings.",
+      ],
+      es: [
+        "entrando en modo bajo consumo… zzz. escribe `wake` para volver.",
+        "durmiendo. sueños compilados con 0 warnings.",
+      ],
+    },
+  },
+  wake: {
+    pose: "idle",
+    descKey: "AVATAR_DESC_WAKE",
+    lines: {
+      en: [
+        "rebooting… ☀️ i'm up, i'm up.",
+        "systemctl start roiner — active (running).",
+      ],
+      es: [
+        "reiniciando… ☀️ ya desperté, ya estoy activo.",
+        "systemctl start roiner — activo (corriendo).",
+      ],
+    },
+  },
+  dance: {
+    pose: "dance",
+    descKey: "AVATAR_DESC_DANCE",
+    lines: {
+      en: [
+        "♪ tests are green, let's go ♫",
+        "dancing like nobody's reviewing my PR. ♪",
+      ],
+      es: [
+        "♪ los tests están en verde, ¡vamos! ♫",
+        "bailando como si nadie estuviera revisando mi PR. ♪",
+      ],
+    },
+  },
+  gym: {
+    pose: "gym",
+    descKey: "AVATAR_DESC_GYM",
+    lines: {
+      en: [
+        "lifting heavy… still lighter than node_modules.",
+        "rep 12/12. gains committed and pushed.",
+      ],
+      es: [
+        "levantando pesado… igual pesa menos que node_modules.",
+        "rep 12/12. ganancias commiteadas y pusheadas.",
+      ],
+    },
+  },
+  ball: {
+    pose: "ball",
+    hidden: true,
+    lines: {
+      en: [
+        "🏀 easter egg unlocked: off-hours, i'm on the court.",
+        "🏀 nothing but net. unlike my first regex.",
+      ],
+      es: [
+        "🏀 easter egg desbloqueado: fuera de horario, estoy en la cancha.",
+        "🏀 pura red. no como mi primer regex.",
+      ],
+    },
+  },
+  clear: {
+    descKey: "AVATAR_DESC_CLEAR",
+  },
+};
+
+const visibleAvatarCommands = Object.entries(AVATAR_COMMAND_CONFIG)
+  .filter(([, cfg]) => !cfg.hidden)
+  .map(([k]) => k);
+
+const allAutocompleteCommands = [...commands, ...visibleAvatarCommands];
+
+const shellCommands = new Set([
+  ...commands,
+  ...Object.keys(AVATAR_COMMAND_CONFIG),
+]);
+
+type ShellLogItem =
+  | { id: string; type: "echo"; raw: string }
+  | { id: string; type: "help" }
+  | { id: string; type: "response"; en: string; es: string }
+  | { id: string; type: "auto-sleep" }
+  | { id: string; type: "not-found"; cmd: string };
 
 const viewOrder: ("about" | "experience" | "projects" | "contact" | "cv")[] = [
   "about",
@@ -591,11 +786,37 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
   const [aboutTypedLength, setAboutTypedLength] = useState(0);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [showAboutHint, setShowAboutHint] = useState(false);
+  const [sessionId] = useState(() =>
+    Math.random().toString(36).substring(2, 8).toUpperCase(),
+  );
+  const [avatarPose, setAvatarPose] = useState<AvatarPose>("idle");
+  const [avatarAnim, setAvatarAnim] = useState<"idle" | "pop" | "squash" | "">(
+    "idle",
+  );
+  const [rocketBursts, setRocketBursts] = useState<
+    Array<{ id: string; sparks: Array<{ dx: number; dy: number }> }>
+  >([]);
+  const [shellLog, setShellLog] = useState<ShellLogItem[]>([]);
+  const [showInitialBanner, setShowInitialBanner] = useState(true);
+  const [hasOpenedProject, setHasOpenedProject] = useState(false);
+  const [miniDisplayPose, setMiniDisplayPose] = useState<AvatarPose>("wave");
+  const [miniAnim, setMiniAnim] = useState<"idle" | "pop">("idle");
+
   const inputRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const shellOutputRef = useRef<HTMLDivElement>(null);
   const experienceRailRef = useRef<HTMLDivElement>(null);
   const experienceNodeRefs = useRef<Array<HTMLDivElement | null>>([]);
   const experiencePulseY = useMotionValue(-24);
+
+  const poseRef = useRef<AvatarPose>("idle");
+  const animRef = useRef<"idle" | "pop" | "squash" | "">("idle");
+  const backToIdleTimerRef = useRef<number | null>(null);
+  const popTimerRef = useRef<number | null>(null);
+  const sleepTimerRef = useRef<number | null>(null);
+  const squashTimerRef = useRef<number | null>(null);
+  const miniPopTimerRef = useRef<number | null>(null);
+
   const activeProject =
     projectEntries.find((project) => project.id === activeProjectId) ??
     projectEntries[0];
@@ -614,6 +835,189 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
       isAiMode);
   const usesTouchNavigationCopy = isMobile || isCompactViewport;
 
+  const sectionMiniPose: AvatarPose | null =
+    !isAiMode && activeView === "experience"
+      ? "laptop"
+      : !isAiMode && activeView === "projects"
+        ? hasOpenedProject
+          ? "laptop"
+          : "coffee"
+        : !isAiMode && activeView === "cv"
+          ? "gym"
+          : null;
+
+  // Preload all pixel-art sprites on mount
+  useEffect(() => {
+    AVATAR_POSES.forEach((pose) => {
+      const img = new window.Image();
+      img.src = `/avatar/${pose}.png`;
+    });
+  }, []);
+
+  // Sync section mini avatar pose and pop transition
+  useEffect(() => {
+    if (!sectionMiniPose) {
+      return;
+    }
+    setMiniDisplayPose(sectionMiniPose);
+    setMiniAnim("pop");
+    if (miniPopTimerRef.current) {
+      window.clearTimeout(miniPopTimerRef.current);
+    }
+    miniPopTimerRef.current = window.setTimeout(() => {
+      setMiniAnim("idle");
+    }, 320);
+    return () => {
+      if (miniPopTimerRef.current) {
+        window.clearTimeout(miniPopTimerRef.current);
+      }
+    };
+  }, [sectionMiniPose]);
+
+  const triggerAvatarPose = useCallback(
+    (newPose: AvatarPose, { stay = false }: { stay?: boolean } = {}) => {
+      if (backToIdleTimerRef.current) {
+        window.clearTimeout(backToIdleTimerRef.current);
+        backToIdleTimerRef.current = null;
+      }
+      if (popTimerRef.current) {
+        window.clearTimeout(popTimerRef.current);
+        popTimerRef.current = null;
+      }
+
+      poseRef.current = newPose;
+      setAvatarPose(newPose);
+
+      animRef.current = "";
+      setAvatarAnim("");
+      window.requestAnimationFrame(() => {
+        animRef.current = "pop";
+        setAvatarAnim("pop");
+        popTimerRef.current = window.setTimeout(() => {
+          const nextAnim = poseRef.current === "idle" ? "idle" : "";
+          animRef.current = nextAnim;
+          setAvatarAnim(nextAnim);
+        }, 320);
+      });
+
+      if (newPose !== "idle" && !stay) {
+        backToIdleTimerRef.current = window.setTimeout(() => {
+          poseRef.current = "idle";
+          setAvatarPose("idle");
+          animRef.current = "pop";
+          setAvatarAnim("pop");
+          popTimerRef.current = window.setTimeout(() => {
+            if (poseRef.current === "idle") {
+              animRef.current = "idle";
+              setAvatarAnim("idle");
+            }
+          }, 320);
+        }, 6000);
+      }
+    },
+    [],
+  );
+
+  const armSleep = useCallback(() => {
+    if (sleepTimerRef.current) {
+      window.clearTimeout(sleepTimerRef.current);
+    }
+    sleepTimerRef.current = window.setTimeout(() => {
+      if (poseRef.current !== "sleep") {
+        triggerAvatarPose("sleep", { stay: true });
+        setChatHistory((current) => [
+          ...current,
+          {
+            id: `sleep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: "system",
+            content: t("AVATAR_AUTO_SLEEP"),
+          },
+        ]);
+      }
+    }, 20000);
+  }, [triggerAvatarPose, t]);
+
+  // Occasional idle squash
+  useEffect(() => {
+    let innerTimer: number | null = null;
+    const scheduleSquash = () => {
+      const delay = 3500 + Math.random() * 4000;
+      squashTimerRef.current = window.setTimeout(() => {
+        if (poseRef.current === "idle" && animRef.current === "idle") {
+          animRef.current = "squash";
+          setAvatarAnim("squash");
+          innerTimer = window.setTimeout(() => {
+            if (poseRef.current === "idle") {
+              animRef.current = "idle";
+              setAvatarAnim("idle");
+            }
+          }, 340);
+        }
+        scheduleSquash();
+      }, delay);
+    };
+    scheduleSquash();
+    return () => {
+      if (squashTimerRef.current) {
+        window.clearTimeout(squashTimerRef.current);
+      }
+      if (innerTimer) {
+        window.clearTimeout(innerTimer);
+      }
+    };
+  }, []);
+
+  // Auto-sleep after 20s of inactivity in AI mode
+  useEffect(() => {
+    if (!isAiMode || activeView !== "terminal") {
+      if (sleepTimerRef.current) {
+        window.clearTimeout(sleepTimerRef.current);
+      }
+      return;
+    }
+
+    armSleep();
+
+    const handleActivity = () => {
+      if (poseRef.current !== "sleep") {
+        armSleep();
+      }
+    };
+
+    const events = ["mousemove", "keydown", "touchstart", "scroll"] as const;
+    events.forEach((ev) =>
+      window.addEventListener(ev, handleActivity, { passive: true }),
+    );
+    return () => {
+      events.forEach((ev) => window.removeEventListener(ev, handleActivity));
+      if (sleepTimerRef.current) {
+        window.clearTimeout(sleepTimerRef.current);
+      }
+    };
+  }, [activeView, isAiMode, armSleep]);
+
+  // Cleanup pose timers on unmount
+  useEffect(() => {
+    return () => {
+      if (backToIdleTimerRef.current)
+        window.clearTimeout(backToIdleTimerRef.current);
+      if (popTimerRef.current) window.clearTimeout(popTimerRef.current);
+      if (sleepTimerRef.current) window.clearTimeout(sleepTimerRef.current);
+    };
+  }, []);
+
+  const triggerRocketFx = useCallback(() => {
+    const id = `rocket-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const sparks = Array.from({ length: 10 }, () => ({
+      dx: Math.trunc(Math.random() * 120 - 60),
+      dy: Math.trunc(Math.random() * -120 - 20),
+    }));
+    setRocketBursts((prev) => [...prev, { id, sparks }]);
+    window.setTimeout(() => {
+      setRocketBursts((prev) => prev.filter((b) => b.id !== id));
+    }, 1700);
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -626,6 +1030,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     setIsExpanded(true);
     setInputValue("");
     setChatHistory(createAiWelcomeHistoryContext(t("AI_WELCOME")));
+    triggerAvatarPose("dance");
   };
 
   const exitAiMode = () => {
@@ -659,6 +1064,8 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
       return;
     }
 
+    armSleep();
+
     if (normalized === "exit" || normalized === "back") {
       exitAiMode();
       return;
@@ -669,10 +1076,58 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
       return;
     }
 
-    if (normalized === "help") {
-      appendSystemMessage(t("AI_HELP"));
-      setInputValue("");
-      return;
+    if (normalized in AVATAR_COMMAND_CONFIG) {
+      const cfg = AVATAR_COMMAND_CONFIG[normalized];
+      if (cfg.pose) {
+        triggerAvatarPose(cfg.pose, { stay: cfg.stay });
+      }
+      if (cfg.fx === "rocket") {
+        triggerRocketFx();
+      }
+
+      const userCmdMessage: ChatMessage = {
+        id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        role: "user",
+        content: trimmed,
+      };
+
+      if (normalized === "help" || normalized === "info") {
+        const cmdLines = Object.entries(AVATAR_COMMAND_CONFIG)
+          .filter(([, c]) => !c.hidden)
+          .map(
+            ([k, c]) =>
+              `  ${k.padEnd(8)} ${c.descKey ? t(c.descKey) : ""}`,
+          )
+          .join("\n");
+        const helpContent = `${t("AVATAR_AVAILABLE_COMMANDS")}\n${cmdLines}\n\n${t("AVATAR_HELP_GREETING")}\n${t("AI_HELP")}`;
+        setChatHistory((current) => [
+          ...current,
+          userCmdMessage,
+          {
+            id: `system-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            role: "system",
+            content: helpContent,
+          },
+        ]);
+        setInputValue("");
+        return;
+      }
+
+      if (cfg.lines) {
+        const pool = language === "es" ? cfg.lines.es : cfg.lines.en;
+        const replyLine = pool[Math.floor(Math.random() * pool.length)] ?? pool[0];
+        setChatHistory((current) => [
+          ...current,
+          userCmdMessage,
+          {
+            id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            role: "assistant",
+            content: replyLine,
+          },
+        ]);
+        setInputValue("");
+        return;
+      }
     }
 
     const userMessage: ChatMessage = {
@@ -693,6 +1148,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
     setChatHistory((current) => [...current, userMessage]);
     setInputValue("");
+    triggerAvatarPose("laptop");
 
     try {
       setIsAiThinking(true);
@@ -767,12 +1223,15 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     if (
       ["experience", "about", "projects", "contact", "cv"].includes(cleanCmd)
     ) {
+      if (cleanCmd === "projects") {
+        setHasOpenedProject(false);
+      }
       setTerminalMode("shell");
       setIsExpanded(true);
       setActiveView(cleanCmd as any);
     } else if (cleanCmd === "ai") {
       enterAiMode();
-    } else if (!shellCommands.has(cleanCmd)) {
+    } else if (!commands.includes(cleanCmd)) {
       enterAiMode();
       window.setTimeout(() => {
         void handleAiCommand(cmd);
@@ -788,6 +1247,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     if (activeView === "projects") {
       if (hasNextProject) {
         setActiveProjectId(projectEntries[activeProjectIndex + 1].id);
+        setHasOpenedProject(true);
       } else {
         handleCommand("contact");
       }
@@ -845,7 +1305,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
 
   const handleTerminalClick = () => {
     if (activeView === "terminal") {
-      inputRef.current?.focus();
+      inputRef.current?.focus({ preventScroll: true });
     }
   };
 
@@ -856,7 +1316,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
       return;
     }
 
-    const matches = commands.filter((command) =>
+    const matches = allAutocompleteCommands.filter((command) =>
       command.startsWith(normalizedInput),
     );
 
@@ -1247,7 +1707,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex items-center justify-between border-b border-emerald-500/10 pb-4 mb-2"
+                    className="flex items-center justify-between border-b border-emerald-500/10 pb-3"
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-500/60">
@@ -1271,215 +1731,343 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                     </button>
                   </motion.div>
 
-                  <div
-                    ref={chatScrollRef}
-                    className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pt-2"
-                  >
-                    {chatHistory.map((message, index) => (
-                      <motion.div
-                        key={message.id}
-                        initial={{ opacity: 0, x: -4 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{
-                          delay: index === chatHistory.length - 1 ? 0.04 : 0,
-                        }}
-                        className="flex flex-col gap-1.5"
-                      >
-                        <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-widest opacity-40">
+                  <div className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)] gap-4 sm:gap-6 flex-1 min-h-0 items-stretch">
+                    {/* Pixel-Art Avatar Stage inside AI Mode */}
+                    <div
+                      id="stage"
+                      className="pixel-avatar-stage h-[180px] md:h-auto md:min-h-[320px] rounded-xl border border-emerald-500/15 bg-emerald-500/[0.02] px-4 pt-7 pb-4 select-none overflow-hidden"
+                    >
+                      <div className="absolute top-3 left-3.5 right-3.5 flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-emerald-500/60 pointer-events-none">
+                        <span className="flex items-center gap-1.5">
                           <span
-                            className={
-                              message.role === "user"
-                                ? "text-zinc-100"
-                                : "text-emerald-500"
-                            }
-                          >
-                            {message.role === "user"
-                              ? "guest@workspace"
-                              : "ai@neural-link"}
-                          </span>
-                          <span className="text-zinc-500">
-                            ::{" "}
-                            {new Date().toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              second: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                        <div
-                          className={`
-                            text-sm leading-relaxed font-mono
-                            ${message.role === "user" ? "text-zinc-200" : "text-emerald-400/90"}
-                          `}
-                        >
-                          {message.role === "user" && (
-                            <span className="mr-2 text-zinc-600">$</span>
-                          )}
-                          {message.role !== "user" &&
-                          index === chatHistory.length - 1 ? (
-                            <TypewriterText
-                              text={message.content}
-                              onTick={scrollToBottom}
-                            />
-                          ) : (
-                            message.content
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              avatarPose === "sleep"
+                                ? "bg-amber-400/70"
+                                : "bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.7)]"
+                            }`}
+                          />
+                          {avatarPose}
+                        </span>
+                      </div>
 
-                    {isAiMode && chatHistory.length === 1 && !isAiThinking && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.5 }}
-                        className="mt-2 space-y-4 px-1"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-px w-6 bg-emerald-500/20" />
-                          <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-500/60 font-bold">
-                            {t("SUGGESTED_QUESTIONS_LABEL")}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {SUGGESTED_QUESTIONS.map((q, idx) => (
-                            <button
+                      {rocketBursts.map((burst) => (
+                        <div
+                          key={burst.id}
+                          className="pointer-events-none absolute inset-0 z-10"
+                        >
+                          <div
+                            className="pixel-avatar-fx"
+                            style={{ left: "58%", bottom: "36%" }}
+                          >
+                            🚀
+                          </div>
+                          {burst.sparks.map((spark, idx) => (
+                            <div
                               key={idx}
-                              onClick={() => handleAiCommand(q)}
-                              className="flex items-center gap-4 text-left group w-full max-w-3xl px-2 py-2 hover:bg-emerald-500/[0.03] border-l border-transparent hover:border-emerald-500/30 transition-all"
-                            >
-                              <div className="font-mono text-[9px] text-emerald-500/30 group-hover:text-emerald-500 uppercase tracking-widest shrink-0 transition-colors">
-                                [ EXEC ]
-                              </div>
-                              <div className="font-mono text-sm text-zinc-500 group-hover:text-emerald-400/90 transition-all duration-300 leading-tight group-hover:translate-x-1">
-                                {q}
-                              </div>
-                              <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-emerald-500 font-mono animate-pulse">
-                                  _
-                                </span>
-                              </div>
-                            </button>
+                              className="pixel-avatar-px"
+                              style={
+                                {
+                                  left: "56%",
+                                  bottom: "40%",
+                                  "--dx": `${spark.dx}px`,
+                                  "--dy": `${spark.dy}px`,
+                                } as React.CSSProperties
+                              }
+                            />
                           ))}
                         </div>
-                      </motion.div>
-                    )}
+                      ))}
 
-                    {isAiThinking && (
-                      <motion.div
-                        initial={{ opacity: 0, x: -4 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex flex-col gap-1.5"
+                      <img
+                        id="av"
+                        src={`/avatar/${avatarPose}.png`}
+                        alt="Pixel-art chibi avatar of Roiner Hernandez"
+                        className={`pixel-avatar-img ${avatarAnim} max-w-[130px] md:max-w-[215px] lg:max-w-[260px]`}
+                      />
+                    </div>
+
+                    {/* AI Console + Prompt + Touchable Command Chips */}
+                    <div className="flex min-h-0 flex-1 flex-col min-w-0 rounded-xl border border-zinc-800/80 bg-black/40 overflow-hidden">
+                      <div
+                        id="out"
+                        ref={chatScrollRef}
+                        aria-live="polite"
+                        className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4 sm:p-5"
                       >
-                        <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-widest opacity-40">
-                          <span className="text-emerald-500">
-                            ai@neural-link
-                          </span>
-                          <span className="text-zinc-500">
-                            :: {t("AI_THINKING")}
-                          </span>
+                        {chatHistory.map((message, index) => (
+                          <motion.div
+                            key={message.id}
+                            initial={{ opacity: 0, x: -4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{
+                              delay:
+                                index === chatHistory.length - 1 ? 0.04 : 0,
+                            }}
+                            className="flex flex-col gap-1.5"
+                          >
+                            <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-widest opacity-40">
+                              <span
+                                className={
+                                  message.role === "user"
+                                    ? "text-zinc-100"
+                                    : "text-emerald-500"
+                                }
+                              >
+                                {message.role === "user"
+                                  ? "guest@workspace"
+                                  : "ai@neural-link"}
+                              </span>
+                              <span className="text-zinc-500">
+                                ::{" "}
+                                {new Date().toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            <div
+                              className={`
+                                text-sm leading-relaxed font-mono whitespace-pre-wrap break-words
+                                ${
+                                  message.role === "user"
+                                    ? "text-zinc-200"
+                                    : message.role === "system"
+                                      ? "text-emerald-300/85"
+                                      : "text-emerald-400/90"
+                                }
+                              `}
+                            >
+                              {message.role === "user" && (
+                                <span className="mr-2 text-zinc-600">$</span>
+                              )}
+                              {message.role === "assistant" &&
+                              index === chatHistory.length - 1 ? (
+                                <TypewriterText
+                                  text={message.content}
+                                  onTick={scrollToBottom}
+                                />
+                              ) : (
+                                message.content
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
+
+                        {isAiMode &&
+                          chatHistory.length === 1 &&
+                          !isAiThinking && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.6 }}
+                              className="mt-1 space-y-3 px-1"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="h-px w-6 bg-emerald-500/20" />
+                                <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-500/60 font-bold">
+                                  {t("SUGGESTED_QUESTIONS_LABEL")}
+                                </span>
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                {SUGGESTED_QUESTIONS.map((q, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => handleAiCommand(q)}
+                                    className="flex items-center gap-4 text-left group w-full max-w-3xl px-2 py-1.5 hover:bg-emerald-500/[0.03] border-l border-transparent hover:border-emerald-500/30 transition-all"
+                                  >
+                                    <div className="font-mono text-[9px] text-emerald-500/30 group-hover:text-emerald-500 uppercase tracking-widest shrink-0 transition-colors">
+                                      [ EXEC ]
+                                    </div>
+                                    <div className="font-mono text-sm text-zinc-500 group-hover:text-emerald-400/90 transition-all duration-300 leading-tight group-hover:translate-x-1">
+                                      {q}
+                                    </div>
+                                    <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <span className="text-emerald-500 font-mono animate-pulse">
+                                        _
+                                      </span>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+
+                        {isAiThinking && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex flex-col gap-1.5"
+                          >
+                            <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-widest opacity-40">
+                              <span className="text-emerald-500">
+                                ai@neural-link
+                              </span>
+                              <span className="text-zinc-500">
+                                :: {t("AI_THINKING")}
+                              </span>
+                            </div>
+                            <div className="text-sm leading-relaxed font-mono text-emerald-400/90">
+                              <TypewriterText
+                                text={t("AI_CONSULTING_CONTEXT")}
+                                onTick={scrollToBottom}
+                              />
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* Interactive Terminal Input for AI Mode */}
+                      <div
+                        onClick={() =>
+                          inputRef.current?.focus({ preventScroll: true })
+                        }
+                        className="flex items-center gap-3 px-4 py-3 border-t border-zinc-800/70 bg-black/50 cursor-text min-w-0"
+                      >
+                        <div className="flex items-center shrink-0 text-xs sm:text-sm font-mono font-bold text-emerald-400 select-none">
+                          <span>roiner@workspace:~/ai$</span>
                         </div>
-                        <div className="text-sm leading-relaxed font-mono text-emerald-400/90">
-                          <TypewriterText
-                            text={t("AI_CONSULTING_CONTEXT")}
-                            onTick={scrollToBottom}
+
+                        <div className="relative flex-1 flex items-center min-w-0">
+                          <input
+                            id="inp"
+                            ref={inputRef}
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            spellCheck={false}
+                            autoComplete="off"
+                            autoCapitalize="off"
+                            disabled={isAiThinking}
+                            placeholder={t("PLACEHOLDER_AI")}
+                            className="w-full bg-transparent border-none outline-none p-0 font-mono text-xs sm:text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60 min-w-0"
+                            autoFocus
+                          />
+                          <motion.div
+                            animate={{
+                              opacity: [1, 0, 1],
+                            }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              ease: "steps(2)",
+                            }}
+                            style={{ left: `${inputValue.length}ch` }}
+                            className="absolute w-2 h-4 bg-emerald-400 ml-0 pointer-events-none shadow-[0_0_10px_rgba(16,185,129,0.4)]"
                           />
                         </div>
-                      </motion.div>
-                    )}
+                      </div>
+
+                      {/* Touchable Command Chips in AI Mode */}
+                      <div
+                        id="chips"
+                        className="flex flex-wrap gap-1.5 sm:gap-2 px-4 py-2.5 border-t border-zinc-800/80 bg-zinc-950/90"
+                      >
+                        {AVATAR_CHIP_COMMANDS.map((chipCmd) => (
+                          <button
+                            key={chipCmd}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleAiCommand(chipCmd);
+                            }}
+                            className="min-h-[36px] px-2.5 py-1 rounded-md border border-emerald-500/35 bg-emerald-500/[0.06] font-mono text-xs text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/60 focus-visible:bg-emerald-500/20 focus-visible:outline-none active:scale-95 transition-all cursor-pointer"
+                          >
+                            {chipCmd}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4 min-w-0">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="flex flex-col sm:flex-row items-start gap-4 p-4 sm:p-5 bg-emerald-500/[0.03] backdrop-blur-md rounded-xl border border-emerald-500/10 relative overflow-hidden group"
-                  >
-                    <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:100%_4px] opacity-20" />
-
-                    <div className="relative flex-shrink-0">
-                      <div className="w-12 h-12 rounded-full border border-emerald-500/30 overflow-hidden bg-zinc-900 relative">
-                        <img
-                          src="/avatar3.png"
-                          alt="Avatar"
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 relative z-10 min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 font-mono">
-                            {t("DIGITAL_GUIDE")}
-                          </span>
-                          <div className="w-1 h-1 rounded-full bg-zinc-700" />
-                        </div>
-                        <div className="text-[8px] sm:text-[9px] font-mono text-zinc-500 uppercase flex flex-wrap gap-x-3 gap-y-1">
-                          <span className="whitespace-nowrap">
-                            {t("SESSION")}:{" "}
-                            {Math.random()
-                              .toString(36)
-                              .substring(7)
-                              .toUpperCase()}
-                          </span>
-                          <span className="whitespace-nowrap">
-                            {t("LAST_LOGIN")}: {new Date().toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-zinc-200 leading-snug text-[15px] sm:text-base max-w-prose">
-                        {t("WELCOME_WORKSPACE")}
-                      </p>
-                      <div className="flex items-start gap-1.5 text-[9px] sm:text-[10px] text-zinc-500 font-mono max-w-prose">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
-                        {t("SYSTEM_READY_NAVIGATION")}
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              )}
-
-              {/* Interactive Terminal Input (Bottom) */}
-              <div className="mt-auto pb-6 pt-4 sm:pb-8 sm:pt-6">
-                <div className="flex items-center gap-3 text-white transition-colors px-1 min-w-0">
-                  <div className="flex items-center shrink-0 text-sm font-mono font-bold text-white/40">
-                    <span>$</span>
-                  </div>
-
-                  <div className="relative flex-1 flex items-center">
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      spellCheck={false}
-                      autoComplete="off"
-                      disabled={isAiMode && isAiThinking}
-                      placeholder={
-                        isAiMode ? t("PLACEHOLDER_AI") : t("PLACEHOLDER_SHELL")
-                      }
-                      className="w-full bg-transparent border-none outline-none p-0 font-mono text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60 min-w-0"
-                      autoFocus
-                    />
+                <>
+                  <div className="space-y-4 min-w-0">
                     <motion.div
-                      animate={{
-                        opacity: [1, 0, 1],
-                      }}
-                      transition={{
-                        duration: 1,
-                        repeat: Infinity,
-                        ease: "steps(2)",
-                      }}
-                      style={{ left: `${inputValue.length}ch` }}
-                      className="absolute w-2 h-4 bg-white ml-0 pointer-events-none shadow-[0_0_10px_rgba(255,255,255,0.3)]"
-                    />
+                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      className="flex flex-col sm:flex-row items-start gap-4 p-4 sm:p-5 bg-emerald-500/[0.03] backdrop-blur-md rounded-xl border border-emerald-500/10 relative overflow-hidden group"
+                    >
+                      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:100%_4px] opacity-20" />
+
+                      <div className="relative flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full border border-emerald-500/30 overflow-hidden bg-zinc-900 relative">
+                          <img
+                            src="/avatar3.png"
+                            alt="Avatar"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 relative z-10 min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 font-mono">
+                              {t("DIGITAL_GUIDE")}
+                            </span>
+                            <div className="w-1 h-1 rounded-full bg-zinc-700" />
+                          </div>
+                          <div className="text-[8px] sm:text-[9px] font-mono text-zinc-500 uppercase flex flex-wrap gap-x-3 gap-y-1">
+                            <span className="whitespace-nowrap">
+                              {t("SESSION")}: {sessionId}
+                            </span>
+                            <span className="whitespace-nowrap">
+                              {t("LAST_LOGIN")}:{" "}
+                              {new Date().toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-zinc-200 leading-snug text-[15px] sm:text-base max-w-prose">
+                          {t("WELCOME_WORKSPACE")}
+                        </p>
+                        <div className="flex items-start gap-1.5 text-[9px] sm:text-[10px] text-zinc-500 font-mono max-w-prose">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
+                          {t("SYSTEM_READY_NAVIGATION")}
+                        </div>
+                      </div>
+                    </motion.div>
                   </div>
-                </div>
-              </div>
+
+                  {/* Interactive Terminal Input (Bottom) */}
+                  <div className="mt-auto pb-6 pt-4 sm:pb-8 sm:pt-6">
+                    <div className="flex items-center gap-3 text-white transition-colors px-1 min-w-0">
+                      <div className="flex items-center shrink-0 text-sm font-mono font-bold text-white/40">
+                        <span>$</span>
+                      </div>
+
+                      <div className="relative flex-1 flex items-center">
+                        <input
+                          ref={inputRef}
+                          type="text"
+                          value={inputValue}
+                          onChange={(e) => setInputValue(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          spellCheck={false}
+                          autoComplete="off"
+                          placeholder={t("PLACEHOLDER_SHELL")}
+                          className="w-full bg-transparent border-none outline-none p-0 font-mono text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60 min-w-0"
+                          autoFocus
+                        />
+                        <motion.div
+                          animate={{
+                            opacity: [1, 0, 1],
+                          }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "steps(2)",
+                          }}
+                          style={{ left: `${inputValue.length}ch` }}
+                          className="absolute w-2 h-4 bg-white ml-0 pointer-events-none shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -1786,7 +2374,10 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
                                 <button
                                   key={project.id}
                                   type="button"
-                                  onClick={() => setActiveProjectId(project.id)}
+                                  onClick={() => {
+                                    setActiveProjectId(project.id);
+                                    setHasOpenedProject(true);
+                                  }}
                                   className={`group relative flex w-full items-center gap-3 px-3 py-2.5 text-left transition-all duration-200 rounded-lg ${
                                     isActive
                                       ? "bg-emerald-500/[0.07] text-emerald-400"
@@ -2588,16 +3179,42 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     </motion.div>
   );
 
+  const miniAvatar =
+    typeof document !== "undefined"
+      ? createPortal(
+          <img
+            id="mini"
+            src={`/avatar/${miniDisplayPose}.png`}
+            alt=""
+            aria-hidden="true"
+            className={`pixel-avatar-mini fixed right-3 bottom-24 sm:right-5 sm:bottom-16 w-14 sm:w-[72px] z-[160] pointer-events-none ${
+              sectionMiniPose ? `on ${miniAnim}` : "off"
+            }`}
+          />,
+          document.body,
+        )
+      : null;
+
   if (isExpanded && typeof document !== "undefined") {
-    return createPortal(
-      <div
-        className={`fixed inset-0 z-[140] h-screen w-screen bg-zinc-950 ${usesProjectSplitScroll ? "overflow-hidden" : "overflow-y-auto"}`}
-      >
-        {panel}
-      </div>,
-      document.body,
+    return (
+      <>
+        {createPortal(
+          <div
+            className={`fixed inset-0 z-[140] h-screen w-screen bg-zinc-950 ${usesProjectSplitScroll ? "overflow-hidden" : "overflow-y-auto"}`}
+          >
+            {panel}
+          </div>,
+          document.body,
+        )}
+        {miniAvatar}
+      </>
     );
   }
 
-  return <div className="relative w-full min-h-[580px]">{panel}</div>;
+  return (
+    <div className="relative w-full min-h-[580px]">
+      {panel}
+      {miniAvatar}
+    </div>
+  );
 }

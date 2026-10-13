@@ -233,3 +233,162 @@
     image-rendering: crisp-edges;
   }
 }
+
+.pixel-avatar-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.pixel-avatar-stage::after {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  width: 62%;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(rgba(34, 224, 122, 0.28), transparent 70%);
+  pointer-events: none;
+}
+
+.pixel-avatar-img {
+  width: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  transform-origin: 50% 100%;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 0 18px rgba(34, 224, 122, 0.14));
+}
+
+.pixel-avatar-img.idle {
+  animation: pixel-avatar-bob 2.4s steps(2, end) infinite;
+}
+
+.pixel-avatar-img.squash {
+  animation: pixel-avatar-squash 0.32s ease-out;
+}
+
+.pixel-avatar-img.pop {
+  animation: pixel-avatar-pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes pixel-avatar-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes pixel-avatar-squash {
+  0% {
+    transform: scale(1, 1);
+  }
+  35% {
+    transform: scale(1.08, 0.9);
+  }
+  70% {
+    transform: scale(0.96, 1.05);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes pixel-avatar-pop {
+  0% {
+    transform: scale(1.12, 0.82);
+  }
+  60% {
+    transform: scale(0.95, 1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pixel-avatar-fx {
+  position: absolute;
+  font-size: 26px;
+  z-index: 2;
+  pointer-events: none;
+  animation: pixel-avatar-rise 1.6s ease-in forwards;
+}
+
+@keyframes pixel-avatar-rise {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+  }
+  100% {
+    transform: translateY(-220px) rotate(-10deg);
+    opacity: 0;
+  }
+}
+
+.pixel-avatar-px {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #22e07a;
+  z-index: 2;
+  pointer-events: none;
+  animation: pixel-avatar-spark 0.9s steps(6) forwards;
+}
+
+@keyframes pixel-avatar-spark {
+  to {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+}
+
+.pixel-avatar-mini {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 0 10px rgba(34, 224, 122, 0.32));
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.pixel-avatar-mini.off {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+}
+
+.pixel-avatar-mini.on {
+  opacity: 1;
+  transform: none;
+}
+
+.pixel-avatar-mini.pop {
+  animation: pixel-avatar-pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.pixel-avatar-mini.idle {
+  animation: pixel-avatar-bob 2.4s steps(2, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-avatar-img.idle,
+  .pixel-avatar-img.squash,
+  .pixel-avatar-img.pop,
+  .pixel-avatar-fx,
+  .pixel-avatar-px,
+  .pixel-avatar-mini.pop,
+  .pixel-avatar-mini.idle {
+    animation: none !important;
+  }
+}
+
