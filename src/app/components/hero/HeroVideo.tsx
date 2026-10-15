@@ -118,7 +118,7 @@ export function HeroVideo() {
     {
       reduceMotion,
       // Only resume the loop when we are back on the hero.
-      canPlay: () => !reduceMotion && !sectionOpenRef.current && progressRef.current === 0,
+      canPlay: () => !reduceMotion && !sectionOpenRef.current,
       getCommand: () => `cd ${targetRef.current}`,
       getProgress: () => progressRef.current,
     },
@@ -168,11 +168,30 @@ export function HeroVideo() {
     [animateTo, reduceMotion, retarget],
   );
 
+  /** Restart the background loop (autoplay can reject; ignore safely). */
+  const resumeLoop = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || reduceMotion || sectionOpenRef.current) return;
+    video.muted = true;
+    try {
+      const playback = video.play();
+      if (playback) playback.catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }, [reduceMotion]);
+
   /** Section -> CRT -> back out to the hero, in reverse. */
   const playBack = useCallback(() => {
     if (animatingRef.current) return;
-    animateTo(0, () => retarget('about'));
-  }, [animateTo, retarget]);
+    animateTo(0, () => {
+      retarget('about');
+      // Back on the hero: exact 0 (hides cutout/patch, clears canvas, unfreezes)
+      progressRef.current = 0;
+      renderRef.current();
+      resumeLoop();
+    });
+  }, [animateTo, retarget, renderRef, resumeLoop]);
 
   // Closing an auto-opened section (scroll-up, RETURN_TO_SHELL, Esc) plays
   // the transition back to the hero.
