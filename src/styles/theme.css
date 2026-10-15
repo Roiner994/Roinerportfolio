@@ -430,3 +430,56 @@
   }
   .hero-block-caret { animation: none; }
 }
+
+/* Claude robot speech bubble (pixel/terminal style) */
+.hero-bubble-anchor {
+  z-index: 6;
+  /* bubble sits above the robot's head, tail pointing down at it */
+  transform: translate(-28%, calc(-100% - 10px));
+}
+.hero-bubble {
+  position: relative;
+  padding: 6px 9px 7px;
+  font-family: var(--font-terminal, monospace);
+  font-size: 12px;
+  line-height: 1.25;
+  color: #d1fae5;
+  background: #030213;
+  border: 2px solid #00bb7f;
+  border-radius: 0;
+  box-shadow: 3px 3px 0 rgba(0, 187, 127, 0.35), 0 0 12px rgba(0, 187, 127, 0.2);
+  image-rendering: pixelated;
+  animation: hero-bubble-bob 2.4s steps(4, end) infinite;
+}
+/* stepped pixel tail: two stacked squares pointing at the robot */
+.hero-bubble-tail,
+.hero-bubble-tail::after {
+  position: absolute;
+  content: "";
+  background: #030213;
+  border: 2px solid #00bb7f;
+  border-top: 0;
+}
+.hero-bubble-tail {
+  left: 28%;
+  bottom: -8px;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%);
+}
+.hero-bubble-tail::after {
+  left: 2px;
+  bottom: -6px;
+  width: 4px;
+  height: 6px;
+}
+@keyframes hero-bubble-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@media (min-width: 1024px) {
+  .hero-bubble { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-bubble { animation: none; }
+}

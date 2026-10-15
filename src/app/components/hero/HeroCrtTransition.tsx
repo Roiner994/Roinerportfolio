@@ -18,6 +18,8 @@ export const ROBOT = { x: 1103, y: 110.5, w: 106.5, h: 159, srcW: 142, srcH: 212
 /** Background patch (public/hero/robot-patch.png) that hides the video robot. */
 export const PATCH = { x: 1095.5, y: 103, w: 121.5, h: 171 };
 /** Inner CRT screen (the green terminal glass). */
+/** Claude (orange) robot's head top-centre, where the hint bubble points. */
+export const CLAUDE_HEAD = { x: 742, y: 104 };
 export const CRT = { x: 1033, y: 290, w: 102, h: 90, cx: 1084, cy: 335 };
 
 const pct = (v: number, total: number) => `${((v / total) * 100).toFixed(3)}%`;
@@ -219,6 +221,13 @@ export function useHeroCrtTransition(
       };
 
       if (reduceMotion) {
+        const crr = contentRect(base.posX);
+        if (r.frame.current) {
+          r.frame.current.style.left = `${crr.left}px`;
+          r.frame.current.style.top = `${crr.top}px`;
+          r.frame.current.style.width = `${crr.cw}px`;
+          r.frame.current.style.height = `${crr.ch}px`;
+        }
         const f = range(p, 0.25, 0.7);
         setOpacity(r.ui.current, 1 - f);
         setOpacity(r.crt.current, f);

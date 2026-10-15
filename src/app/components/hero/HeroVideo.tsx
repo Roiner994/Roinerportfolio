@@ -16,6 +16,7 @@ import {
   VIDEO_H,
   VIDEO_W,
   boxStyle,
+  CLAUDE_HEAD,
   useHeroCrtTransition,
 } from './HeroCrtTransition';
 
@@ -377,8 +378,9 @@ export function HeroVideo() {
     dispatch(inputValue.trim() ? inputValue : 'about');
   };
 
-  const HINT_TEXT = '> try: about';
-  const hintEnter = language === 'es' ? 'presiona enter ↵' : 'press enter ↵';
+  // Hint "said" by the Claude robot in a pixel speech bubble.
+  const HINT_TEXT = language === 'es' ? 'intenta presionar About 👇' : 'try pressing About 👇';
+  const hintEnter = language === 'es' ? 'o presiona enter ↵' : 'or press enter ↵';
 
   // After ~2 s of inactivity on the hero, auto-type the About hint.
   useEffect(() => {
@@ -389,9 +391,9 @@ export function HeroVideo() {
       let i = 0;
       typer = window.setInterval(
         () => {
-          i += 1;
+          i = reduceMotion ? Array.from(HINT_TEXT).length + 1 : i + 1;
           setHintTyped(i);
-          if (i >= HINT_TEXT.length + 1) window.clearInterval(typer);
+          if (i >= Array.from(HINT_TEXT).length + 1) window.clearInterval(typer);
         },
         reduceMotion ? 0 : 70,
       );
@@ -399,7 +401,7 @@ export function HeroVideo() {
     const arm = () => {
       window.clearTimeout(idle);
       if (typer) return; // already shown; keep it
-      idle = window.setTimeout(startTyping, 2000);
+      idle = window.setTimeout(startTyping, 1700);
     };
     const events = ['pointermove', 'pointerdown', 'keydown', 'touchstart'] as const;
     events.forEach((e) => window.addEventListener(e, arm, { passive: true }));
@@ -409,7 +411,7 @@ export function HeroVideo() {
       window.clearInterval(typer);
       events.forEach((e) => window.removeEventListener(e, arm));
     };
-  }, [hintDone, reduceMotion]);
+  }, [hintDone, reduceMotion, HINT_TEXT]);
 
   // Enter anywhere on the hero (outside a text field / button) runs about.
   useEffect(() => {
@@ -507,6 +509,29 @@ export function HeroVideo() {
               className="absolute invisible opacity-0"
               style={{ ...boxStyle(ROBOT), imageRendering: 'pixelated' }}
             />
+            {/* Claude robot speech bubble (idle hint) */}
+            {!hintDone && hintTyped > 0 && (
+              <div
+                className="hero-bubble-anchor absolute"
+                style={{
+                  left: `${((CLAUDE_HEAD.x / VIDEO_W) * 100).toFixed(3)}%`,
+                  top: `${((CLAUDE_HEAD.y / VIDEO_H) * 100).toFixed(3)}%`,
+                }}
+              >
+                <div className="hero-bubble">
+                  <p className="whitespace-nowrap">
+                    {Array.from(HINT_TEXT).slice(0, hintTyped).join('')}
+                    {hintTyped <= Array.from(HINT_TEXT).length && (
+                      <span className="hero-block-caret">▋</span>
+                    )}
+                  </p>
+                  {hintTyped > Array.from(HINT_TEXT).length && (
+                    <p className="mt-0.5 text-[10px] text-zinc-400">{hintEnter}</p>
+                  )}
+                  <span className="hero-bubble-tail" aria-hidden="true" />
+                </div>
+              </div>
+            )}
             <canvas
               ref={canvasRef}
               width={VIDEO_W}
@@ -684,19 +709,6 @@ export function HeroVideo() {
                   );
                 })}
               </ul>
-
-              {/* Idle hint: nudges visitors to `about` */}
-              {!hintDone && hintTyped > 0 && log.length === 0 && (
-                <div aria-live="polite" className="flex items-baseline justify-between gap-2 font-mono text-[11px] sm:text-[12px]">
-                  <span className="text-[#00BB7F]">
-                    {HINT_TEXT.slice(0, hintTyped)}
-                    {hintTyped <= HINT_TEXT.length && <span className="hero-block-caret">▋</span>}
-                  </span>
-                  {hintTyped > HINT_TEXT.length && (
-                    <span className="text-zinc-500">{hintEnter}</span>
-                  )}
-                </div>
-              )}
 
               {/* Dispatch feedback log */}
               {log.length > 0 && (
