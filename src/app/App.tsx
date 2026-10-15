@@ -1,4 +1,4 @@
-import { HeroVariant3 } from './components/hero/HeroVariant3';
+import { HeroVideo } from './components/hero/HeroVideo';
 import { SkillsSection } from './components/SkillsSection';
 import { ProjectsSection } from './components/ProjectsSection';
 import { ContactSection } from './components/ContactSection';
@@ -8,10 +8,10 @@ import { LanguageProvider } from '../lib/i18n/LanguageContext';
 export default function App() {
   return (
     <LanguageProvider>
-      <div className="overflow-x-hidden bg-zinc-950 text-zinc-100 selection:bg-emerald-500/30">
+      <div className="overflow-x-clip bg-zinc-950 text-zinc-100 selection:bg-emerald-500/30">
         <TerminalOverlay />
         <main>
-          <HeroVariant3 />
+          <HeroVideo />
         </main>
       </div>
     </LanguageProvider>
