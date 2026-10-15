@@ -61,9 +61,6 @@ export type HeroTransitionRefs = {
 
 /** Default end-of-transition command; HeroVideo can retarget via getCommand. */
 export const CRT_COMMAND = 'cd about';
-/** Scroll progress at which the About view opens / closes again. */
-export const END_OPEN = 0.975;
-export const END_CLOSE = 0.94;
 
 export function useHeroCrtTransition(
   refs: HeroTransitionRefs,
@@ -72,22 +69,20 @@ export function useHeroCrtTransition(
     canPlay: () => boolean;
     /** Command typed on the CRT (e.g. `cd about`). */
     getCommand: () => string;
-    /** Called once when the transition reaches its end (open About). */
-    onReachEnd: () => void;
-    /** Called when the user scrolls back up out of the end state. */
-    onLeaveEnd: () => void;
+    /** Time-based transition progress, 0 (hero) .. 1 (inside the CRT). */
+    getProgress: () => number;
   },
 ) {
   const optsRef = useRef(opts);
   optsRef.current = opts;
-  const resetEndRef = useRef<() => void>(() => {});
+  /** Call to re-render the scene after changing progress. */
+  const renderRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const r = refs;
     let particles: Particle[] = [];
     let raf = 0;
     let frozen = false;
-    let atEnd = false;
     let base = { vx: 0, vy: 0, vw: 0, vh: 0, W: 0, H: 0, cover: false, posY: 0.5, posX: 1 };
 
     // ---- particles from the cutout --------------------------------------
@@ -200,21 +195,10 @@ export function useHeroCrtTransition(
 
     const update = () => {
       raf = 0;
-      const section = r.section.current;
       const video = r.video.current;
-      if (!section || !video) return;
+      if (!video) return;
       const { reduceMotion, canPlay } = optsRef.current;
-      const total = Math.max(1, section.offsetHeight - window.innerHeight);
-      const p = clamp01(-section.getBoundingClientRect().top / total);
-
-      // hand off to the About view at the end; undo when scrolling back up
-      if (p >= END_OPEN && !atEnd) {
-        atEnd = true;
-        optsRef.current.onReachEnd();
-      } else if (p < END_CLOSE && atEnd) {
-        atEnd = false;
-        optsRef.current.onLeaveEnd();
-      }
+      const p = clamp01(optsRef.current.getProgress());
 
       // freeze the loop so the robot sits exactly under the cutout
       if (!reduceMotion) {
@@ -291,10 +275,10 @@ export function useHeroCrtTransition(
       setOpacity(r.shades.current, 1 - range(p, 0.25, 0.5));
 
       // 5) CRT terminal reveal + typing
-      const c = range(p, 0.76, 0.86);
+      const c = range(p, 0.72, 0.82);
       setOpacity(r.crt.current, c);
       if (r.crt.current) r.crt.current.style.pointerEvents = c > 0.9 ? 'auto' : 'none';
-      const k = range(p, 0.86, 0.94);
+      const k = range(p, 0.8, 0.93);
       if (r.typed.current) {
         const cmd = optsRef.current.getCommand();
         r.typed.current.textContent = cmd.slice(0, Math.round(k * cmd.length));
@@ -302,14 +286,11 @@ export function useHeroCrtTransition(
       setOpacity(r.menu.current, range(p, 0.94, 0.97));
     };
 
-    /** Expose for HeroVideo: reset end-state (e.g. after a manual close). */
-    resetEndRef.current = () => {
-      atEnd = false;
-    };
-
     const schedule = () => {
       if (!raf) raf = requestAnimationFrame(update);
     };
+    // the animator already runs inside rAF, so render synchronously
+    renderRef.current = update;
     const onResize = () => {
       measure();
       schedule();
@@ -317,7 +298,6 @@ export function useHeroCrtTransition(
 
     measure();
     update();
-    window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', onResize);
     const video = r.video.current;
     video?.addEventListener('loadedmetadata', onResize);
@@ -326,8 +306,7 @@ export function useHeroCrtTransition(
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('scroll', schedule);
-      window.removeEventListener('resize', onResize);
+        window.removeEventListener('resize', onResize);
       video?.removeEventListener('loadedmetadata', onResize);
       ro.disconnect();
       if (video) video.style.objectPosition = '';
@@ -335,5 +314,5 @@ export function useHeroCrtTransition(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opts.reduceMotion]);
 
-  return resetEndRef;
+  return renderRef;
 }

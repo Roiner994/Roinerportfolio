@@ -91,12 +91,15 @@ export function HeroVideo() {
   /** Section the transition opens at its end (natural scroll -> about). */
   const targetRef = useRef('about');
   const [crtTarget, setCrtTarget] = useState('about');
-  const scrollAnimRef = useRef(0);
   const retarget = useCallback((cmd: string) => {
     targetRef.current = cmd;
     setCrtTarget(cmd);
   }, []);
-  const resetEndRef = useHeroCrtTransition(
+  const progressRef = useRef(0);
+  const animatingRef = useRef(false);
+  const animRafRef = useRef(0);
+  const holdTimerRef = useRef(0);
+  const renderRef = useHeroCrtTransition(
     {
       section: sectionRef,
       sticky: stickyRef,
@@ -114,85 +117,115 @@ export function HeroVideo() {
     },
     {
       reduceMotion,
-      // Only resume the loop when we are back at the top of the hero.
-      canPlay: () => !reduceMotion && !sectionOpenRef.current,
+      // Only resume the loop when we are back on the hero.
+      canPlay: () => !reduceMotion && !sectionOpenRef.current && progressRef.current === 0,
       getCommand: () => `cd ${targetRef.current}`,
-      onReachEnd: () => {
-        if (sectionOpenRef.current) return;
-        autoAboutRef.current = true;
-        panelRef.current?.runCommand(targetRef.current);
-      },
-      onLeaveEnd: () => {
-        if (!autoAboutRef.current) return;
-        // Scrolling back up from About: close it and replay the transition.
-        autoAboutRef.current = false;
-        panelRef.current?.close();
-        retarget('about');
-      },
+      getProgress: () => progressRef.current,
     },
   );
 
-  // Closing an auto-opened About manually (RETURN_TO_SHELL / Esc) goes back
-  // to the hero top instead of leaving the user at the end of the transition.
+  /** Timed (not scroll-scrubbed) playback of the transition progress. */
+  const animateTo = useCallback(
+    (to: 0 | 1, onDone?: () => void) => {
+      if (animatingRef.current) return false;
+      animatingRef.current = true;
+      const from = progressRef.current;
+      const duration = (reduceMotion ? 600 : 3000) * Math.abs(to - from);
+      const t0 = performance.now();
+      const step = (now: number) => {
+        const t = duration > 0 ? Math.min(1, (now - t0) / duration) : 1;
+        const e = reduceMotion ? t : t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        progressRef.current = from + (to - from) * e;
+        renderRef.current();
+        if (t < 1) {
+          animRafRef.current = requestAnimationFrame(step);
+        } else {
+          animatingRef.current = false;
+          onDone?.();
+        }
+      };
+      animRafRef.current = requestAnimationFrame(step);
+      return true;
+    },
+    [reduceMotion, renderRef],
+  );
+
+  /** Hero -> robot dissolve -> CRT -> `cd <section>` -> open that section. */
+  const openForward = useCallback(
+    (cmd: string) => {
+      if (sectionOpenRef.current || animatingRef.current || progressRef.current > 0) return false;
+      retarget(cmd);
+      return animateTo(1, () => {
+        holdTimerRef.current = window.setTimeout(
+          () => {
+            autoAboutRef.current = true;
+            panelRef.current?.runCommand(targetRef.current);
+          },
+          reduceMotion ? 0 : 450,
+        );
+      });
+    },
+    [animateTo, reduceMotion, retarget],
+  );
+
+  /** Section -> CRT -> back out to the hero, in reverse. */
+  const playBack = useCallback(() => {
+    if (animatingRef.current) return;
+    animateTo(0, () => retarget('about'));
+  }, [animateTo, retarget]);
+
+  // Closing an auto-opened section (scroll-up, RETURN_TO_SHELL, Esc) plays
+  // the transition back to the hero.
   useEffect(() => {
     if (sectionOpen || !autoAboutRef.current) return;
     autoAboutRef.current = false;
-    retarget('about');
-    resetEndRef.current();
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-  }, [sectionOpen, resetEndRef, retarget]);
+    playBack();
+  }, [sectionOpen, playBack]);
 
-  /**
-   * Clicking a section plays the same scroll-linked transition: an eased,
-   * programmatic scroll to the end of the sticky hero (where the CRT types
-   * `cd <section>` and the section opens via onReachEnd).
-   */
-  const playTransitionTo = useCallback(
-    (cmd: string) => {
-      const section = sectionRef.current;
-      if (!section) return false;
-      retarget(cmd);
-      cancelAnimationFrame(scrollAnimRef.current);
-      const startY = window.scrollY;
-      const endY = section.offsetTop + section.offsetHeight - window.innerHeight;
-      const duration = reduceMotion ? 900 : 2600;
-      const t0 = performance.now();
-      let cancelled = false;
-      const cancel = () => {
-        cancelled = true;
-      };
-      window.addEventListener('wheel', cancel, { passive: true, once: true });
-      window.addEventListener('touchstart', cancel, { passive: true, once: true });
-      const step = (now: number) => {
-        if (cancelled) return;
-        const t = Math.min(1, (now - t0) / duration);
-        const e = reduceMotion ? t : t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        window.scrollTo(0, startY + (endY - startY) * e);
-        if (t < 1) scrollAnimRef.current = requestAnimationFrame(step);
-        else {
-          window.removeEventListener('wheel', cancel);
-          window.removeEventListener('touchstart', cancel);
-        }
-      };
-      scrollAnimRef.current = requestAnimationFrame(step);
-      return true;
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(animRafRef.current);
+      window.clearTimeout(holdTimerRef.current);
     },
-    [reduceMotion, retarget],
+    [],
   );
 
-  useEffect(() => () => cancelAnimationFrame(scrollAnimRef.current), []);
-
-  // While the auto-opened About is showing, scrolling up at its top scrolls
-  // the page back into the transition (fixed overlays don't always chain).
+  // Input: the first downward wheel / swipe / key on the hero plays the
+  // transition; upward input at the top of the opened section reverses it.
   useEffect(() => {
-    if (!sectionOpen) return;
+    let lastOverlayScroll = 0;
     const overlayAtTop = () => {
       const el = document.querySelector<HTMLElement>('[data-section-overlay]');
-      return !el || el.scrollTop <= 0;
+      // require the overlay to have settled at its top (no momentum carry-over)
+      return (!el || el.scrollTop <= 0) && performance.now() - lastOverlayScroll > 300;
     };
-    const back = () => window.scrollBy({ top: -window.innerHeight * 0.45, behavior: 'smooth' });
+    const forward = () => {
+      if (!sectionOpenRef.current) openForward('about');
+    };
+    const back = () => {
+      if (sectionOpenRef.current && autoAboutRef.current && !animatingRef.current && overlayAtTop()) {
+        panelRef.current?.close(); // the close effect plays the reverse
+      }
+    };
+    const onScroll = (e: Event) => {
+      const el = e.target as HTMLElement | null;
+      if (el && el.hasAttribute?.('data-section-overlay')) lastOverlayScroll = performance.now();
+    };
     const onWheel = (e: WheelEvent) => {
-      if (autoAboutRef.current && e.deltaY < -4 && overlayAtTop()) back();
+      if (e.deltaY > 4) forward();
+      else if (e.deltaY < -4) back();
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(el.tagName))) return;
+      if (['PageDown', 'ArrowDown', ' ', 'Spacebar'].includes(e.key)) {
+        if (!sectionOpenRef.current) {
+          e.preventDefault();
+          forward();
+        }
+      } else if (['PageUp', 'ArrowUp'].includes(e.key)) {
+        back();
+      }
     };
     let startY = 0;
     let fired = false;
@@ -201,21 +234,29 @@ export function HeroVideo() {
       fired = false;
     };
     const onTouchMove = (e: TouchEvent) => {
-      const y = e.touches[0]?.clientY ?? 0;
-      if (!fired && autoAboutRef.current && y - startY > 50 && overlayAtTop()) {
+      if (fired) return;
+      const dy = (e.touches[0]?.clientY ?? 0) - startY;
+      if (dy < -40 && !sectionOpenRef.current) {
+        fired = true;
+        forward();
+      } else if (dy > 50) {
         fired = true;
         back();
       }
     };
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
     window.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('keydown', onKey);
     window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchmove', onTouchMove, { passive: true });
     return () => {
+      document.removeEventListener('scroll', onScroll, { capture: true });
       window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKey);
       window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove);
     };
-  }, [sectionOpen]);
+  }, [openForward]);
 
   // Keep the background video in sync with reduced-motion and open sections.
   useEffect(() => {
@@ -228,7 +269,7 @@ export function HeroVideo() {
       video.pause();
       return;
     }
-    if (window.scrollY > 4 && sectionRef.current && sectionRef.current.getBoundingClientRect().top < -4) return;
+    if (progressRef.current > 0) return;
     const playback = video.play();
     if (playback) playback.catch(() => {});
   }, [reduceMotion, sectionOpen]);
@@ -278,7 +319,7 @@ export function HeroVideo() {
           { kind: 'cmd', text: `$ ${value}` },
           { kind: 'dispatch', text: `> dispatching ${agent}...` },
         ]);
-        if (playTransitionTo(cmd)) return;
+        if (openForward(cmd)) return;
       }
 
       setIsDispatching(true);
@@ -304,7 +345,7 @@ export function HeroVideo() {
       );
       timersRef.current.push(timer);
     },
-    [isDispatching, pushLines, reduceMotion, playTransitionTo],
+    [isDispatching, pushLines, reduceMotion, openForward],
   );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -340,8 +381,7 @@ export function HeroVideo() {
     <section
       ref={sectionRef}
       aria-label="Roiner Hernandez"
-      className="relative w-full bg-[#030213]"
-      style={{ height: reduceMotion ? '200svh' : '380svh' }}
+      className="relative h-svh min-h-[560px] w-full bg-[#030213]"
     >
      <div
       ref={stickyRef}

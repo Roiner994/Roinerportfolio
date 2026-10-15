@@ -401,3 +401,11 @@
     cursor: pointer;
   }
 }
+
+/* Dark canvas behind everything (avoids white strips on mobile overscroll). */
+@layer base {
+  html,
+  body {
+    background-color: #030213;
+  }
+}
