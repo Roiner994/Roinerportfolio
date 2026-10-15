@@ -96,6 +96,9 @@ export function HeroVideo() {
     setCrtTarget(cmd);
   }, []);
   const progressRef = useRef(0);
+  /** About hint (pulse + idle typed tip) until About/transition is used. */
+  const [hintDone, setHintDone] = useState(false);
+  const [hintTyped, setHintTyped] = useState(0);
   const animatingRef = useRef(false);
   const animRafRef = useRef(0);
   const holdTimerRef = useRef(0);
@@ -154,6 +157,7 @@ export function HeroVideo() {
   const openForward = useCallback(
     (cmd: string) => {
       if (sectionOpenRef.current || animatingRef.current || progressRef.current > 0) return false;
+      setHintDone(true);
       retarget(cmd);
       return animateTo(1, () => {
         holdTimerRef.current = window.setTimeout(
@@ -369,8 +373,57 @@ export function HeroVideo() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    dispatch(inputValue);
+    // Empty prompt + Enter = the suggested `about`.
+    dispatch(inputValue.trim() ? inputValue : 'about');
   };
+
+  const HINT_TEXT = '> try: about';
+  const hintEnter = language === 'es' ? 'presiona enter ↵' : 'press enter ↵';
+
+  // After ~2 s of inactivity on the hero, auto-type the About hint.
+  useEffect(() => {
+    if (hintDone) return;
+    let idle = 0;
+    let typer = 0;
+    const startTyping = () => {
+      let i = 0;
+      typer = window.setInterval(
+        () => {
+          i += 1;
+          setHintTyped(i);
+          if (i >= HINT_TEXT.length + 1) window.clearInterval(typer);
+        },
+        reduceMotion ? 0 : 70,
+      );
+    };
+    const arm = () => {
+      window.clearTimeout(idle);
+      if (typer) return; // already shown; keep it
+      idle = window.setTimeout(startTyping, 2000);
+    };
+    const events = ['pointermove', 'pointerdown', 'keydown', 'touchstart'] as const;
+    events.forEach((e) => window.addEventListener(e, arm, { passive: true }));
+    arm();
+    return () => {
+      window.clearTimeout(idle);
+      window.clearInterval(typer);
+      events.forEach((e) => window.removeEventListener(e, arm));
+    };
+  }, [hintDone, reduceMotion]);
+
+  // Enter anywhere on the hero (outside a text field / button) runs about.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat || sectionOpenRef.current) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(el.tagName))) return;
+      if (progressRef.current > 0) return;
+      e.preventDefault();
+      dispatch('about');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dispatch]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Tab') return;
@@ -599,7 +652,9 @@ export function HeroVideo() {
 
               {/* Section Buttons */}
               <ul className="grid grid-cols-3 gap-1.5">
-                {commands.map((cmd) => (
+                {commands.map((cmd) => {
+                  const isHint = cmd === 'about' && !hintDone;
+                  return (
                   <li key={cmd} className="min-w-0">
                     <button
                       type="button"
@@ -608,7 +663,9 @@ export function HeroVideo() {
                         event.stopPropagation();
                         dispatch(cmd);
                       }}
-                      className="group flex w-full min-w-0 cursor-pointer disabled:cursor-wait items-center gap-1.5 rounded-md border border-white/5 bg-white/[0.03] px-2 py-1.5 text-left font-mono text-[11px] sm:text-[12px] text-zinc-300 transition-colors hover:border-[#00BB7F]/50 hover:bg-[#00BB7F]/10 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00BB7F] disabled:opacity-60"
+                      className={`group flex w-full min-w-0 cursor-pointer disabled:cursor-wait items-center gap-1.5 rounded-md border border-white/5 bg-white/[0.03] px-2 py-1.5 text-left font-mono text-[11px] sm:text-[12px] text-zinc-300 transition-colors hover:border-[#00BB7F]/50 hover:bg-[#00BB7F]/10 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00BB7F] disabled:opacity-60 ${
+                        isHint ? 'hero-about-hint' : !hintDone ? 'opacity-75 hover:opacity-100' : ''
+                      }`}
                     >
                       <span
                         aria-hidden="true"
@@ -617,10 +674,29 @@ export function HeroVideo() {
                         ›
                       </span>
                       <span className="truncate">{SECTION_LABELS[cmd]}</span>
+                      {isHint && (
+                        <span aria-hidden="true" className="hero-block-caret ml-auto text-[#00BB7F]">
+                          ▋
+                        </span>
+                      )}
                     </button>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
+
+              {/* Idle hint: nudges visitors to `about` */}
+              {!hintDone && hintTyped > 0 && log.length === 0 && (
+                <div aria-live="polite" className="flex items-baseline justify-between gap-2 font-mono text-[11px] sm:text-[12px]">
+                  <span className="text-[#00BB7F]">
+                    {HINT_TEXT.slice(0, hintTyped)}
+                    {hintTyped <= HINT_TEXT.length && <span className="hero-block-caret">▋</span>}
+                  </span>
+                  {hintTyped > HINT_TEXT.length && (
+                    <span className="text-zinc-500">{hintEnter}</span>
+                  )}
+                </div>
+              )}
 
               {/* Dispatch feedback log */}
               {log.length > 0 && (

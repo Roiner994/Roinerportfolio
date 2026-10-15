@@ -409,3 +409,24 @@
     background-color: #030213;
   }
 }
+
+/* Hero terminal: About hint (pulsing phosphor glow + blinking block caret) */
+@keyframes hero-about-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0,187,127,0.45), 0 0 6px rgba(0,187,127,0.25); }
+  50% { box-shadow: 0 0 0 1px rgba(0,187,127,0.8), 0 0 14px rgba(0,187,127,0.5); }
+}
+@keyframes hero-caret-blink { 50% { opacity: 0; } }
+.hero-about-hint {
+  border-color: rgba(0,187,127,0.6) !important;
+  background-color: rgba(0,187,127,0.08) !important;
+  color: #fff !important;
+  animation: hero-about-pulse 1.6s steps(6, end) infinite;
+}
+.hero-block-caret { animation: hero-caret-blink 1s steps(1, end) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-about-hint {
+    animation: none;
+    box-shadow: 0 0 0 1px rgba(0,187,127,0.7), 0 0 10px rgba(0,187,127,0.35);
+  }
+  .hero-block-caret { animation: none; }
+}
