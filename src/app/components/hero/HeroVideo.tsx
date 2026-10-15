@@ -16,7 +16,6 @@ import {
   VIDEO_H,
   VIDEO_W,
   boxStyle,
-  CLAUDE_HEAD,
   useHeroCrtTransition,
 } from './HeroCrtTransition';
 
@@ -71,6 +70,7 @@ export function HeroVideo() {
   const crtRef = useRef<HTMLDivElement>(null);
   const typedRef = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
   const sectionOpenRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<TerminalPanelHandle>(null);
@@ -118,6 +118,7 @@ export function HeroVideo() {
       crt: crtRef,
       typed: typedRef,
       menu: menuRef,
+      bubble: bubbleRef,
     },
     {
       reduceMotion,
@@ -413,6 +414,12 @@ export function HeroVideo() {
     };
   }, [hintDone, reduceMotion, HINT_TEXT]);
 
+  // Position the bubble as soon as it mounts (and on language change).
+  const bubbleShown = !hintDone && hintTyped > 0;
+  useEffect(() => {
+    if (bubbleShown) renderRef.current();
+  }, [bubbleShown, language, renderRef]);
+
   // Enter anywhere on the hero (outside a text field / button) runs about.
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -490,6 +497,7 @@ export function HeroVideo() {
           {/* 1280x720 frame overlay aligned to the rendered video content */}
           <div
             ref={frameRef}
+            data-hero-frame=""
             aria-hidden="true"
             className="absolute left-0 top-0 h-full w-full"
           >
@@ -509,29 +517,6 @@ export function HeroVideo() {
               className="absolute invisible opacity-0"
               style={{ ...boxStyle(ROBOT), imageRendering: 'pixelated' }}
             />
-            {/* Claude robot speech bubble (idle hint) */}
-            {!hintDone && hintTyped > 0 && (
-              <div
-                className="hero-bubble-anchor absolute"
-                style={{
-                  left: `${((CLAUDE_HEAD.x / VIDEO_W) * 100).toFixed(3)}%`,
-                  top: `${((CLAUDE_HEAD.y / VIDEO_H) * 100).toFixed(3)}%`,
-                }}
-              >
-                <div className="hero-bubble">
-                  <p className="whitespace-nowrap">
-                    {Array.from(HINT_TEXT).slice(0, hintTyped).join('')}
-                    {hintTyped <= Array.from(HINT_TEXT).length && (
-                      <span className="hero-block-caret">▋</span>
-                    )}
-                  </p>
-                  {hintTyped > Array.from(HINT_TEXT).length && (
-                    <p className="mt-0.5 text-[10px] text-zinc-400">{hintEnter}</p>
-                  )}
-                  <span className="hero-bubble-tail" aria-hidden="true" />
-                </div>
-              </div>
-            )}
             <canvas
               ref={canvasRef}
               width={VIDEO_W}
@@ -575,6 +560,36 @@ export function HeroVideo() {
       />
 
       </div>
+
+      {/* Claude robot speech bubble (idle hint); placed by the transition hook
+          so it never covers a robot, Roiner's face or the hero text. */}
+      {!hintDone && hintTyped > 0 && (
+        <div
+          ref={bubbleRef}
+          aria-hidden="true"
+          className="hero-bubble-anchor pointer-events-none absolute left-0 top-0 z-[6] invisible"
+        >
+          <div className="hero-bubble">
+            <p className="hero-bubble-text relative">
+              {/* invisible full text keeps the size fixed while typing */}
+              <span className="invisible">{HINT_TEXT}▋</span>
+              <span className="absolute inset-0">
+                {Array.from(HINT_TEXT).slice(0, hintTyped).join('')}
+                {hintTyped <= Array.from(HINT_TEXT).length && (
+                  <span className="hero-block-caret">▋</span>
+                )}
+              </span>
+            </p>
+            <p
+              className="mt-0.5 text-[10px] text-zinc-400"
+              style={{ visibility: hintTyped > Array.from(HINT_TEXT).length ? 'visible' : 'hidden' }}
+            >
+              {hintEnter}
+            </p>
+            <span className="hero-bubble-tail" />
+          </div>
+        </div>
+      )}
 
       <div ref={uiRef}>
       {/* Overlay content: vertically centered on desktop, preventing viewport overflow */}

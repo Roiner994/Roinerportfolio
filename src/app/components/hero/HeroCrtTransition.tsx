@@ -18,8 +18,23 @@ export const ROBOT = { x: 1103, y: 110.5, w: 106.5, h: 159, srcW: 142, srcH: 212
 /** Background patch (public/hero/robot-patch.png) that hides the video robot. */
 export const PATCH = { x: 1095.5, y: 103, w: 121.5, h: 171 };
 /** Inner CRT screen (the green terminal glass). */
-/** Claude (orange) robot's head top-centre, where the hint bubble points. */
+/** Claude (orange) robot: head point the hint bubble's tail aims at. */
 export const CLAUDE_HEAD = { x: 742, y: 104 };
+type Box = { x: number; y: number; w: number; h: number };
+/**
+ * Robot bounding boxes in the 1280x720 video (measured from the PNG, mapped
+ * at 0.755 scale, padded by 8 px for the loop's bob). Order: Claude, ChatGPT,
+ * Gemini, Cursor. FACE_BOX is Roiner's head.
+ */
+export const ROBOT_BOXES: Box[] = [
+  { x: 670, y: 98, w: 172, h: 214 },
+  { x: 820, y: 33, w: 139, h: 217 },
+  { x: 963, y: 40, w: 147, h: 205 },
+  { x: 1096, y: 100, w: 125, h: 177 },
+];
+export const FACE_BOX: Box = { x: 835, y: 236, w: 140, h: 136 };
+/** Left edge / middle of Claude's head (tail target for a left-side bubble). */
+const CLAUDE_HEAD_LEFT = { x: 702, y: 140 };
 export const CRT = { x: 1033, y: 290, w: 102, h: 90, cx: 1084, cy: 335 };
 
 const pct = (v: number, total: number) => `${((v / total) * 100).toFixed(3)}%`;
@@ -59,6 +74,7 @@ export type HeroTransitionRefs = {
   crt: RefObject<HTMLDivElement | null>;
   typed: RefObject<HTMLSpanElement | null>;
   menu: RefObject<HTMLDivElement | null>;
+  bubble?: RefObject<HTMLDivElement | null>;
 };
 
 /** Default end-of-transition command; HeroVideo can retarget via getCommand. */
@@ -164,6 +180,65 @@ export function useHeroCrtTransition(
       return { s, left: (base.vw - cw) * posX, top: (base.vh - ch) * base.posY, cw, ch };
     };
 
+    // ---- hint bubble placement (never over a robot, the face or the UI) ---
+    const placeBubble = (cr: { s: number; left: number; top: number }) => {
+      const el = r.bubble?.current;
+      if (!el) return;
+      const bw = el.offsetWidth;
+      const bh = el.offsetHeight;
+      const s = cr.s;
+      const ox = base.vx + cr.left;
+      const oy = base.vy + cr.top;
+      type R = { l: number; t: number; r: number; b: number };
+      const toS = (b: Box): R => ({ l: ox + b.x * s, t: oy + b.y * s, r: ox + (b.x + b.w) * s, b: oy + (b.y + b.h) * s });
+      const obstacles: R[] = [...ROBOT_BOXES, FACE_BOX].map(toS);
+      const sticky = r.sticky.current?.getBoundingClientRect();
+      const uiBox = (r.ui.current?.firstElementChild as HTMLElement | null)?.getBoundingClientRect();
+      if (sticky && uiBox && uiBox.width) {
+        obstacles.push({ l: uiBox.left - sticky.left, t: uiBox.top - sticky.top, r: uiBox.right - sticky.left, b: uiBox.bottom - sticky.top });
+      }
+      const claude = toS(ROBOT_BOXES[0]);
+      const headL = { x: ox + CLAUDE_HEAD_LEFT.x * s, y: oy + CLAUDE_HEAD_LEFT.y * s };
+      const headT = { x: ox + CLAUDE_HEAD.x * s, y: claude.t };
+      const W = base.W;
+      const H = base.H;
+      const cands = [
+        { l: claude.l - 6 - bw, t: headL.y - bh / 2, tail: 'right' },
+        { l: claude.l - 6 - bw, t: claude.t - bh * 0.6, tail: 'right' },
+        { l: claude.l + (claude.r - claude.l) * 0.25 - bw, t: claude.t - 14 - bh, tail: 'down' },
+        { l: headT.x - bw * 0.5, t: claude.t - 14 - bh, tail: 'down' },
+        { l: headT.x - bw * 0.85, t: claude.t - 14 - bh, tail: 'down' },
+        // right edge tucked just left of the ChatGPT robot
+        { l: toS(ROBOT_BOXES[1]).l - 4 - bw, t: claude.t - 14 - bh, tail: 'down' },
+      ];
+      const overlap = (a: R, b: R) =>
+        Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) *
+        Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+      let best = cands[0];
+      let bestScore = Infinity;
+      for (const c of cands) {
+        c.l = Math.min(Math.max(8, c.l), W - bw - 8);
+        c.t = Math.min(Math.max(8, c.t), H - bh - 8);
+        const rect = { l: c.l, t: c.t, r: c.l + bw, b: c.t + bh };
+        const score = obstacles.reduce((acc, o) => acc + overlap(rect, o), 0);
+        if (score < bestScore) {
+          best = c;
+          bestScore = score;
+        }
+        if (score === 0) break;
+      }
+      el.style.left = `${best.l.toFixed(1)}px`;
+      el.style.top = `${best.t.toFixed(1)}px`;
+      el.dataset.tail = best.tail;
+      // aim the tail at Claude's head
+      if (best.tail === 'right') {
+        el.style.setProperty('--tail-y', `${Math.min(bh - 10, Math.max(6, headL.y - best.t)).toFixed(1)}px`);
+      } else {
+        el.style.setProperty('--tail-x', `${Math.min(bw - 12, Math.max(6, headT.x - best.l)).toFixed(1)}px`);
+      }
+      el.style.visibility = 'visible';
+    };
+
     // ---- per-frame update ------------------------------------------------
     const draw = (d: number, glow: number, s: number) => {
       const canvas = r.canvas.current;
@@ -228,6 +303,7 @@ export function useHeroCrtTransition(
           r.frame.current.style.width = `${crr.cw}px`;
           r.frame.current.style.height = `${crr.ch}px`;
         }
+        placeBubble(crr);
         const f = range(p, 0.25, 0.7);
         setOpacity(r.ui.current, 1 - f);
         setOpacity(r.crt.current, f);
@@ -255,6 +331,8 @@ export function useHeroCrtTransition(
         frame.style.width = `${cr.cw}px`;
         frame.style.height = `${cr.ch}px`;
       }
+
+      placeBubble(cr);
 
       // 2) swap video robot -> cutout, 3) dissolve into pixels
       const swapped = p > 0.02;
