@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   Terminal,
@@ -89,7 +96,7 @@ const TypewriterText = ({
   );
 };
 
-const commands = ["about", "experience", "projects", "contact", "cv", "ai"];
+export const commands = ["about", "experience", "projects", "contact", "cv", "ai"];
 
 const ScanningEffect = () => (
   <motion.div
@@ -357,6 +364,21 @@ function normalizePrompt(value: string) {
 
 interface TerminalPanelProps {
   variant?: "default" | "floating" | "centered";
+  /**
+   * When true, the collapsed shell is not rendered. The panel only appears
+   * once a command expands it (sections / AI mode), so an external UI can
+   * drive navigation through the imperative `runCommand` handle.
+   */
+  headless?: boolean;
+  /** Notified whenever the panel expands into (or closes) a full-screen view. */
+  onExpandedChange?: (expanded: boolean) => void;
+}
+
+export interface TerminalPanelHandle {
+  /** Runs a command through the panel's existing command router. */
+  runCommand: (cmd: string) => void;
+  /** Closes any open full-screen section view. */
+  close: () => void;
 }
 
 interface ExperienceNodeMarkerProps {
@@ -744,7 +766,11 @@ function ProjectMediaPanel({
   );
 }
 
-export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
+export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>(
+  function TerminalPanel(
+    { variant = "default", headless = false, onExpandedChange },
+    ref,
+  ) {
   const { t, language, toggleLanguage, data } = useLanguage();
   const {
     about: aboutData,
@@ -1271,6 +1297,13 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     setIsExpanded(false);
     setActiveView("terminal");
   };
+
+  // Let external UIs (e.g. the video hero) drive the same command router.
+  useImperativeHandle(ref, () => ({ runCommand: handleCommand, close: closeExpanded }));
+
+  useEffect(() => {
+    onExpandedChange?.(isExpanded);
+  }, [isExpanded, onExpandedChange]);
 
   // Add hint effect for "about" command after 6 seconds of inactivity
   useEffect(() => {
@@ -3200,6 +3233,7 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
       <>
         {createPortal(
           <div
+            data-section-overlay=""
             className={`fixed inset-0 z-[140] h-screen w-screen bg-zinc-950 ${usesProjectSplitScroll ? "overflow-hidden" : "overflow-y-auto"}`}
           >
             {panel}
@@ -3211,10 +3245,15 @@ export function TerminalPanel({ variant = "default" }: TerminalPanelProps) {
     );
   }
 
+  if (headless) {
+    return <>{miniAvatar}</>;
+  }
+
   return (
     <div className="relative w-full min-h-[580px]">
       {panel}
       {miniAvatar}
     </div>
   );
-}
+  },
+);

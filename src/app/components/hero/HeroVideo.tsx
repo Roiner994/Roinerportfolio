@@ -87,7 +87,9 @@ export function HeroVideo() {
   const [lastLoginDate] = useState(() => new Date().toLocaleDateString());
 
   sectionOpenRef.current = sectionOpen;
-  useHeroCrtTransition(
+  /** About was opened automatically by reaching the end of the transition. */
+  const autoAboutRef = useRef(false);
+  const resetEndRef = useHeroCrtTransition(
     {
       section: sectionRef,
       sticky: stickyRef,
@@ -107,8 +109,63 @@ export function HeroVideo() {
       reduceMotion,
       // Only resume the loop when we are back at the top of the hero.
       canPlay: () => !reduceMotion && !sectionOpenRef.current,
+      onReachEnd: () => {
+        if (sectionOpenRef.current) return;
+        autoAboutRef.current = true;
+        panelRef.current?.runCommand('about');
+      },
+      onLeaveEnd: () => {
+        if (!autoAboutRef.current) return;
+        // Scrolling back up from About: close it and replay the transition.
+        autoAboutRef.current = false;
+        panelRef.current?.close();
+      },
     },
   );
+
+  // Closing an auto-opened About manually (RETURN_TO_SHELL / Esc) goes back
+  // to the hero top instead of leaving the user at the end of the transition.
+  useEffect(() => {
+    if (sectionOpen || !autoAboutRef.current) return;
+    autoAboutRef.current = false;
+    resetEndRef.current();
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [sectionOpen, resetEndRef]);
+
+  // While the auto-opened About is showing, scrolling up at its top scrolls
+  // the page back into the transition (fixed overlays don't always chain).
+  useEffect(() => {
+    if (!sectionOpen) return;
+    const overlayAtTop = () => {
+      const el = document.querySelector<HTMLElement>('[data-section-overlay]');
+      return !el || el.scrollTop <= 0;
+    };
+    const back = () => window.scrollBy({ top: -window.innerHeight * 0.45, behavior: 'smooth' });
+    const onWheel = (e: WheelEvent) => {
+      if (autoAboutRef.current && e.deltaY < -4 && overlayAtTop()) back();
+    };
+    let startY = 0;
+    let fired = false;
+    const onTouchStart = (e: TouchEvent) => {
+      startY = e.touches[0]?.clientY ?? 0;
+      fired = false;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? 0;
+      if (!fired && autoAboutRef.current && y - startY > 50 && overlayAtTop()) {
+        fired = true;
+        back();
+      }
+    };
+    window.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+    };
+  }, [sectionOpen]);
 
   // Keep the background video in sync with reduced-motion and open sections.
   useEffect(() => {
@@ -507,21 +564,15 @@ export function HeroVideo() {
               <span className="animate-pulse">_</span>
             </span>
           </p>
-          <div ref={menuRef} className="invisible opacity-0">
-            <p className="mb-3 text-xs text-[#4dffb0]/60 sm:text-sm">{t('SYSTEM_READY_NAVIGATION')}</p>
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {commands.map((cmd) => (
-                <li key={cmd}>
-                  <button
-                    type="button"
-                    onClick={() => panelRef.current?.runCommand(cmd)}
-                    className="w-full rounded border border-[#4dffb0]/30 bg-[#4dffb0]/[0.04] px-3 py-2 text-left text-sm transition-colors hover:border-[#4dffb0]/70 hover:bg-[#4dffb0]/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4dffb0]"
-                  >
-                    › {SECTION_LABELS[cmd]}
-                  </button>
-                </li>
-              ))}
-            </ul>
+          <div ref={menuRef} className="invisible space-y-1 text-xs sm:text-sm opacity-0">
+            <p className="text-[#4dffb0]/70">&gt; dispatching claude-agent...</p>
+            <button
+              type="button"
+              onClick={() => panelRef.current?.runCommand('about')}
+              className="text-left text-[#4dffb0] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4dffb0]"
+            >
+              ✓ {SECTION_LABELS.about} ready
+            </button>
           </div>
         </div>
         {/* scanlines + glass glow */}

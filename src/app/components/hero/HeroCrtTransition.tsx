@@ -59,20 +59,32 @@ export type HeroTransitionRefs = {
   menu: RefObject<HTMLDivElement | null>;
 };
 
-export const CRT_COMMAND = './explore --sections';
+export const CRT_COMMAND = 'cd about';
+/** Scroll progress at which the About view opens / closes again. */
+export const END_OPEN = 0.975;
+export const END_CLOSE = 0.94;
 
 export function useHeroCrtTransition(
   refs: HeroTransitionRefs,
-  opts: { reduceMotion: boolean; canPlay: () => boolean },
+  opts: {
+    reduceMotion: boolean;
+    canPlay: () => boolean;
+    /** Called once when the transition reaches its end (open About). */
+    onReachEnd: () => void;
+    /** Called when the user scrolls back up out of the end state. */
+    onLeaveEnd: () => void;
+  },
 ) {
   const optsRef = useRef(opts);
   optsRef.current = opts;
+  const resetEndRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const r = refs;
     let particles: Particle[] = [];
     let raf = 0;
     let frozen = false;
+    let atEnd = false;
     let base = { vx: 0, vy: 0, vw: 0, vh: 0, W: 0, H: 0, cover: false, posY: 0.5, posX: 1 };
 
     // ---- particles from the cutout --------------------------------------
@@ -192,6 +204,15 @@ export function useHeroCrtTransition(
       const total = Math.max(1, section.offsetHeight - window.innerHeight);
       const p = clamp01(-section.getBoundingClientRect().top / total);
 
+      // hand off to the About view at the end; undo when scrolling back up
+      if (p >= END_OPEN && !atEnd) {
+        atEnd = true;
+        optsRef.current.onReachEnd();
+      } else if (p < END_CLOSE && atEnd) {
+        atEnd = false;
+        optsRef.current.onLeaveEnd();
+      }
+
       // freeze the loop so the robot sits exactly under the cutout
       if (!reduceMotion) {
         if (p > 0.005 && !frozen) {
@@ -217,7 +238,7 @@ export function useHeroCrtTransition(
         if (r.crt.current) r.crt.current.style.pointerEvents = f > 0.6 ? 'auto' : 'none';
         if (r.ui.current) r.ui.current.style.pointerEvents = f > 0.4 ? 'none' : '';
         if (r.typed.current) r.typed.current.textContent = CRT_COMMAND;
-        setOpacity(r.menu.current, 1);
+        setOpacity(r.menu.current, f);
         setOpacity(r.robot.current, 0);
         setOpacity(r.patch.current, 0);
         if (r.stage.current) r.stage.current.style.transform = 'none';
@@ -267,14 +288,19 @@ export function useHeroCrtTransition(
       setOpacity(r.shades.current, 1 - range(p, 0.25, 0.5));
 
       // 5) CRT terminal reveal + typing
-      const c = range(p, 0.78, 0.9);
+      const c = range(p, 0.76, 0.86);
       setOpacity(r.crt.current, c);
       if (r.crt.current) r.crt.current.style.pointerEvents = c > 0.9 ? 'auto' : 'none';
-      const k = range(p, 0.86, 0.97);
+      const k = range(p, 0.86, 0.94);
       if (r.typed.current) {
         r.typed.current.textContent = CRT_COMMAND.slice(0, Math.round(k * CRT_COMMAND.length));
       }
-      setOpacity(r.menu.current, range(p, 0.97, 1));
+      setOpacity(r.menu.current, range(p, 0.94, 0.97));
+    };
+
+    /** Expose for HeroVideo: reset end-state (e.g. after a manual close). */
+    resetEndRef.current = () => {
+      atEnd = false;
     };
 
     const schedule = () => {
@@ -304,4 +330,6 @@ export function useHeroCrtTransition(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opts.reduceMotion]);
+
+  return resetEndRef;
 }
