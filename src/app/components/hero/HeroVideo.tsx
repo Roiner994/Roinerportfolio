@@ -11,7 +11,6 @@ import { useLanguage } from '../../../lib/i18n/LanguageContext';
 import { commands, TerminalPanel, type TerminalPanelHandle } from './TerminalPanel';
 import { HeroNameTreatment } from './HeroNameTreatment';
 import {
-  CRT_COMMAND,
   PATCH,
   ROBOT,
   VIDEO_H,
@@ -89,6 +88,14 @@ export function HeroVideo() {
   sectionOpenRef.current = sectionOpen;
   /** About was opened automatically by reaching the end of the transition. */
   const autoAboutRef = useRef(false);
+  /** Section the transition opens at its end (natural scroll -> about). */
+  const targetRef = useRef('about');
+  const [crtTarget, setCrtTarget] = useState('about');
+  const scrollAnimRef = useRef(0);
+  const retarget = useCallback((cmd: string) => {
+    targetRef.current = cmd;
+    setCrtTarget(cmd);
+  }, []);
   const resetEndRef = useHeroCrtTransition(
     {
       section: sectionRef,
@@ -109,16 +116,18 @@ export function HeroVideo() {
       reduceMotion,
       // Only resume the loop when we are back at the top of the hero.
       canPlay: () => !reduceMotion && !sectionOpenRef.current,
+      getCommand: () => `cd ${targetRef.current}`,
       onReachEnd: () => {
         if (sectionOpenRef.current) return;
         autoAboutRef.current = true;
-        panelRef.current?.runCommand('about');
+        panelRef.current?.runCommand(targetRef.current);
       },
       onLeaveEnd: () => {
         if (!autoAboutRef.current) return;
         // Scrolling back up from About: close it and replay the transition.
         autoAboutRef.current = false;
         panelRef.current?.close();
+        retarget('about');
       },
     },
   );
@@ -128,9 +137,50 @@ export function HeroVideo() {
   useEffect(() => {
     if (sectionOpen || !autoAboutRef.current) return;
     autoAboutRef.current = false;
+    retarget('about');
     resetEndRef.current();
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-  }, [sectionOpen, resetEndRef]);
+  }, [sectionOpen, resetEndRef, retarget]);
+
+  /**
+   * Clicking a section plays the same scroll-linked transition: an eased,
+   * programmatic scroll to the end of the sticky hero (where the CRT types
+   * `cd <section>` and the section opens via onReachEnd).
+   */
+  const playTransitionTo = useCallback(
+    (cmd: string) => {
+      const section = sectionRef.current;
+      if (!section) return false;
+      retarget(cmd);
+      cancelAnimationFrame(scrollAnimRef.current);
+      const startY = window.scrollY;
+      const endY = section.offsetTop + section.offsetHeight - window.innerHeight;
+      const duration = reduceMotion ? 900 : 2600;
+      const t0 = performance.now();
+      let cancelled = false;
+      const cancel = () => {
+        cancelled = true;
+      };
+      window.addEventListener('wheel', cancel, { passive: true, once: true });
+      window.addEventListener('touchstart', cancel, { passive: true, once: true });
+      const step = (now: number) => {
+        if (cancelled) return;
+        const t = Math.min(1, (now - t0) / duration);
+        const e = reduceMotion ? t : t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        window.scrollTo(0, startY + (endY - startY) * e);
+        if (t < 1) scrollAnimRef.current = requestAnimationFrame(step);
+        else {
+          window.removeEventListener('wheel', cancel);
+          window.removeEventListener('touchstart', cancel);
+        }
+      };
+      scrollAnimRef.current = requestAnimationFrame(step);
+      return true;
+    },
+    [reduceMotion, retarget],
+  );
+
+  useEffect(() => () => cancelAnimationFrame(scrollAnimRef.current), []);
 
   // While the auto-opened About is showing, scrolling up at its top scrolls
   // the page back into the transition (fixed overlays don't always chain).
@@ -221,6 +271,16 @@ export function HeroVideo() {
       const isSection = commands.includes(cmd);
       const agent = SECTION_AGENTS[cmd] || FREEFORM_AGENT;
 
+      // Sections (not AI mode) travel through the robot -> CRT transition.
+      if (isSection && cmd !== 'ai' && !sectionOpenRef.current) {
+        inputRef.current?.blur();
+        pushLines([
+          { kind: 'cmd', text: `$ ${value}` },
+          { kind: 'dispatch', text: `> dispatching ${agent}...` },
+        ]);
+        if (playTransitionTo(cmd)) return;
+      }
+
       setIsDispatching(true);
       inputRef.current?.blur();
       pushLines([
@@ -244,7 +304,7 @@ export function HeroVideo() {
       );
       timersRef.current.push(timer);
     },
-    [isDispatching, pushLines, reduceMotion],
+    [isDispatching, pushLines, reduceMotion, playTransitionTo],
   );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -432,7 +492,7 @@ export function HeroVideo() {
                   event.stopPropagation();
                   toggleLanguage();
                 }}
-                className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] text-zinc-400 transition-colors hover:text-[#00BB7F] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00BB7F]"
+                className="shrink-0 cursor-pointer rounded px-1.5 py-0.5 font-mono text-[11px] text-zinc-400 transition-colors hover:text-[#00BB7F] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00BB7F]"
                 aria-label={language === 'es' ? 'Switch to English' : 'Cambiar a español'}
               >
                 <span className={language === 'en' ? 'font-bold text-[#00BB7F]' : ''}>EN</span>
@@ -489,7 +549,7 @@ export function HeroVideo() {
                         event.stopPropagation();
                         dispatch(cmd);
                       }}
-                      className="group flex w-full min-w-0 items-center gap-1.5 rounded-md border border-white/5 bg-white/[0.03] px-2 py-1.5 text-left font-mono text-[11px] sm:text-[12px] text-zinc-300 transition-colors hover:border-[#00BB7F]/50 hover:bg-[#00BB7F]/10 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00BB7F] disabled:opacity-60"
+                      className="group flex w-full min-w-0 cursor-pointer disabled:cursor-wait items-center gap-1.5 rounded-md border border-white/5 bg-white/[0.03] px-2 py-1.5 text-left font-mono text-[11px] sm:text-[12px] text-zinc-300 transition-colors hover:border-[#00BB7F]/50 hover:bg-[#00BB7F]/10 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00BB7F] disabled:opacity-60"
                     >
                       <span
                         aria-hidden="true"
@@ -558,7 +618,7 @@ export function HeroVideo() {
         />
         <div className="relative z-10 mx-auto flex h-full max-w-3xl flex-col justify-center gap-4 px-6 font-terminal text-[#4dffb0] [text-shadow:0_0_6px_rgba(77,255,176,0.55)] sm:px-10">
           <p className="text-xs text-[#4dffb0]/60 sm:text-sm">ROINER-OS v2.6 · crt link established</p>
-          <p className="text-base sm:text-xl" aria-label={`> ${CRT_COMMAND}`}>
+          <p className="text-base sm:text-xl" aria-label={`> cd ${crtTarget}`}>
             <span aria-hidden="true">
               <span className="text-[#00BB7F]">&gt;</span> <span ref={typedRef} />
               <span className="animate-pulse">_</span>
@@ -568,10 +628,10 @@ export function HeroVideo() {
             <p className="text-[#4dffb0]/70">&gt; dispatching claude-agent...</p>
             <button
               type="button"
-              onClick={() => panelRef.current?.runCommand('about')}
-              className="text-left text-[#4dffb0] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4dffb0]"
+              onClick={() => panelRef.current?.runCommand(crtTarget)}
+              className="cursor-pointer text-left text-[#4dffb0] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4dffb0]"
             >
-              ✓ {SECTION_LABELS.about} ready
+              ✓ {SECTION_LABELS[crtTarget] ?? crtTarget} ready
             </button>
           </div>
         </div>

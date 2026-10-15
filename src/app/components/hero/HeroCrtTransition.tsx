@@ -59,6 +59,7 @@ export type HeroTransitionRefs = {
   menu: RefObject<HTMLDivElement | null>;
 };
 
+/** Default end-of-transition command; HeroVideo can retarget via getCommand. */
 export const CRT_COMMAND = 'cd about';
 /** Scroll progress at which the About view opens / closes again. */
 export const END_OPEN = 0.975;
@@ -69,6 +70,8 @@ export function useHeroCrtTransition(
   opts: {
     reduceMotion: boolean;
     canPlay: () => boolean;
+    /** Command typed on the CRT (e.g. `cd about`). */
+    getCommand: () => string;
     /** Called once when the transition reaches its end (open About). */
     onReachEnd: () => void;
     /** Called when the user scrolls back up out of the end state. */
@@ -237,7 +240,7 @@ export function useHeroCrtTransition(
         setOpacity(r.crt.current, f);
         if (r.crt.current) r.crt.current.style.pointerEvents = f > 0.6 ? 'auto' : 'none';
         if (r.ui.current) r.ui.current.style.pointerEvents = f > 0.4 ? 'none' : '';
-        if (r.typed.current) r.typed.current.textContent = CRT_COMMAND;
+        if (r.typed.current) r.typed.current.textContent = optsRef.current.getCommand();
         setOpacity(r.menu.current, f);
         setOpacity(r.robot.current, 0);
         setOpacity(r.patch.current, 0);
@@ -293,7 +296,8 @@ export function useHeroCrtTransition(
       if (r.crt.current) r.crt.current.style.pointerEvents = c > 0.9 ? 'auto' : 'none';
       const k = range(p, 0.86, 0.94);
       if (r.typed.current) {
-        r.typed.current.textContent = CRT_COMMAND.slice(0, Math.round(k * CRT_COMMAND.length));
+        const cmd = optsRef.current.getCommand();
+        r.typed.current.textContent = cmd.slice(0, Math.round(k * cmd.length));
       }
       setOpacity(r.menu.current, range(p, 0.94, 0.97));
     };
