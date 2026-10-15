@@ -380,23 +380,29 @@ export function HeroVideo() {
   };
 
   // Hint "said" by the Claude robot in a pixel speech bubble.
-  const HINT_TEXT = language === 'es' ? 'intenta presionar About 👇' : 'try pressing About 👇';
-  const hintEnter = language === 'es' ? 'o presiona enter ↵' : 'or press enter ↵';
+  // Plain ASCII-ish text (no emoji / fallback glyphs) so typing is even;
+  // a CSS/SVG pixel arrow appears once typing finishes.
+  const HINT_TEXT = language === 'es' ? 'intenta presionar About' : 'try pressing About';
+  const hintEnter = language === 'es' ? 'o presiona ENTER' : 'or press ENTER';
+  const hintL1 = Array.from(HINT_TEXT);
+  const hintL2 = Array.from(hintEnter);
+  const hintTotal = hintL1.length + hintL2.length;
 
   // After ~2 s of inactivity on the hero, auto-type the About hint.
   useEffect(() => {
     if (hintDone) return;
     let idle = 0;
     let typer = 0;
+    const total = hintTotal;
     const startTyping = () => {
       let i = 0;
       typer = window.setInterval(
         () => {
-          i = reduceMotion ? Array.from(HINT_TEXT).length + 1 : i + 1;
+          i = reduceMotion ? total : i + 1;
           setHintTyped(i);
-          if (i >= Array.from(HINT_TEXT).length + 1) window.clearInterval(typer);
+          if (i >= total) window.clearInterval(typer);
         },
-        reduceMotion ? 0 : 70,
+        reduceMotion ? 0 : 60,
       );
     };
     const arm = () => {
@@ -412,7 +418,7 @@ export function HeroVideo() {
       window.clearInterval(typer);
       events.forEach((e) => window.removeEventListener(e, arm));
     };
-  }, [hintDone, reduceMotion, HINT_TEXT]);
+  }, [hintDone, reduceMotion, hintTotal]);
 
   // Position the bubble as soon as it mounts (and on language change).
   const bubbleShown = !hintDone && hintTyped > 0;
@@ -570,21 +576,41 @@ export function HeroVideo() {
           className="hero-bubble-anchor pointer-events-none absolute left-0 top-0 z-[6] invisible"
         >
           <div className="hero-bubble">
-            <p className="hero-bubble-text relative">
-              {/* invisible full text keeps the size fixed while typing */}
-              <span className="invisible">{HINT_TEXT}▋</span>
-              <span className="absolute inset-0">
-                {Array.from(HINT_TEXT).slice(0, hintTyped).join('')}
-                {hintTyped <= Array.from(HINT_TEXT).length && (
-                  <span className="hero-block-caret">▋</span>
-                )}
-              </span>
+            {/* Full text is always laid out; characters are revealed in place
+                (no reflow, fixed bubble size). Cursor = highlighted next cell. */}
+            <p className="hero-bubble-text">
+              {hintL1.map((ch, i) => (
+                <span
+                  key={i}
+                  className={i < hintTyped ? undefined : i === hintTyped ? 'hero-type-cursor' : 'invisible'}
+                >
+                  {ch}
+                </span>
+              ))}
+              <svg
+                className="ml-1.5 inline-block align-[-1px]"
+                style={{ visibility: hintTyped >= hintTotal ? 'visible' : 'hidden' }}
+                width="10"
+                height="10"
+                viewBox="0 0 5 5"
+                shapeRendering="crispEdges"
+                aria-hidden="true"
+              >
+                <path fill="#00bb7f" d="M2 0h1v3H2zM0 2h1v1H0zM4 2h1v1H4zM1 3h3v1H1zM2 4h1v1H2z" />
+              </svg>
             </p>
-            <p
-              className="mt-0.5 text-[10px] text-zinc-400"
-              style={{ visibility: hintTyped > Array.from(HINT_TEXT).length ? 'visible' : 'hidden' }}
-            >
-              {hintEnter}
+            <p className="hero-bubble-text mt-0.5 text-[10px] text-zinc-400">
+              {hintL2.map((ch, j) => {
+                const i = hintL1.length + j;
+                return (
+                  <span
+                    key={i}
+                    className={i < hintTyped ? undefined : i === hintTyped ? 'hero-type-cursor' : 'invisible'}
+                  >
+                    {ch}
+                  </span>
+                );
+              })}
             </p>
             <span className="hero-bubble-tail" />
           </div>

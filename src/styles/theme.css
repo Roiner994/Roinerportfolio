@@ -499,3 +499,13 @@
 @media (prefers-reduced-motion: reduce) {
   .hero-bubble { animation: none; }
 }
+
+/* typewriter cursor: the next (hidden) cell is shown as a solid block */
+.hero-type-cursor {
+  color: transparent;
+  background: #00bb7f;
+  animation: hero-caret-blink 1s steps(1, end) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-type-cursor { animation: none; }
+}
