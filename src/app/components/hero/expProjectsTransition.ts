@@ -23,10 +23,22 @@ export type PanelEls = Partial<Record<PanelKey, HTMLElement | null>>;
 /** Single source of truth for both directions. Index order = agentCards order. */
 export const EXP_PROJECTS_TIMELINE = {
   // gemini, cursor, claude, chatgpt
-  arrivals: [1200, 450, 700, 950],
-  // Gemini -> top breadcrumb only; Cursor -> sidebar, then a pixel streak runs
-  // down from its landing point and opens the bottom status bar.
-  panels: [["breadcrumb"], ["sidebar", "status"], ["text"], ["media"]] as PanelKey[][],
+  /**
+   * Destination slots, in arrival order. The robot closest to the avatar takes
+   * the finale; the other three are matched to panels by shortest, non-crossing
+   * paths (see assignRobots). Breadcrumb + status bar stay visible.
+   */
+  slots: [
+    { panel: "sidebar", arrive: 450 },
+    { panel: "text", arrive: 700 },
+    { panel: "media", arrive: 950 },
+    { panel: "avatar", arrive: 1250 },
+  ] as Array<{ panel: PanelKey | "avatar"; arrive: number }>,
+  /** Preferred slot per robot (gemini, cursor, claude, chatgpt) used as tie-breaker. */
+  preferredSlot: [3, 0, 1, 2],
+  morphLeadMs: 140,
+  morphMs: 240,
+  avatarFlashMs: 120,
   /** Robot palette [base, alt] used for the collapse square / panel fill. */
   colors: [
     ["#3b5bdb", "#5c7cfa"], // gemini
@@ -38,7 +50,7 @@ export const EXP_PROJECTS_TIMELINE = {
    * "unfold": robot -> coloured square -> window unfolds (variant A).
    * "reassemble": robot breaks into its own pixels which rebuild the panel (variant B).
    */
-  revealStyle: "reassemble" as "unfold" | "reassemble",
+  revealStyle: "unfold" as "unfold" | "reassemble",
   assembleStaggerMs: 220,
   assembleTravelMs: 240,
   crossfadeMs: 160,
@@ -48,7 +60,6 @@ export const EXP_PROJECTS_TIMELINE = {
   unfoldMs: 300,
   dissolveMs: 160,
   cellPx: 10,
-  streakMs: 220,
   flightMs: 450,
   anticipationMs: 90,
   shrinkMs: 80,
@@ -66,9 +77,61 @@ const REVEAL_MS =
       EXP_PROJECTS_TIMELINE.crossfadeMs;
 
 export const EXP_PROJECTS_DURATION_MS =
-  Math.max(...EXP_PROJECTS_TIMELINE.arrivals) +
-  REVEAL_MS +
-  EXP_PROJECTS_TIMELINE.tailMs;
+  Math.max(
+    ...EXP_PROJECTS_TIMELINE.slots.map((sl) =>
+      sl.panel === "avatar"
+        ? sl.arrive + EXP_PROJECTS_TIMELINE.morphMs + EXP_PROJECTS_TIMELINE.avatarFlashMs
+        : sl.arrive + REVEAL_MS,
+    ),
+  ) + EXP_PROJECTS_TIMELINE.tailMs;
+
+type Pt = { x: number; y: number };
+const segmentsCross = (a: Pt, b: Pt, c: Pt, d: Pt) => {
+  const o = (p: Pt, q: Pt, r: Pt) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+  return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b);
+};
+
+/**
+ * Returns slot index per robot. Closest robot to the avatar -> avatar slot;
+ * remaining robots -> panel slots minimising total path length, heavily
+ * penalising crossing paths, with a small bonus for the preferred identity.
+ */
+export function assignRobots(from: Pt[], targets: Pt[], preferred: number[]): number[] {
+  const avatarSlot = targets.length - 1;
+  let avatarRobot = 0;
+  from.forEach((p, i) => {
+    const d = Math.hypot(p.x - targets[avatarSlot].x, p.y - targets[avatarSlot].y);
+    const best = Math.hypot(from[avatarRobot].x - targets[avatarSlot].x, from[avatarRobot].y - targets[avatarSlot].y);
+    if (d < best) avatarRobot = i;
+  });
+  const rest = from.map((_, i) => i).filter((i) => i !== avatarRobot);
+  const perms: number[][] = [];
+  const permute = (arr: number[], acc: number[] = []) => {
+    if (!arr.length) perms.push(acc);
+    arr.forEach((v, k) => permute([...arr.slice(0, k), ...arr.slice(k + 1)], [...acc, v]));
+  };
+  permute([0, 1, 2]);
+  let bestCost = Infinity;
+  let bestPerm = perms[0];
+  for (const perm of perms) {
+    let cost = 0;
+    rest.forEach((r, k) => {
+      const t = targets[perm[k]];
+      cost += Math.hypot(from[r].x - t.x, from[r].y - t.y);
+      if (preferred[r] === perm[k]) cost -= 250; // keep identity while the path stays reasonable (<~250px longer)
+    });
+    for (let a = 0; a < rest.length; a++)
+      for (let b = a + 1; b < rest.length; b++)
+        if (segmentsCross(from[rest[a]], targets[perm[a]], from[rest[b]], targets[perm[b]])) cost += 2000;
+    if (cost < bestCost) {
+      bestCost = cost;
+      bestPerm = perm;
+    }
+  }
+  const out = new Array(from.length).fill(avatarSlot);
+  rest.forEach((r, k) => (out[r] = bestPerm[k]));
+  return out;
+}
 
 export const EXP_PROJECTS_REDUCED_MS = 400;
 
@@ -120,6 +183,8 @@ export interface RunOptions {
   /** Title span to "type" via max-width ch (forward only). */
   titleEl?: HTMLElement | null;
   titleLength?: number;
+  /** Roiner's mini avatar in Projects: Gemini morphs into it. */
+  avatar?: { src: string; box: Box } | null;
   onDone: () => void;
 }
 
@@ -171,6 +236,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     snapLayer.appendChild(node);
   };
 
+  const bgFaders: HTMLElement[] = [];
   const expClone = opts.snapshot.expClone;
   if (forward && expClone) place(expClone.node, expClone.box);
 
@@ -179,7 +245,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
   const panelBoxes: Partial<Record<PanelKey, Box>> = {};
   if (forward) {
     (Object.keys(opts.panels) as PanelKey[]).forEach((k) => {
-      animPanels[k] = opts.panels[k] ?? null;
+      if (T.slots.some((sl) => sl.panel === k)) animPanels[k] = opts.panels[k] ?? null;
     });
   } else {
     const clones = opts.snapshot.panelClones ?? {};
@@ -188,8 +254,12 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       if (!c) return;
       c.node.style.background = "#09090b";
       place(c.node, c.box);
-      animPanels[k] = c.node;
-      panelBoxes[k] = c.box;
+      if (T.slots.some((sl) => sl.panel === k)) {
+        animPanels[k] = c.node;
+        panelBoxes[k] = c.box;
+      } else {
+        bgFaders.push(c.node); // e.g. breadcrumb: fades with the Projects backdrop
+      }
     });
     // The status bar also exists in Experience, so reverse leaves it open
     // (closing it only to pop it back would be an effect without a cause).
@@ -264,9 +334,17 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     return ctx.createPattern(pc, "repeat") ?? base;
   });
 
+  const avatarImg = opts.avatar ? new Image() : null;
+  if (avatarImg && opts.avatar) avatarImg.src = opts.avatar.src;
+
   // ---------- measurement (cached) ----------
   let landings: Landing[][] = [];
   let robotFrom: Box[] = [];
+  let robotSlot: number[] = [...T.preferredSlot];
+  let avatarIdx = 0;
+  let arrivals: number[] = robotSlot.map((sl) => T.slots[sl].arrive);
+  let robotPanels: PanelKey[][] = [[], [], [], []];
+  let textArrive = 700;
   const measure = () => {
     (["sidebar", "text", "media", "breadcrumb", "status"] as PanelKey[]).forEach((k) => {
       if (!forward && k !== "status" && panelBoxes[k]) return; // clones keep snapshot boxes
@@ -274,33 +352,44 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       if (el) panelBoxes[k] = toBox(el);
     });
     const content = forward ? opts.contentBox : sb;
-    landings = T.panels.map((keys) =>
-      keys
-        .map((k): Landing | null => {
-          const b = panelBoxes[k];
-          if (!b || b.width <= 0) return null;
-          const clampTo = k === "status" ? viewport : intersect(intersect(b, content), viewport);
-          const vis = clampTo.width > 0 && clampTo.height > 0 ? intersect(b, clampTo) : b;
-          let y = vis.top + vis.height / 2;
-          if (k === "sidebar") y = vis.top + Math.min(260, vis.height * 0.35);
-          if (k === "text") y = vis.top + Math.min(200, vis.height * 0.3);
-          if (k === "media") y = vis.top + Math.min(220, vis.height * 0.4);
-          if (k === "breadcrumb") y = Math.max(y, (72 * T.flightScale) / 2 + 4);
-          return { x: vis.left + vis.width / 2, y, panel: k };
-        })
-        .filter((l): l is Landing => l !== null),
+    const landingFor = (k: PanelKey): Landing | null => {
+      const b = panelBoxes[k];
+      if (!b || b.width <= 0) return null;
+      const clampTo = intersect(intersect(b, content), viewport);
+      const vis = clampTo.width > 0 && clampTo.height > 0 ? intersect(b, clampTo) : b;
+      let y = vis.top + vis.height / 2;
+      if (k === "sidebar") y = vis.top + Math.min(260, vis.height * 0.35);
+      if (k === "text") y = vis.top + Math.min(200, vis.height * 0.3);
+      if (k === "media") y = vis.top + Math.min(220, vis.height * 0.4);
+      return { x: vis.left + vis.width / 2, y, panel: k };
+    };
+    const av = opts.avatar?.box;
+    const slotTargets: Array<Landing | null> = T.slots.map((sl) =>
+      sl.panel === "avatar"
+        ? av
+          ? { x: av.left + av.width / 2, y: av.top + av.height / 2, panel: "status" }
+          : { x: vw - 60, y: vh - 120, panel: "status" }
+        : landingFor(sl.panel),
     );
-    // Status bar opens from directly below Cursor's landing point.
-    const cur = landings[1];
-    const sbBox = panelBoxes.status;
-    if (cur && cur[0] && cur[1] && sbBox) {
-      cur[1].x = Math.min(sbBox.left + sbBox.width - 8, Math.max(sbBox.left + 8, cur[0].x));
-    }
     robotFrom = opts.robotBoxes();
+    const fromPts = robotFrom.map((b) => ({ x: b.left + b.width / 2, y: b.top + b.height / 2 }));
+    const tgtPts = slotTargets.map((l, k) => l ?? { x: vw / 2, y: vh / 2 + k });
+    robotSlot = assignRobots(fromPts, tgtPts, T.preferredSlot);
+    avatarIdx = robotSlot.indexOf(T.slots.length - 1);
+    arrivals = robotSlot.map((sl) => T.slots[sl].arrive);
+    robotPanels = robotSlot.map((sl) => {
+      const pk = T.slots[sl].panel;
+      return pk === "avatar" ? [] : [pk];
+    });
+    landings = robotSlot.map((sl) => {
+      const l = slotTargets[sl];
+      return l ? [l] : [];
+    });
+    textArrive = T.slots.find((sl) => sl.panel === "text")?.arrive ?? 700;
   };
 
   // Clip everything shut before first paint (forward) / start open (reverse).
-  const panelOwner = (k: PanelKey) => T.panels.findIndex((ks) => ks.includes(k));
+  const panelOwner = (k: PanelKey) => robotPanels.findIndex((ks) => ks.includes(k));
   const clipTo = (k: PanelKey, r: Box | null) => {
     const el = animPanels[k];
     const b = panelBoxes[k];
@@ -433,7 +522,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
   const buildGrid = (k: PanelKey, owner: number, l: Landing) => {
     const vb = visibleBox(k);
     if (!vb) return null;
-    const isPrimary = T.panels[owner][0] === k;
+    const isPrimary = robotPanels[owner][0] === k;
     const samples = sampleSprite(owner);
     const cell = Math.max(6, Math.ceil(Math.sqrt((vb.width * vb.height) / T.maxParticles)));
     const cols = Math.ceil(vb.width / cell);
@@ -520,10 +609,64 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     });
   }
 
+  /**
+   * Gemini -> avatar: pixel-dissolve crossfade (robot cells vanish as avatar
+   * cells appear) at the avatar's exact rect, then a small edge flash. The
+   * canvas keeps drawing the avatar until the real one takes over at the end.
+   */
+  const drawAvatarMorph = (dt: number, robotImg: HTMLImageElement | null, base: number) => {
+    const av = opts.avatar?.box;
+    if (!ctx || !av || dt < 0) return;
+    const d = clamp01(dt / T.morphMs);
+    const c = 6;
+    const robotSize = av.height; // robot ended the lead at avatar height
+    const rx = av.left + av.width / 2 - robotSize / 2;
+    const ry = av.top;
+    const aReady = avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0;
+    const rReady = robotImg && robotImg.complete && robotImg.naturalWidth > 0;
+    if (d >= 1) {
+      if (aReady) ctx.drawImage(avatarImg!, av.left, av.top, av.width, av.height);
+    } else {
+      // union of both rects, cell by cell
+      const left = Math.min(rx, av.left);
+      const right = Math.max(rx + robotSize, av.left + av.width);
+      for (let y = av.top; y < av.top + av.height; y += c) {
+        for (let x = left; x < right; x += c) {
+          const showAvatar = cellHash(Math.floor(x / c), Math.floor(y / c)) < d;
+          if (showAvatar && aReady) {
+            const sx = ((x - av.left) / av.width) * avatarImg!.naturalWidth;
+            const sy = ((y - av.top) / av.height) * avatarImg!.naturalHeight;
+            if (x >= av.left && x < av.left + av.width)
+              ctx.drawImage(avatarImg!, sx, sy, (c / av.width) * avatarImg!.naturalWidth, (c / av.height) * avatarImg!.naturalHeight, x, y, c, c);
+          } else if (!showAvatar && rReady && x >= rx && x < rx + robotSize) {
+            const sx = ((x - rx) / robotSize) * robotImg!.naturalWidth;
+            const sy = ((y - ry) / robotSize) * robotImg!.naturalHeight;
+            ctx.drawImage(robotImg!, sx, sy, (c / robotSize) * robotImg!.naturalWidth, (c / robotSize) * robotImg!.naturalHeight, x, y, c, c);
+          }
+        }
+      }
+      // a few loose pixels in Gemini's colours around the edge
+      ctx.fillStyle = T.colors[avatarIdx][0];
+      for (let k = 0; k < 10; k++) {
+        if (cellHash(k, Math.floor(d * 8)) > 0.6) continue;
+        const a = (k / 10) * Math.PI * 2;
+        ctx.fillRect(av.left + av.width / 2 + Math.cos(a) * av.width * 0.6, av.top + av.height / 2 + Math.sin(a) * av.height * 0.55, 4, 4);
+      }
+    }
+    // small edge flash once the avatar has formed
+    const fp = (dt - T.morphMs) / T.avatarFlashMs;
+    if (fp > 0 && fp < 1) {
+      ctx.strokeStyle = `rgba(234,255,244,${(0.9 * (1 - fp)).toFixed(3)})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(av.left - 2, av.top - 2, av.width + 4, av.height + 4);
+    }
+    void base;
+  };
+
   const renderAt = (tf: number) => {
     if (ctx) ctx.clearRect(0, 0, vw, vh);
-    for (let i = 0; i < T.arrivals.length; i++) {
-      const arr = T.arrivals[i];
+    for (let i = 0; i < arrivals.length; i++) {
+      const arr = arrivals[i];
       const start = arr - T.flightMs;
       const land = landings[i] ?? [];
       const target = land[0];
@@ -562,6 +705,12 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
             rot = Math.max(-12, Math.min(12, vx * 0.015)) * Math.sin(Math.PI * u);
             scale = 1 + (T.flightScale - 1) * Math.min(1, u * 2.5);
           }
+        } else if (i === avatarIdx && opts.avatar && tf >= arr - T.morphLeadMs && tf < arr) {
+          // settle onto the avatar's exact rect, shrinking to its size
+          const mp = easeOutCubic((tf - (arr - T.morphLeadMs)) / T.morphLeadMs);
+          x = target.x;
+          y = target.y;
+          scale = lerp(T.flightScale, opts.avatar.box.height / base, mp);
         } else if (reassemble && tf >= arr - T.shrinkMs && tf < arr) {
           x = target.x;
           y = target.y;
@@ -580,33 +729,14 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
         el.style.transform = `translate3d(${(x - base / 2).toFixed(1)}px, ${(y - base / 2).toFixed(1)}px, 0) scale(${scale.toFixed(3)}) rotate(${rot.toFixed(2)}deg)`;
         el.style.opacity = alpha.toFixed(3);
         // robot collapses into a square of its own colour
-        if (!reassemble && ctx && tf >= arr - T.shrinkMs && tf < arr) {
+        if (i === avatarIdx && opts.avatar) {
+          drawAvatarMorph(tf - arr, el.querySelector("img"), base);
+        } else if (!reassemble && ctx && tf >= arr - T.shrinkMs && tf < arr) {
           const sp = (tf - (arr - T.shrinkMs)) / T.shrinkMs;
           const sz = lerp(base * 0.6, T.squarePx, sp);
           ctx.globalAlpha = sp;
           ctx.fillStyle = patterns[i] ?? "#fff";
           ctx.fillRect(target.x - sz / 2, target.y - sz / 2, sz, sz);
-          ctx.globalAlpha = 1;
-        }
-      }
-      // Pixel streak: Cursor's landing -> status bar (the visible cause).
-      if (land.length > 1 && ctx && animPanels[land[1].panel]) {
-        const a0 = land[0];
-        const a1 = land[1];
-        const sp = (tf - arr) / T.streakMs;
-        if (sp > 0 && sp < 1.35) {
-          const head = Math.min(1, sp);
-          const tail = Math.max(0, sp - 0.35);
-          const steps = 18;
-          for (let q = 0; q <= steps; q++) {
-            const u = tail + ((head - tail) * q) / steps;
-            const px = Math.round((a0.x + (a1.x - a0.x) * u) / 2) * 2;
-            const py = Math.round((a0.y + (a1.y - a0.y) * u) / 2) * 2;
-            const w = q === steps ? 8 : 4 + (q / steps) * 3;
-            ctx.globalAlpha = 0.35 + 0.65 * (q / steps);
-            ctx.fillStyle = q === steps ? "#ffffff" : T.colors[i][q % 2];
-            ctx.fillRect(px - w / 2 + (q % 2 ? 3 : -3), py - w / 2, w, w);
-          }
           ctx.globalAlpha = 1;
         }
       }
@@ -617,14 +747,13 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       if (owner < 0) return;
       const l = (landings[owner] ?? []).find((m) => m.panel === k);
       if (!l) return;
-      const start =
-        T.arrivals[owner] + (T.panels[owner].indexOf(k) > 0 ? T.streakMs : 0);
+      const start = arrivals[owner];
       if (reassemble) drawReassemble(k, owner, l, tf, start);
       else drawUnfold(k, owner, l, tf, start);
     });
     // --- title typing (forward only) ---
     if (forward && opts.titleEl && opts.titleLength) {
-      const ts = T.arrivals[2] + 40;
+      const ts = textArrive + 40;
       const n = Math.max(0, Math.floor((tf - ts) / T.titleCharMs));
       opts.titleEl.style.maxWidth = n >= opts.titleLength ? "none" : `${n}ch`;
     }
@@ -673,6 +802,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     } else {
       const f = clamp01(t / (reduceMotion ? duration : T.expFadeMs + 100));
       snapBg.style.opacity = (1 - f).toFixed(3);
+      bgFaders.forEach((n) => (n.style.opacity = (1 - f).toFixed(3)));
       if (opts.liveExpSection) opts.liveExpSection.style.opacity = f.toFixed(3);
       if (reduceMotion) snapLayer.style.opacity = (1 - f).toFixed(3);
     }

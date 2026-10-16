@@ -136,6 +136,7 @@ interface ExpProjectsSnapshot {
   robotBoxes: XpBox[];
   expClone: { node: HTMLElement; box: XpBox } | null;
   panelClones: Partial<Record<XpPanelKey, { node: HTMLElement; box: XpBox }>>;
+  avatar: { src: string; box: XpBox } | null;
 }
 
 const rectOf = (el: Element): XpBox => {
@@ -931,6 +932,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const [hasOpenedProject, setHasOpenedProject] = useState(false);
   const [miniDisplayPose, setMiniDisplayPose] = useState<AvatarPose>("wave");
   const [miniAnim, setMiniAnim] = useState<"idle" | "pop">("idle");
+  const skipMiniPopRef = useRef(false);
   const [aboutExpTransition, setAboutExpTransition] = useState<{
     direction: "forward" | "reverse";
     fromRects: RectBox[];
@@ -1085,6 +1087,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       return;
     }
     setMiniDisplayPose(sectionMiniPose);
+    if (skipMiniPopRef.current) {
+      skipMiniPopRef.current = false;
+      setMiniAnim("idle");
+      return;
+    }
     setMiniAnim("pop");
     if (miniPopTimerRef.current) {
       window.clearTimeout(miniPopTimerRef.current);
@@ -1726,7 +1733,25 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         robotBoxes: [],
         expClone: null,
         panelClones: {},
+        avatar: null,
       };
+
+      // Roiner's mini avatar (bottom-right in Projects): the finale robot morphs into it.
+      const miniEl = document.getElementById("mini");
+      if (miniEl) {
+        const r = rectOf(miniEl);
+        const hidden = miniEl.classList.contains("off");
+        if (r.width > 0) {
+          snapshot.avatar = {
+            src:
+              direction === "forward"
+                ? `/avatar/${hasOpenedProject ? "laptop" : "coffee"}.png`
+                : (miniEl as HTMLImageElement).src,
+            // .off is translated 20px down; land on the resting position
+            box: { ...r, top: hidden ? r.top - 20 : r.top },
+          };
+        }
+      }
 
       if (direction === "forward") {
         const expEl = sourceMode === "experience" ? expSectionRef.current : null;
@@ -1770,7 +1795,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       setActiveView(direction === "forward" ? "projects" : "experience");
       setExpProjectsTransition({ direction, sourceMode });
     },
-    [getFallbackExpRect, readRobotRects],
+    [getFallbackExpRect, readRobotRects, hasOpenedProject],
   );
 
   useLayoutEffect(() => {
@@ -1816,7 +1841,20 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       liveExpSection: forward ? null : expSectionRef.current,
       titleEl: forward ? projectTitleRef.current : null,
       titleLength: activeProject.displayName.length,
+      avatar: snap.avatar,
       onDone: () => {
+        if (forward) {
+          // Hand over from the canvas-drawn avatar to the real one without
+          // its CSS fade/pop, so the morph result simply stays.
+          skipMiniPopRef.current = true;
+          const mini = document.getElementById("mini");
+          if (mini) {
+            mini.style.transition = "none";
+            window.setTimeout(() => {
+              mini.style.transition = "";
+            }, 120);
+          }
+        }
         isExpProjectsTransitioningRef.current = false;
         lastTransitionEndRef.current = performance.now();
         expProjectsSnapshotRef.current = null;
