@@ -24,7 +24,12 @@ export type PanelEls = Partial<Record<PanelKey, HTMLElement | null>>;
 export const EXP_PROJECTS_TIMELINE = {
   // gemini, cursor, claude, chatgpt
   arrivals: [1200, 450, 700, 950],
-  panels: [["breadcrumb", "status"], ["sidebar"], ["text"], ["media"]] as PanelKey[][],
+  // Gemini -> top breadcrumb only; Cursor -> sidebar, then a pixel streak runs
+  // down from its landing point and opens the bottom status bar.
+  panels: [["breadcrumb"], ["sidebar", "status"], ["text"], ["media"]] as PanelKey[][],
+  /** Per-robot flash size multiplier (Gemini's is modest). */
+  flashScale: [0.6, 1, 1, 1],
+  streakMs: 220,
   flightMs: 450,
   anticipationMs: 90,
   shrinkMs: 80,
@@ -157,8 +162,8 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       animPanels[k] = c.node;
       panelBoxes[k] = c.box;
     });
-    // status bar stays live in reverse
-    animPanels.status = opts.panels.status ?? null;
+    // The status bar also exists in Experience, so reverse leaves it open
+    // (closing it only to pop it back would be an effect without a cause).
   }
   document.body.appendChild(snapLayer);
 
@@ -253,10 +258,17 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
           if (k === "sidebar") y = vis.top + Math.min(260, vis.height * 0.35);
           if (k === "text") y = vis.top + Math.min(200, vis.height * 0.3);
           if (k === "media") y = vis.top + Math.min(220, vis.height * 0.4);
+          if (k === "breadcrumb") y = Math.max(y, (72 * T.flightScale) / 2 + 4);
           return { x: vis.left + vis.width / 2, y, panel: k };
         })
         .filter((l): l is Landing => l !== null),
     );
+    // Status bar opens from directly below Cursor's landing point.
+    const cur = landings[1];
+    const sbBox = panelBoxes.status;
+    if (cur && cur[0] && cur[1] && sbBox) {
+      cur[1].x = Math.min(sbBox.left + sbBox.width - 8, Math.max(sbBox.left + 8, cur[0].x));
+    }
     robotFrom = opts.robotBoxes();
     (Object.keys(animPanels) as PanelKey[]).forEach((k) => {
       if (!scans[k] && animPanels[k]) makeScan(k);
@@ -319,11 +331,11 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
   }
 
   // ---------- frame renderer at forward-time tf ----------
-  const drawFlash = (x: number, y: number, fp: number, seed: number) => {
+  const drawFlash = (x: number, y: number, fp: number, seed: number, k = 1) => {
     if (!ctx || fp <= 0 || fp >= 1) return;
     const e = easeOutCubic(fp);
     const alpha = 1 - fp;
-    const radius = 10 + e * (T.flashRadius - 10);
+    const radius = (10 + e * (T.flashRadius - 10)) * k;
     const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
     g.addColorStop(0, `rgba(255,255,255,${alpha})`);
     g.addColorStop(0.3, `rgba(234,255,244,${alpha * 0.9})`);
@@ -335,7 +347,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
     const colors = ["#ffffff", "#eafff4", "#4dffb0", "#a7f3d0"];
-    const dist = 14 + e * (T.ringDistance - 14);
+    const dist = (14 + e * (T.ringDistance - 14)) * k;
     ctx.globalAlpha = Math.min(1, alpha * 1.4);
     for (let k = 0; k < T.ringCount; k++) {
       const a = (k / T.ringCount) * Math.PI * 2 + seed * 0.37;
@@ -405,11 +417,33 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
         el.style.opacity = alpha.toFixed(3);
       }
       // --- flashes (one per landing; Gemini gets two) ---
+      // Pixel streak: Cursor's landing -> status bar (the visible cause).
+      if (land.length > 1 && ctx && animPanels[land[1].panel]) {
+        const a0 = land[0];
+        const a1 = land[1];
+        let sp = (tf - arr) / T.streakMs;
+        if (sp > 0 && sp < 1.35) {
+          const head = Math.min(1, sp);
+          const tail = Math.max(0, sp - 0.35);
+          const steps = 18;
+          for (let q = 0; q <= steps; q++) {
+            const u = tail + ((head - tail) * q) / steps;
+            const px = Math.round((a0.x + (a1.x - a0.x) * u) / 2) * 2;
+            const py = Math.round((a0.y + (a1.y - a0.y) * u) / 2) * 2;
+            const w = q === steps ? 8 : 4 + (q / steps) * 3;
+            ctx.globalAlpha = 0.35 + 0.65 * (q / steps);
+            ctx.fillStyle = q === steps ? "#ffffff" : q % 2 ? "#4dffb0" : "#eafff4";
+            ctx.fillRect(px - w / 2 + (q % 2 ? 3 : -3), py - w / 2, w, w);
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
       land.forEach((l, j) => {
-        const fs = arr - T.flashLeadMs + j * 40;
+        if (j > 0 && !animPanels[l.panel]) return;
+        const fs = j === 0 ? arr - T.flashLeadMs : arr + T.streakMs - 20;
         let fp = (tf - fs) / T.flashMs;
         if (!forward) fp = 1 - fp; // play as a puff in real time
-        drawFlash(l.x, l.y, fp, i * 4 + j);
+        drawFlash(l.x, l.y, fp, i * 4 + j, (T.flashScale[i] ?? 1) * (j === 0 ? 1 : 0.55));
       });
     }
     // --- panels + scanlines ---
@@ -417,7 +451,8 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       const owner = panelOwner(k);
       if (owner < 0) return;
       const l = (landings[owner] ?? []).find((m) => m.panel === k);
-      const arr = T.arrivals[owner];
+      const arr =
+        T.arrivals[owner] + (T.panels[owner].indexOf(k) > 0 ? T.streakMs : 0);
       const p = clamp01((tf - arr) / T.revealMs);
       if (l) setPanel(k, p, l.x, l.y);
       const s = scans[k];
@@ -495,14 +530,6 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       });
     } else {
       renderAt(forward ? t : duration - t);
-      // Reverse: the shared status bar belongs to Experience too, so it
-      // re-opens from its centre during the last stretch.
-      const status = animPanels.status;
-      const sbx = panelBoxes.status;
-      if (!forward && status && sbx) {
-        const rp = clamp01((t - (duration - 260)) / 260);
-        if (rp > 0) setPanel("status", rp, sbx.left + sbx.width / 2, sbx.top);
-      }
     }
 
     if (raw < 1) {
