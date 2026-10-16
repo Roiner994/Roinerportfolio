@@ -483,6 +483,21 @@
   height: 4px;
   border-left: 0;
 }
+.hero-bubble-anchor[data-tail="left"] .hero-bubble-tail {
+  top: var(--tail-y, 50%);
+  left: -8px;
+  width: 8px;
+  height: 8px;
+  border-right: 0;
+  transform: translateY(-50%);
+}
+.hero-bubble-anchor[data-tail="left"] .hero-bubble-tail::after {
+  top: 0;
+  left: -6px;
+  width: 6px;
+  height: 4px;
+  border-right: 0;
+}
 @keyframes hero-bubble-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }

@@ -239,6 +239,9 @@ export function HeroVideo() {
       if (!sectionOpenRef.current) openForward('about');
     };
     const back = () => {
+      // Projects scrolls its own content; leaving it is explicit (GOTO / RETURN_TO_SHELL).
+      const overlay = document.querySelector<HTMLElement>('[data-section-overlay]');
+      if (overlay?.dataset.view === 'projects') return;
       if (sectionOpenRef.current && autoAboutRef.current && !animatingRef.current && overlayAtTop()) {
         panelRef.current?.close(); // the close effect plays the reverse
       }

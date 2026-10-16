@@ -933,6 +933,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const [miniDisplayPose, setMiniDisplayPose] = useState<AvatarPose>("wave");
   const [miniAnim, setMiniAnim] = useState<"idle" | "pop">("idle");
   const skipMiniPopRef = useRef(false);
+  const [projectsHint, setProjectsHint] = useState(false);
   const [aboutExpTransition, setAboutExpTransition] = useState<{
     direction: "forward" | "reverse";
     fromRects: RectBox[];
@@ -1072,6 +1073,27 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       : !isAiMode && activeView === "cv"
         ? "gym"
         : null;
+
+  // Mini avatar hint in Projects: "open a folder", until a folder is opened or ~8s.
+  useEffect(() => {
+    if (
+      isExpanded &&
+      activeView === "projects" &&
+      !isAiMode &&
+      expProjectsTransition === null &&
+      !hasOpenedProject
+    ) {
+      // let the avatar settle (pop / morph hand-off) before the bubble appears
+      const show = window.setTimeout(() => setProjectsHint(true), 350);
+      const hide = window.setTimeout(() => setProjectsHint(false), 8350);
+      return () => {
+        window.clearTimeout(show);
+        window.clearTimeout(hide);
+        setProjectsHint(false);
+      };
+    }
+    setProjectsHint(false);
+  }, [isExpanded, activeView, isAiMode, expProjectsTransition, hasOpenedProject]);
 
   // Preload all pixel-art sprites on mount
   useEffect(() => {
@@ -2112,19 +2134,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         } else {
           bottomWheelAccum = 0;
         }
-      } else if (activeViewRef.current === "projects" && e.deltaY < -4) {
-        if (isAtTop()) {
-          const settledAtTop = performance.now() - lastScrollTime > 220;
-          topWheelAccum += Math.abs(e.deltaY);
-          if (settledAtTop || topWheelAccum >= 90) {
-            e.preventDefault();
-            topWheelAccum = 0;
-            startExpProjectsTransition("reverse", "experience");
-          }
-        } else {
-          topWheelAccum = 0;
-        }
       }
+      // Projects: wheel only scrolls project content; leaving Projects is
+      // done via the GOTO bar / RETURN_TO_SHELL / the "continue" line.
     };
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -2207,14 +2219,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         startExpProjectsTransition("forward", "experience");
       }
 
-      if (
-        activeViewRef.current === "projects" &&
-        ["ArrowUp", "PageUp"].includes(e.key) &&
-        isAtTop()
-      ) {
-        e.preventDefault();
-        startExpProjectsTransition("reverse", "experience");
-      }
     };
 
     const onTouchStart = (e: TouchEvent) => {
@@ -2251,13 +2255,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       ) {
         touchFired = true;
         startExpProjectsTransition("forward", "experience");
-      } else if (
-        activeViewRef.current === "projects" &&
-        dy > 48 &&
-        isAtTop()
-      ) {
-        touchFired = true;
-        startExpProjectsTransition("reverse", "experience");
       }
     };
 
@@ -3942,6 +3939,24 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 )}
                               </div>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCommand("contact")}
+                              className="group/continue mx-6 mb-10 mt-2 flex cursor-pointer items-center gap-2 border-t border-zinc-800/60 pt-6 font-mono text-xs text-white/40 transition-colors hover:text-white/80 lg:mx-8"
+                            >
+                              <span className="text-emerald-500/70 group-hover/continue:text-emerald-500">
+                                $
+                              </span>
+                              <span>
+                                {language === "es" ? "Presiona" : "Press"}{" "}
+                                <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 font-bold text-white group-hover/continue:border-white/20">
+                                  ENTER
+                                </span>{" "}
+                                {language === "es" ? "para continuar" : "to continue"}{" "}
+                                <span className="text-emerald-400">→ CONTACT</span>
+                              </span>
+                              <span className="h-3.5 w-1.5 bg-white/40 group-hover/continue:bg-emerald-500" />
+                            </button>
                           </motion.section>
                         </AnimatePresence>
                       </div>
@@ -4366,6 +4381,23 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const miniAvatar =
     typeof document !== "undefined"
       ? createPortal(
+          <>
+          {projectsHint && (
+            <div
+              aria-live="polite"
+              data-tail="left"
+              className="hero-bubble-anchor pointer-events-none fixed right-[76px] bottom-[118px] z-[161] sm:right-[106px] sm:bottom-[104px]"
+            >
+              <div className="hero-bubble">
+                <p className="hero-bubble-text">
+                  {language === "es"
+                    ? "Abre una carpeta para ver el proyecto"
+                    : "Open a folder to see the project"}
+                </p>
+                <span className="hero-bubble-tail" />
+              </div>
+            </div>
+          )}
           <img
             id="mini"
             src={`/avatar/${miniDisplayPose}.png`}
@@ -4374,7 +4406,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
             className={`pixel-avatar-mini fixed right-3 bottom-24 sm:right-5 sm:bottom-16 w-14 sm:w-[72px] z-[160] pointer-events-none ${
               sectionMiniPose ? `on ${miniAnim}` : "off"
             }`}
-          />,
+          />
+          </>,
           document.body,
         )
       : null;
@@ -4430,6 +4463,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
             <div
               ref={overlayScrollRef}
               data-section-overlay=""
+              data-view={activeView}
               className={`fixed inset-0 z-[140] h-screen w-screen ${
                 activeView === "experience" ? "bg-black" : "bg-zinc-950"
               } ${usesProjectSplitScroll ? "overflow-hidden" : "overflow-y-auto"}`}
