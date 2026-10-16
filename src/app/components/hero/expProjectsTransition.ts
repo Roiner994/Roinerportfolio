@@ -23,19 +23,19 @@ export type PanelEls = Partial<Record<PanelKey, HTMLElement | null>>;
 /** Single source of truth for both directions. Index order = agentCards order. */
 export const EXP_PROJECTS_TIMELINE = {
   // gemini, cursor, claude, chatgpt
-  /**
-   * Destination slots, in arrival order. The robot closest to the avatar takes
-   * the finale; the other three are matched to panels by shortest, non-crossing
-   * paths (see assignRobots). Breadcrumb + status bar stay visible.
-   */
+  /** Destination slots, in arrival order. Breadcrumb + status bar stay visible. */
   slots: [
     { panel: "sidebar", arrive: 450 },
     { panel: "text", arrive: 700 },
     { panel: "media", arrive: 950 },
-    { panel: "avatar", arrive: 1250 },
+    { panel: "avatar", arrive: 1450 }, // after Claude's viewer unfold (950-1410)
   ] as Array<{ panel: PanelKey | "avatar"; arrive: number }>,
-  /** Preferred slot per robot (gemini, cursor, claude, chatgpt) used as tie-breaker. */
-  preferredSlot: [3, 0, 1, 2],
+  /**
+   * Fixed slot per robot (gemini, cursor, claude, chatgpt):
+   * Gemini -> Explorer, Cursor -> text, Claude -> viewer, ChatGPT -> avatar.
+   * Each robot stays on its own side, so the paths never cross.
+   */
+  robotSlot: [0, 1, 2, 3],
   morphLeadMs: 140,
   morphMs: 240,
   avatarFlashMs: 120,
@@ -85,53 +85,6 @@ export const EXP_PROJECTS_DURATION_MS =
     ),
   ) + EXP_PROJECTS_TIMELINE.tailMs;
 
-type Pt = { x: number; y: number };
-const segmentsCross = (a: Pt, b: Pt, c: Pt, d: Pt) => {
-  const o = (p: Pt, q: Pt, r: Pt) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
-  return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b);
-};
-
-/**
- * Returns slot index per robot. Closest robot to the avatar -> avatar slot;
- * remaining robots -> panel slots minimising total path length, heavily
- * penalising crossing paths, with a small bonus for the preferred identity.
- */
-export function assignRobots(from: Pt[], targets: Pt[], preferred: number[]): number[] {
-  const avatarSlot = targets.length - 1;
-  let avatarRobot = 0;
-  from.forEach((p, i) => {
-    const d = Math.hypot(p.x - targets[avatarSlot].x, p.y - targets[avatarSlot].y);
-    const best = Math.hypot(from[avatarRobot].x - targets[avatarSlot].x, from[avatarRobot].y - targets[avatarSlot].y);
-    if (d < best) avatarRobot = i;
-  });
-  const rest = from.map((_, i) => i).filter((i) => i !== avatarRobot);
-  const perms: number[][] = [];
-  const permute = (arr: number[], acc: number[] = []) => {
-    if (!arr.length) perms.push(acc);
-    arr.forEach((v, k) => permute([...arr.slice(0, k), ...arr.slice(k + 1)], [...acc, v]));
-  };
-  permute([0, 1, 2]);
-  let bestCost = Infinity;
-  let bestPerm = perms[0];
-  for (const perm of perms) {
-    let cost = 0;
-    rest.forEach((r, k) => {
-      const t = targets[perm[k]];
-      cost += Math.hypot(from[r].x - t.x, from[r].y - t.y);
-      if (preferred[r] === perm[k]) cost -= 250; // keep identity while the path stays reasonable (<~250px longer)
-    });
-    for (let a = 0; a < rest.length; a++)
-      for (let b = a + 1; b < rest.length; b++)
-        if (segmentsCross(from[rest[a]], targets[perm[a]], from[rest[b]], targets[perm[b]])) cost += 2000;
-    if (cost < bestCost) {
-      bestCost = cost;
-      bestPerm = perm;
-    }
-  }
-  const out = new Array(from.length).fill(avatarSlot);
-  rest.forEach((r, k) => (out[r] = bestPerm[k]));
-  return out;
-}
 
 export const EXP_PROJECTS_REDUCED_MS = 400;
 
@@ -340,7 +293,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
   // ---------- measurement (cached) ----------
   let landings: Landing[][] = [];
   let robotFrom: Box[] = [];
-  let robotSlot: number[] = [...T.preferredSlot];
+  const robotSlot: number[] = [...T.robotSlot];
   let avatarIdx = 0;
   let arrivals: number[] = robotSlot.map((sl) => T.slots[sl].arrive);
   let robotPanels: PanelKey[][] = [[], [], [], []];
@@ -372,9 +325,6 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
         : landingFor(sl.panel),
     );
     robotFrom = opts.robotBoxes();
-    const fromPts = robotFrom.map((b) => ({ x: b.left + b.width / 2, y: b.top + b.height / 2 }));
-    const tgtPts = slotTargets.map((l, k) => l ?? { x: vw / 2, y: vh / 2 + k });
-    robotSlot = assignRobots(fromPts, tgtPts, T.preferredSlot);
     avatarIdx = robotSlot.indexOf(T.slots.length - 1);
     arrivals = robotSlot.map((sl) => T.slots[sl].arrive);
     robotPanels = robotSlot.map((sl) => {
