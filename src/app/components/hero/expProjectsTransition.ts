@@ -27,19 +27,21 @@ export const EXP_PROJECTS_TIMELINE = {
   // Gemini -> top breadcrumb only; Cursor -> sidebar, then a pixel streak runs
   // down from its landing point and opens the bottom status bar.
   panels: [["breadcrumb"], ["sidebar", "status"], ["text"], ["media"]] as PanelKey[][],
-  /** Per-robot flash size multiplier (Gemini's is modest). */
-  flashScale: [0.6, 1, 1, 1],
+  /** Robot palette [base, alt] used for the collapse square / panel fill. */
+  colors: [
+    ["#3b5bdb", "#5c7cfa"], // gemini
+    ["#f4f4f5", "#27272a"], // cursor
+    ["#d97757", "#f0a07a"], // claude
+    ["#10a37f", "#34d3a8"], // chatgpt
+  ],
+  squarePx: 14,
+  unfoldMs: 300,
+  dissolveMs: 160,
+  cellPx: 10,
   streakMs: 220,
   flightMs: 450,
   anticipationMs: 90,
   shrinkMs: 80,
-  flashLeadMs: 40,
-  flashMs: 260,
-  flashRadius: 120,
-  ringCount: 24,
-  ringDistance: 110,
-  revealMs: 320,
-  scanMs: 250,
   expFadeMs: 380, // overlaps the first landing (450ms) so there is no empty frame
   tailMs: 60,
   flightScale: 1.4,
@@ -48,13 +50,24 @@ export const EXP_PROJECTS_TIMELINE = {
 
 export const EXP_PROJECTS_DURATION_MS =
   Math.max(...EXP_PROJECTS_TIMELINE.arrivals) +
-  EXP_PROJECTS_TIMELINE.revealMs +
+  EXP_PROJECTS_TIMELINE.unfoldMs +
+  EXP_PROJECTS_TIMELINE.dissolveMs +
   EXP_PROJECTS_TIMELINE.tailMs;
 
 export const EXP_PROJECTS_REDUCED_MS = 400;
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeOutBack = (t: number) => {
+  const c1 = 1.2;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const cellHash = (x: number, y: number) => {
+  const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return h - Math.floor(h);
+};
 const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
 
 const toBox = (el: Element): Box => {
@@ -218,24 +231,22 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     return wrap;
   });
 
-  const scans: Partial<Record<PanelKey, HTMLDivElement>> = {};
-  const makeScan = (k: PanelKey) => {
-    const s = document.createElement("div");
-    Object.assign(s.style, {
-      position: "absolute",
-      zIndex: "1",
-      opacity: "0",
-      backgroundImage:
-        "linear-gradient(to bottom, rgba(234,255,244,0) 0%, rgba(234,255,244,0.95) 50%, rgba(77,255,176,0) 100%)," +
-        "repeating-linear-gradient(to bottom, rgba(77,255,176,0.16) 0px, rgba(77,255,176,0.16) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)",
-      backgroundRepeat: "no-repeat, repeat",
-      backgroundSize: "100% 14px, 100% 100%",
-      mixBlendMode: "screen",
-    } as CSSStyleDeclaration);
-    fx.appendChild(s);
-    scans[k] = s;
-  };
   document.body.appendChild(fx);
+
+  // Pixel-textured fill per robot (2x2 checker of base/alt in 4px cells).
+  const patterns: Array<CanvasPattern | string> = T.colors.map(([base, alt]) => {
+    const pc = document.createElement("canvas");
+    pc.width = 8;
+    pc.height = 8;
+    const p = pc.getContext("2d");
+    if (!p || !ctx) return base;
+    p.fillStyle = base;
+    p.fillRect(0, 0, 8, 8);
+    p.fillStyle = alt;
+    p.fillRect(0, 0, 4, 4);
+    p.fillRect(4, 4, 4, 4);
+    return ctx.createPattern(pc, "repeat") ?? base;
+  });
 
   // ---------- measurement (cached) ----------
   let landings: Landing[][] = [];
@@ -270,49 +281,92 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       cur[1].x = Math.min(sbBox.left + sbBox.width - 8, Math.max(sbBox.left + 8, cur[0].x));
     }
     robotFrom = opts.robotBoxes();
-    (Object.keys(animPanels) as PanelKey[]).forEach((k) => {
-      if (!scans[k] && animPanels[k]) makeScan(k);
-      const b = panelBoxes[k];
-      const s = scans[k];
-      if (b && s) {
-        Object.assign(s.style, {
-          left: `${b.left}px`,
-          top: `${b.top}px`,
-          width: `${b.width}px`,
-          height: `${b.height}px`,
-        });
-      }
-    });
   };
 
   // Clip everything shut before first paint (forward) / start open (reverse).
   const panelOwner = (k: PanelKey) => T.panels.findIndex((ks) => ks.includes(k));
-  const setPanel = (k: PanelKey, p: number, lx: number, ly: number) => {
+  const clipTo = (k: PanelKey, r: Box | null) => {
     const el = animPanels[k];
     const b = panelBoxes[k];
     if (!el) return;
-    if (p >= 1) {
-      el.style.clipPath = "";
+    if (!r || !b) {
+      el.style.clipPath = r ? "" : "inset(50%)";
       return;
     }
-    if (!b) {
-      el.style.clipPath = "inset(50%)";
+    const t = Math.max(0, r.top - b.top);
+    const l = Math.max(0, r.left - b.left);
+    const rt = Math.max(0, b.left + b.width - (r.left + r.width));
+    const bt = Math.max(0, b.top + b.height - (r.top + r.height));
+    el.style.clipPath = `inset(${t.toFixed(1)}px ${rt.toFixed(1)}px ${bt.toFixed(1)}px ${l.toFixed(1)}px)`;
+  };
+
+  /** Visible area of a panel (big panels are clamped to the content viewport). */
+  const visibleBox = (k: PanelKey): Box | null => {
+    const b = panelBoxes[k];
+    if (!b) return null;
+    if (k === "status" || k === "breadcrumb") return b;
+    const v = intersect(intersect(b, forward ? opts.contentBox : sb), viewport);
+    return v.width > 0 && v.height > 0 ? v : b;
+  };
+
+  /**
+   * "Unfold": square in the robot's colour stretches to panel width, then to
+   * panel height (stepped, slight overshoot), pixel fill dissolves into content.
+   */
+  const drawUnfold = (k: PanelKey, owner: number, l: Landing, tf: number, start: number) => {
+    const vb = visibleBox(k);
+    if (!vb) return;
+    const sq = Math.min(T.squarePx, vb.height);
+    const pat = patterns[owner] ?? "#fff";
+    const u = (tf - start) / T.unfoldMs;
+    const lx = Math.min(vb.left + vb.width - sq / 2, Math.max(vb.left + sq / 2, l.x));
+    const ly = Math.min(vb.top + vb.height - sq / 2, Math.max(vb.top + sq / 2, l.y));
+    if (u < 0) {
+      clipTo(k, null);
       return;
     }
-    const rx = lx - b.left;
-    const ry = ly - b.top;
-    if (k === "breadcrumb" || k === "status") {
-      const e = easeOutCubic(p);
-      el.style.clipPath = `inset(0px ${((1 - e) * (b.width - rx)).toFixed(1)}px 0px ${((1 - e) * rx).toFixed(1)}px)`;
+    if (u < 1) {
+      const step = (v: number) => Math.round(v * 12) / 12; // slight "steps" feel
+      const hp = step(clamp01(u / 0.45));
+      const vp = step(clamp01((u - 0.45) / 0.55));
+      const eh = easeOutBack(hp);
+      const ev = easeOutBack(vp);
+      const left = lerp(lx - sq / 2, vb.left, eh);
+      const width = lerp(sq, vb.width, eh);
+      const top = lerp(ly - sq / 2, vb.top, ev);
+      const height = lerp(sq, vb.height, ev);
+      const r = { left, top, width, height };
+      clipTo(k, r);
+      if (ctx) {
+        // fill thins out as the window opens so content starts to show through
+        ctx.globalAlpha = 0.95 - 0.25 * vp;
+        ctx.fillStyle = pat;
+        ctx.fillRect(left, top, width, height);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "rgba(255,255,255,0.55)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
+      }
       return;
     }
-    const far = Math.max(
-      Math.hypot(rx, ry),
-      Math.hypot(b.width - rx, ry),
-      Math.hypot(rx, b.height - ry),
-      Math.hypot(b.width - rx, b.height - ry),
-    );
-    el.style.clipPath = `circle(${(easeOutCubic(p) * far).toFixed(1)}px at ${rx.toFixed(1)}px ${ry.toFixed(1)}px)`;
+    const d = (tf - start - T.unfoldMs) / T.dissolveMs;
+    animPanels[k]!.style.clipPath = "";
+    if (d >= 1) return;
+    if (!ctx) return;
+    // pixel dissolve of the fill
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = pat;
+    const c = T.cellPx;
+    for (let y = vb.top; y < vb.top + vb.height; y += c) {
+      for (let x = vb.left; x < vb.left + vb.width; x += c) {
+        if (cellHash(Math.floor(x / c), Math.floor(y / c)) > d) ctx.fillRect(x, y, c, c);
+      }
+    }
+    ctx.globalAlpha = 1;
+    // tiny edge flash
+    ctx.strokeStyle = `rgba(255,255,255,${(0.9 * (1 - d)).toFixed(3)})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(vb.left + 1, vb.top + 1, vb.width - 2, vb.height - 2);
   };
 
   (Object.keys(animPanels) as PanelKey[]).forEach((k) => {
@@ -329,36 +383,6 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       verticalAlign: "bottom",
     });
   }
-
-  // ---------- frame renderer at forward-time tf ----------
-  const drawFlash = (x: number, y: number, fp: number, seed: number, k = 1) => {
-    if (!ctx || fp <= 0 || fp >= 1) return;
-    const e = easeOutCubic(fp);
-    const alpha = 1 - fp;
-    const radius = (10 + e * (T.flashRadius - 10)) * k;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    g.addColorStop(0, `rgba(255,255,255,${alpha})`);
-    g.addColorStop(0.3, `rgba(234,255,244,${alpha * 0.9})`);
-    g.addColorStop(0.7, `rgba(77,255,176,${alpha * 0.45})`);
-    g.addColorStop(1, "rgba(77,255,176,0)");
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-    const colors = ["#ffffff", "#eafff4", "#4dffb0", "#a7f3d0"];
-    const dist = (14 + e * (T.ringDistance - 14)) * k;
-    ctx.globalAlpha = Math.min(1, alpha * 1.4);
-    for (let k = 0; k < T.ringCount; k++) {
-      const a = (k / T.ringCount) * Math.PI * 2 + seed * 0.37;
-      const s = k % 3 === 0 ? 8 : k % 3 === 1 ? 7 : 6;
-      const px = Math.round((x + Math.cos(a) * dist) / 2) * 2;
-      const py = Math.round((y + Math.sin(a) * dist) / 2) * 2;
-      ctx.fillStyle = colors[k % colors.length];
-      ctx.fillRect(px - s / 2, py - s / 2, s, s);
-    }
-    ctx.globalAlpha = 1;
-  };
 
   const renderAt = (tf: number) => {
     if (ctx) ctx.clearRect(0, 0, vw, vh);
@@ -415,13 +439,21 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
         el.style.height = `${base}px`;
         el.style.transform = `translate3d(${(x - base / 2).toFixed(1)}px, ${(y - base / 2).toFixed(1)}px, 0) scale(${scale.toFixed(3)}) rotate(${rot.toFixed(2)}deg)`;
         el.style.opacity = alpha.toFixed(3);
+        // robot collapses into a square of its own colour
+        if (ctx && tf >= arr - T.shrinkMs && tf < arr) {
+          const sp = (tf - (arr - T.shrinkMs)) / T.shrinkMs;
+          const sz = lerp(base * 0.6, T.squarePx, sp);
+          ctx.globalAlpha = sp;
+          ctx.fillStyle = patterns[i] ?? "#fff";
+          ctx.fillRect(target.x - sz / 2, target.y - sz / 2, sz, sz);
+          ctx.globalAlpha = 1;
+        }
       }
-      // --- flashes (one per landing; Gemini gets two) ---
       // Pixel streak: Cursor's landing -> status bar (the visible cause).
       if (land.length > 1 && ctx && animPanels[land[1].panel]) {
         const a0 = land[0];
         const a1 = land[1];
-        let sp = (tf - arr) / T.streakMs;
+        const sp = (tf - arr) / T.streakMs;
         if (sp > 0 && sp < 1.35) {
           const head = Math.min(1, sp);
           const tail = Math.max(0, sp - 0.35);
@@ -432,41 +464,22 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
             const py = Math.round((a0.y + (a1.y - a0.y) * u) / 2) * 2;
             const w = q === steps ? 8 : 4 + (q / steps) * 3;
             ctx.globalAlpha = 0.35 + 0.65 * (q / steps);
-            ctx.fillStyle = q === steps ? "#ffffff" : q % 2 ? "#4dffb0" : "#eafff4";
+            ctx.fillStyle = q === steps ? "#ffffff" : T.colors[i][q % 2];
             ctx.fillRect(px - w / 2 + (q % 2 ? 3 : -3), py - w / 2, w, w);
           }
           ctx.globalAlpha = 1;
         }
       }
-      land.forEach((l, j) => {
-        if (j > 0 && !animPanels[l.panel]) return;
-        const fs = j === 0 ? arr - T.flashLeadMs : arr + T.streakMs - 20;
-        let fp = (tf - fs) / T.flashMs;
-        if (!forward) fp = 1 - fp; // play as a puff in real time
-        drawFlash(l.x, l.y, fp, i * 4 + j, (T.flashScale[i] ?? 1) * (j === 0 ? 1 : 0.55));
-      });
     }
-    // --- panels + scanlines ---
+    // --- panels ---
     (Object.keys(animPanels) as PanelKey[]).forEach((k) => {
       const owner = panelOwner(k);
       if (owner < 0) return;
       const l = (landings[owner] ?? []).find((m) => m.panel === k);
-      const arr =
+      if (!l) return;
+      const start =
         T.arrivals[owner] + (T.panels[owner].indexOf(k) > 0 ? T.streakMs : 0);
-      const p = clamp01((tf - arr) / T.revealMs);
-      if (l) setPanel(k, p, l.x, l.y);
-      const s = scans[k];
-      if (s) {
-        const sp = (tf - arr) / T.scanMs;
-        if (sp <= 0 || sp >= 1) {
-          s.style.opacity = "0";
-        } else {
-          const bh = panelBoxes[k]?.height ?? 0;
-          s.style.opacity = Math.sin(sp * Math.PI).toFixed(3);
-          s.style.backgroundPosition = `0px ${(sp * bh - 7).toFixed(1)}px, 0px 0px`;
-          s.style.clipPath = animPanels[k]?.style.clipPath ?? "";
-        }
-      }
+      drawUnfold(k, owner, l, tf, start);
     });
     // --- title typing (forward only) ---
     if (forward && opts.titleEl && opts.titleLength) {
