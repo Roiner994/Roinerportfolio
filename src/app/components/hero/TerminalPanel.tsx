@@ -108,22 +108,7 @@ interface RectBox {
   height: number;
 }
 
-interface AboutPixelBlock {
-  x0: number;
-  y0: number;
-  r: number;
-  g: number;
-  b: number;
-  a: number;
-  vx: number;
-  vy0: number;
-  gravity: number;
-  delay: number;
-  isSpark: boolean;
-}
-
-const PIXEL_BLOCK_SIZE = 6;
-const ABOUT_EXP_DURATION_MS = 1600;
+const ABOUT_EXP_DURATION_MS = 1500;
 const ABOUT_EXP_REDUCED_MS = 450;
 
 function clamp01(v: number): number {
@@ -135,8 +120,8 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function easeInOutSine(t: number): number {
+  return -(Math.cos(Math.PI * t) - 1) / 2;
 }
 
 /**
@@ -195,233 +180,6 @@ function getMatchingAgentsForTech(techList: string[]): Set<AgentId> {
     }
   }
   return matched;
-}
-
-/**
- * Samples the live About section DOM into ~6px pixel blocks for the CRT green (#4dffb0)
- * disintegration & reassembly transition.
- */
-function sampleAboutPixelBlocks(
-  aboutEl: HTMLElement | null,
-  vw: number,
-  vh: number,
-): AboutPixelBlock[] {
-  const step = PIXEL_BLOCK_SIZE;
-  const cols = Math.max(1, Math.ceil(vw / step));
-  const rows = Math.max(1, Math.ceil(vh / step));
-  const offscreen = document.createElement("canvas");
-  offscreen.width = cols;
-  offscreen.height = rows;
-  const ctx = offscreen.getContext("2d", { willReadFrequently: true });
-  if (!ctx || !aboutEl) return [];
-
-  ctx.imageSmoothingEnabled = false;
-
-  // 1. Sample the profile portrait image if visible
-  const portraitImg = aboutEl.querySelector<HTMLImageElement>(
-    'img[src*="avatar-complete"]',
-  );
-  if (portraitImg) {
-    const r = portraitImg.getBoundingClientRect();
-    if (r.bottom > 0 && r.top < vh && r.width > 4 && r.height > 4) {
-      const gx = Math.floor(r.left / step);
-      const gy = Math.floor(r.top / step);
-      const gw = Math.max(2, Math.ceil(r.width / step));
-      const gh = Math.max(2, Math.ceil(r.height / step));
-      try {
-        if (portraitImg.complete && portraitImg.naturalWidth > 0) {
-          ctx.drawImage(portraitImg, gx, gy, gw, gh);
-        } else {
-          ctx.fillStyle = "rgba(16, 185, 129, 0.35)";
-          ctx.fillRect(gx, gy, gw, gh);
-        }
-      } catch {
-        ctx.fillStyle = "rgba(16, 185, 129, 0.35)";
-        ctx.fillRect(gx, gy, gw, gh);
-      }
-      ctx.strokeStyle = "rgba(77, 255, 176, 0.75)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(gx + 0.5, gy + 0.5, Math.max(1, gw - 1), Math.max(1, gh - 1));
-    }
-  }
-
-  // 2. Sample card boxes, badges, chips, and dividers
-  const boxNodes = aboutEl.querySelectorAll<HTMLElement>(
-    "[data-about-card], [data-about-chip], [data-about-badge], [data-about-divider]",
-  );
-  boxNodes.forEach((node) => {
-    const r = node.getBoundingClientRect();
-    if (r.bottom <= 0 || r.top >= vh || r.width < 2 || r.height < 1) return;
-    const gx = Math.floor(r.left / step);
-    const gy = Math.floor(r.top / step);
-    const gw = Math.max(1, Math.ceil(r.width / step));
-    const gh = Math.max(1, Math.ceil(r.height / step));
-
-    if (node.hasAttribute("data-about-divider")) {
-      ctx.fillStyle = "rgba(63, 63, 70, 0.85)";
-      ctx.fillRect(gx, gy, gw, 1);
-      return;
-    }
-
-    const isEmerald = node.hasAttribute("data-about-badge");
-    ctx.fillStyle = isEmerald
-      ? "rgba(16, 185, 129, 0.24)"
-      : "rgba(24, 24, 27, 0.88)";
-    ctx.fillRect(gx, gy, gw, gh);
-
-    ctx.strokeStyle = isEmerald
-      ? "rgba(77, 255, 176, 0.65)"
-      : "rgba(63, 63, 70, 0.85)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(gx + 0.5, gy + 0.5, Math.max(1, gw - 1), Math.max(1, gh - 1));
-  });
-
-  // 3. Sample all visible text lines at their exact client rects
-  const walker = document.createTreeWalker(aboutEl, NodeFilter.SHOW_TEXT);
-  const range = document.createRange();
-  let currentNode = walker.nextNode();
-  while (currentNode) {
-    const text = currentNode.textContent?.trim();
-    const parent = currentNode.parentElement;
-    if (text && parent) {
-      range.selectNodeContents(currentNode);
-      const clientRects = range.getClientRects();
-      const computed = window.getComputedStyle(parent);
-      ctx.fillStyle = computed.color || "rgb(228, 228, 231)";
-      for (let i = 0; i < clientRects.length; i++) {
-        const cr = clientRects[i];
-        if (cr.bottom <= 0 || cr.top >= vh || cr.width < 2 || cr.height < 2) {
-          continue;
-        }
-        const gx0 = Math.max(0, Math.floor(cr.left / step));
-        const gx1 = Math.min(cols - 1, Math.ceil(cr.right / step));
-        const gy0 = Math.max(0, Math.floor((cr.top + cr.height * 0.2) / step));
-        const gy1 = Math.min(
-          rows - 1,
-          Math.max(gy0, Math.floor((cr.bottom - cr.height * 0.18) / step)),
-        );
-        for (let gy = gy0; gy <= gy1; gy++) {
-          for (let gx = gx0; gx <= gx1; gx++) {
-            // Leave tiny character gaps so text lines look like pixelated glyphs
-            if ((gx + gy * 3) % 7 !== 0) {
-              ctx.fillRect(gx, gy, 1, 1);
-            }
-          }
-        }
-      }
-    }
-    currentNode = walker.nextNode();
-  }
-
-  const imgData = ctx.getImageData(0, 0, cols, rows).data;
-  const blocks: AboutPixelBlock[] = [];
-
-  for (let gy = 0; gy < rows; gy++) {
-    for (let gx = 0; gx < cols; gx++) {
-      const idx = (gy * cols + gx) * 4;
-      const a = imgData[idx + 3];
-      if (a < 24) continue;
-
-      const x0 = gx * step;
-      const y0 = gy * step;
-      // Deterministic pseudo-randoms per grid cell
-      const seed = (gx * 73856093) ^ (gy * 19349663);
-      const rnd1 = ((seed >>> 0) % 1000) / 1000;
-      const rnd2 = (((seed * 1664525 + 1013904223) >>> 0) % 1000) / 1000;
-      const rnd3 = (((seed * 22695477 + 1) >>> 0) % 1000) / 1000;
-
-      // Bottom/card blocks disintegrate slightly earlier as the 4 robots launch
-      const normY = clamp01((vh - y0) / Math.max(1, vh));
-      const delay = clamp01(normY * 0.18 + rnd1 * 0.16);
-      const centerOffset = (x0 - vw * 0.5) / Math.max(1, vw * 0.5);
-
-      blocks.push({
-        x0,
-        y0,
-        r: imgData[idx],
-        g: imgData[idx + 1],
-        b: imgData[idx + 2],
-        a: a / 255,
-        vx: (rnd2 - 0.5) * 115 + centerOffset * 48,
-        vy0: -38 - rnd3 * 72,
-        gravity: 320 + rnd1 * 280,
-        delay,
-        isSpark: rnd2 > 0.84,
-      });
-    }
-  }
-
-  return blocks;
-}
-
-function renderAboutPixelCanvas(
-  canvas: HTMLCanvasElement,
-  blocks: AboutPixelBlock[],
-  progress: number,
-  reduceMotion: boolean,
-) {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  if (canvas.width !== vw || canvas.height !== vh) {
-    canvas.width = vw;
-    canvas.height = vh;
-  }
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, vw, vh);
-
-  if (reduceMotion) {
-    const fadeAlpha = 1 - clamp01(progress);
-    ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha * 0.65})`;
-    ctx.fillRect(0, 0, vw, vh);
-    return;
-  }
-
-  // Dark CRT backdrop that dissolves away as Experience emerges underneath
-  const backdropAlpha = 1 - smoothstep(0.15, 0.72, progress);
-  if (backdropAlpha > 0.005) {
-    ctx.fillStyle = `rgba(6, 6, 8, ${backdropAlpha * 0.94})`;
-    ctx.fillRect(0, 0, vw, vh);
-  }
-
-  const size = PIXEL_BLOCK_SIZE;
-  for (let i = 0; i < blocks.length; i++) {
-    const b = blocks[i];
-    const span = Math.max(0.25, 0.94 - b.delay);
-    const bp = clamp01((progress - b.delay) / span);
-    if (bp >= 1) continue;
-
-    let x = b.x0;
-    let y = b.y0;
-    let cr = b.r;
-    let cg = b.g;
-    let cb = b.b;
-    let alpha = b.a;
-
-    if (bp > 0) {
-      // Snap positions to 2px steps for authentic pixel-art motion
-      x = Math.round((b.x0 + b.vx * bp) / 2) * 2;
-      y = Math.round((b.y0 + b.vy0 * bp + 0.5 * b.gravity * bp * bp) / 2) * 2;
-
-      // Tint rapidly toward CRT green #4dffb0 (77, 255, 176)
-      const tint = clamp01(bp * 2.8);
-      const targetR = b.isSpark ? 185 : 77;
-      const targetG = 255;
-      const targetB = b.isSpark ? 215 : 176;
-      cr = Math.round(b.r + (targetR - b.r) * tint);
-      cg = Math.round(b.g + (targetG - b.g) * tint);
-      cb = Math.round(b.b + (targetB - b.b) * tint);
-
-      alpha = b.a * (1 - Math.pow(bp, 1.55));
-    }
-
-    if (alpha <= 0.02 || y > vh + size || x < -size || x > vw + size) continue;
-
-    ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha.toFixed(3)})`;
-    ctx.fillRect(x, y, size - 1, size - 1);
-  }
 }
 
 const ScanningEffect = () => (
@@ -1198,10 +956,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     null,
     null,
   ]);
-  const pixelCanvasRef = useRef<HTMLCanvasElement>(null);
   const isAboutExpTransitioningRef = useRef(false);
   const aboutExpRafRef = useRef<number>(0);
-  const capturedBlocksRef = useRef<AboutPixelBlock[]>([]);
+  const aboutRectsCacheRef = useRef<RectBox[]>([]);
   const capturedAboutScrollTopRef = useRef<number>(0);
   const hasVisitedAboutRef = useRef(false);
   const lastTransitionEndRef = useRef<number>(0);
@@ -1259,12 +1016,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       ],
     },
   ];
-
-  const activeExperienceAgents = getMatchingAgentsForTech(
-    experienceData[activeExperienceIndex]?.tech ??
-      experienceData[0]?.tech ??
-      [],
-  );
 
   const activeProject =
     projectEntries.find((project) => project.id === activeProjectId) ??
@@ -1698,76 +1449,76 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     return document.querySelector<HTMLElement>("[data-section-overlay]");
   }, []);
 
+  const readRobotRects = useCallback(
+    (
+      refs: React.MutableRefObject<Array<HTMLElement | null>>,
+      fallback: (idx: number) => RectBox,
+    ): RectBox[] =>
+      [0, 1, 2, 3].map((i) => {
+        const r = refs.current[i]?.getBoundingClientRect();
+        return r && r.width > 0
+          ? { left: r.left, top: r.top, width: r.width, height: r.height }
+          : fallback(i);
+      }),
+    [],
+  );
+
   const startAboutExpTransition = useCallback(
     (direction: "forward" | "reverse") => {
       if (isAboutExpTransitioningRef.current) return;
 
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-
       if (direction === "forward") {
-        const aboutRects = [0, 1, 2, 3].map((i) => {
-          const r = aboutRobotRefs.current[i]?.getBoundingClientRect();
-          return r && r.width > 0
-            ? { left: r.left, top: r.top, width: r.width, height: r.height }
-            : getFallbackExpRect(i);
-        });
-        const expRects = [0, 1, 2, 3].map((i) => {
-          const r = expRobotRefs.current[i]?.getBoundingClientRect();
-          return r && r.width > 0
-            ? { left: r.left, top: r.top, width: r.width, height: r.height }
-            : getFallbackExpRect(i);
-        });
-
+        const aboutRects = readRobotRects(aboutRobotRefs, getFallbackExpRect);
+        const expRects = readRobotRects(expRobotRefs, getFallbackExpRect);
         const scroller = getActiveScroller();
         capturedAboutScrollTopRef.current = scroller?.scrollTop ?? 0;
-        capturedBlocksRef.current = sampleAboutPixelBlocks(
-          aboutSectionRef.current,
-          vw,
-          vh,
-        );
+        aboutRectsCacheRef.current = aboutRects;
 
         hasVisitedAboutRef.current = true;
         isAboutExpTransitioningRef.current = true;
         setActiveExperienceIndex(0);
+        setTerminalMode("shell");
+        setIsExpanded(true);
+        // The view itself switches mid-animation (inside the RAF loop) so the
+        // outgoing section can fade out in place first.
         setAboutExpTransition({
           direction: "forward",
           fromRects: aboutRects,
           toRects: expRects,
         });
-        setTerminalMode("shell");
-        setIsExpanded(true);
-        setActiveView("experience");
-
-        window.requestAnimationFrame(() => {
-          if (overlayScrollRef.current) overlayScrollRef.current.scrollTop = 0;
-          if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
-        });
       } else {
-        const expRects = [0, 1, 2, 3].map((i) => {
-          const r = expRobotRefs.current[i]?.getBoundingClientRect();
-          return r && r.width > 0
-            ? { left: r.left, top: r.top, width: r.width, height: r.height }
-            : getFallbackExpRect(i);
-        });
+        const expRects = readRobotRects(expRobotRefs, getFallbackExpRect);
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const cached = aboutRectsCacheRef.current;
+        const aboutGuess: RectBox[] =
+          cached.length === 4
+            ? cached
+            : [0, 1, 2, 3].map((i) => ({
+                left: vw / 2 - 160 + i * 80,
+                top: vh * 0.68,
+                width: 71,
+                height: 71,
+              }));
 
         hasVisitedAboutRef.current = true;
         isAboutExpTransitioningRef.current = true;
         setAboutTypedLength(aboutData.bio.length + 4);
+        setTerminalMode("shell");
+        setIsExpanded(true);
         setAboutExpTransition({
           direction: "reverse",
           fromRects: expRects,
-          toRects: expRects,
+          toRects: aboutGuess,
         });
-        setTerminalMode("shell");
-        setIsExpanded(true);
-        setActiveView("about");
       }
     },
-    [aboutData.bio.length, getActiveScroller, getFallbackExpRect],
+    [aboutData.bio.length, getActiveScroller, getFallbackExpRect, readRobotRects],
   );
 
-  // Drive the ~1.6s forward/reverse canvas + flying robots animation
+  // Drive the timed About <-> Experience transition:
+  // 1) outgoing section fades/slides out while the 4 robots lift off,
+  // 2) view switches at ~42%, 3) incoming section fades in as robots land.
   useEffect(() => {
     if (!aboutExpTransition) return;
 
@@ -1775,185 +1526,156 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     const duration = reduceMotion
       ? ABOUT_EXP_REDUCED_MS
       : ABOUT_EXP_DURATION_MS;
+    const SWITCH_AT = 0.42;
+    const vh = window.innerHeight;
+    const lift = reduceMotion ? 0 : Math.max(70, Math.min(170, vh * 0.16));
+    const target: RectBox[] = toRects.map((r) => ({ ...r }));
+    const destRefs = direction === "forward" ? expRobotRefs : aboutRobotRefs;
+    const dirSign = direction === "forward" ? 1 : -1;
+
     let cancelled = false;
+    let switched = false;
+    let scrollRestored = direction === "forward";
+    const startTime = performance.now();
 
-    const applyFlyingRobotsFrame = (
-      aboutRects: RectBox[],
-      expRects: RectBox[],
-      p: number,
-      now: number,
+    const getOutgoing = () =>
+      direction === "forward" ? aboutSectionRef.current : expSectionRef.current;
+    const getIncoming = () =>
+      direction === "forward" ? expSectionRef.current : aboutSectionRef.current;
+
+    const styleSection = (
+      el: HTMLElement | null,
+      opacity: number,
+      y: number,
     ) => {
-      for (let i = 0; i < 4; i++) {
-        const robotEl = flyingRobotRefs.current[i];
-        const thrusterEl = flyingThrusterRefs.current[i];
-        if (!robotEl) continue;
-
-        const stagger = i * 0.035;
-        const span = 1 - 3 * 0.035;
-        const u =
-          direction === "forward"
-            ? clamp01((p - stagger) / span)
-            : 1 - clamp01((1 - p - stagger) / span);
-        const e = easeInOutCubic(u);
-
-        const a = aboutRects[i] ?? expRects[i];
-        const b = expRects[i] ?? aboutRects[i];
-
-        const left = a.left + (b.left - a.left) * e;
-        const top = a.top + (b.top - a.top) * e;
-        const width = a.width + (b.width - a.width) * e;
-        const height = a.height + (b.height - a.height) * e;
-
-        // Upward takeoff impulse when launching from cards (or returning from Experience)
-        const arcPhase =
-          direction === "forward"
-            ? Math.pow(u, 0.72)
-            : Math.pow(1 - u, 0.72);
-        const liftY = reduceMotion
-          ? 0
-          : -115 * Math.sin(Math.PI * arcPhase) * (1 - 0.18 * u);
-        const dx = b.left - a.left;
-        const dirSign = direction === "forward" ? 1 : -1;
-        const tilt = reduceMotion
-          ? 0
-          : Math.max(
-              -13,
-              Math.min(13, dx * 0.028 * Math.sin(Math.PI * u) * dirSign),
-            );
-        const scaleBoost = reduceMotion ? 1 : 1 + 0.1 * Math.sin(Math.PI * u);
-
-        robotEl.style.width = `${width}px`;
-        robotEl.style.height = `${height}px`;
-        robotEl.style.transform = `translate3d(${left}px, ${top + liftY}px, 0) rotate(${tilt}deg) scale(${scaleBoost})`;
-
-        if (thrusterEl) {
-          const activity = reduceMotion
-            ? 0
-            : Math.pow(Math.sin(Math.PI * u), 0.6);
-          const flicker =
-            0.82 + 0.34 * Math.sin(now * 0.055 + i * 1.9);
-          const thrustScaleY = Math.max(0.2, (0.45 + 1.35 * activity) * flicker);
-          const thrustOpacity = clamp01(activity * 1.65);
-          thrusterEl.style.opacity = String(thrustOpacity);
-          thrusterEl.style.transform = `translateX(-50%) scaleY(${thrustScaleY.toFixed(2)})`;
-        }
-      }
+      if (!el) return;
+      el.style.willChange = "opacity, transform";
+      el.style.opacity = opacity.toFixed(3);
+      el.style.transform =
+        reduceMotion || Math.abs(y) < 0.05 ? "" : `translate3d(0, ${y.toFixed(2)}px, 0)`;
     };
 
-    const startLoop = (
-      resolvedAboutRects: RectBox[],
-      resolvedExpRects: RectBox[],
-    ) => {
-      const startTime = performance.now();
+    const clearSection = (el: HTMLElement | null) => {
+      if (!el) return;
+      el.style.willChange = "";
+      el.style.opacity = "";
+      el.style.transform = "";
+    };
 
-      const step = (now: number) => {
-        if (cancelled) return;
-        const raw = clamp01((now - startTime) / duration);
-        const p = direction === "forward" ? raw : 1 - raw;
-
-        if (pixelCanvasRef.current) {
-          renderAboutPixelCanvas(
-            pixelCanvasRef.current,
-            capturedBlocksRef.current,
-            p,
-            reduceMotion,
+    const restoreAboutScroll = () => {
+      const scroller = getActiveScroller();
+      if (!scroller) return;
+      scroller.scrollTop = capturedAboutScrollTopRef.current;
+      const cardsGrid = aboutCardsGridRef.current;
+      if (cardsGrid) {
+        const cr = cardsGrid.getBoundingClientRect();
+        if (cr.bottom > vh - 24 || cr.top < 56) {
+          scroller.scrollTop = Math.max(
+            0,
+            scroller.scrollTop + (cr.bottom - (vh - 72)),
           );
         }
-
-        if (direction === "forward" && expSectionRef.current) {
-          const expAlpha = reduceMotion ? raw : smoothstep(0.22, 0.86, raw);
-          expSectionRef.current.style.opacity = String(expAlpha);
-        } else if (direction === "reverse" && aboutSectionRef.current) {
-          const aboutAlpha = reduceMotion
-            ? raw
-            : 1 - smoothstep(0.0, 0.3, p);
-          aboutSectionRef.current.style.opacity = String(aboutAlpha);
-        }
-
-        applyFlyingRobotsFrame(resolvedAboutRects, resolvedExpRects, p, now);
-
-        if (raw < 1) {
-          aboutExpRafRef.current = window.requestAnimationFrame(step);
-        } else {
-          if (expSectionRef.current) expSectionRef.current.style.opacity = "1";
-          if (aboutSectionRef.current)
-            aboutSectionRef.current.style.opacity = "1";
-          isAboutExpTransitioningRef.current = false;
-          lastTransitionEndRef.current = performance.now();
-          setAboutExpTransition(null);
-        }
-      };
-
-      // Render initial frame immediately
-      step(startTime);
+      }
     };
 
-    if (direction === "forward") {
-      if (expSectionRef.current) {
-        expSectionRef.current.style.opacity = "0";
-      }
-      if (pixelCanvasRef.current) {
-        renderAboutPixelCanvas(
-          pixelCanvasRef.current,
-          capturedBlocksRef.current,
-          0,
-          reduceMotion,
-        );
-      }
-      applyFlyingRobotsFrame(fromRects, toRects, 0, performance.now());
+    const step = (now: number) => {
+      if (cancelled) return;
+      const raw = clamp01((now - startTime) / duration);
 
-      window.requestAnimationFrame(() => {
-        if (cancelled) return;
-        const liveExpRects = [0, 1, 2, 3].map((i) => {
-          const r = expRobotRefs.current[i]?.getBoundingClientRect();
-          return r && r.width > 0
-            ? { left: r.left, top: r.top, width: r.width, height: r.height }
-            : toRects[i];
-        });
-        startLoop(fromRects, liveExpRects);
-      });
-    } else {
-      // Reverse (Experience -> About): wait 1 frame for About DOM to mount & scroll into place
-      if (aboutSectionRef.current) {
-        aboutSectionRef.current.style.opacity = "0";
-      }
-      applyFlyingRobotsFrame(fromRects, fromRects, 1, performance.now());
-
-      window.requestAnimationFrame(() => {
-        if (cancelled) return;
-        if (aboutSectionRef.current) {
-          aboutSectionRef.current.style.opacity = "0";
+      if (!switched && raw >= SWITCH_AT) {
+        switched = true;
+        if (direction === "forward") {
+          setActiveView("experience");
+          window.requestAnimationFrame(() => {
+            if (overlayScrollRef.current) overlayScrollRef.current.scrollTop = 0;
+            if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
+          });
+        } else {
+          setActiveView("about");
         }
-        const scroller = getActiveScroller();
-        if (scroller) {
-          scroller.scrollTop = capturedAboutScrollTopRef.current;
-          const cardsGrid = aboutCardsGridRef.current;
-          if (cardsGrid) {
-            const cr = cardsGrid.getBoundingClientRect();
-            const vh = window.innerHeight;
-            if (cr.bottom > vh - 24 || cr.top < 56) {
-              const targetDelta = cr.bottom - (vh - 72);
-              scroller.scrollTop = Math.max(0, scroller.scrollTop + targetDelta);
-            }
+      }
+
+      // Sections: outgoing fades out before the switch, incoming fades in after.
+      if (!switched) {
+        const s = smoothstep(0, SWITCH_AT, raw);
+        styleSection(getOutgoing(), 1 - s, -14 * s * dirSign);
+      } else {
+        const incoming = getIncoming();
+        if (incoming && !scrollRestored) {
+          scrollRestored = true;
+          restoreAboutScroll();
+        }
+        const a = smoothstep(SWITCH_AT + 0.04, 0.96, raw);
+        styleSection(incoming, a, 16 * (1 - a) * dirSign);
+
+        // Converge toward the live destination rects once they exist.
+        for (let i = 0; i < 4; i++) {
+          const r = destRefs.current[i]?.getBoundingClientRect();
+          if (r && r.width > 0) {
+            const k = raw >= 0.9 ? 1 : 0.22;
+            target[i].left += (r.left - target[i].left) * k;
+            target[i].top += (r.top - target[i].top) * k;
+            target[i].width += (r.width - target[i].width) * k;
+            target[i].height += (r.height - target[i].height) * k;
           }
         }
+      }
 
-        const liveAboutRects = [0, 1, 2, 3].map((i) => {
-          const r = aboutRobotRefs.current[i]?.getBoundingClientRect();
-          return r && r.width > 0
-            ? { left: r.left, top: r.top, width: r.width, height: r.height }
-            : fromRects[i];
-        });
+      // Robots: smooth quadratic-bezier arc from origin to destination.
+      for (let i = 0; i < 4; i++) {
+        const robotEl = flyingRobotRefs.current[i];
+        if (!robotEl) continue;
+        const stagger = reduceMotion ? 0 : i * 0.05;
+        const u = clamp01((raw - stagger) / (1 - (reduceMotion ? 0 : 0.15)));
+        const e = easeInOutSine(u);
+        const a = fromRects[i] ?? target[i];
+        const b = target[i] ?? a;
 
-        capturedBlocksRef.current = sampleAboutPixelBlocks(
-          aboutSectionRef.current,
-          window.innerWidth,
-          window.innerHeight,
-        );
+        const ax = a.left + a.width / 2;
+        const ay = a.top + a.height / 2;
+        const bx = b.left + b.width / 2;
+        const by = b.top + b.height / 2;
+        const cx = (ax + bx) / 2;
+        const cy = Math.min(ay, by) - lift;
+        const inv = 1 - e;
+        const x = inv * inv * ax + 2 * inv * e * cx + e * e * bx;
+        const y = inv * inv * ay + 2 * inv * e * cy + e * e * by;
+        const w = a.width + (b.width - a.width) * e;
+        const h = a.height + (b.height - a.height) * e;
 
-        startLoop(liveAboutRects, fromRects);
-      });
-    }
+        const vx = 2 * inv * (cx - ax) + 2 * e * (bx - cx);
+        const activity = Math.sin(Math.PI * u);
+        const tilt = reduceMotion
+          ? 0
+          : Math.max(-9, Math.min(9, vx * 0.012)) * activity;
+
+        robotEl.style.width = `${w.toFixed(1)}px`;
+        robotEl.style.height = `${h.toFixed(1)}px`;
+        robotEl.style.transform = `translate3d(${(x - w / 2).toFixed(1)}px, ${(y - h / 2).toFixed(1)}px, 0) rotate(${tilt.toFixed(2)}deg)`;
+
+        const thrusterEl = flyingThrusterRefs.current[i];
+        if (thrusterEl) {
+          const flicker = 0.1 * Math.sin(now * 0.05 + i * 2.1);
+          thrusterEl.style.opacity = reduceMotion
+            ? "0"
+            : clamp01(activity * 1.5).toFixed(3);
+          thrusterEl.style.transform = `translateX(-50%) scaleY(${(0.5 + 0.8 * activity + flicker).toFixed(2)})`;
+        }
+      }
+
+      if (raw < 1) {
+        aboutExpRafRef.current = window.requestAnimationFrame(step);
+        return;
+      }
+
+      clearSection(aboutSectionRef.current);
+      clearSection(expSectionRef.current);
+      isAboutExpTransitioningRef.current = false;
+      lastTransitionEndRef.current = performance.now();
+      setAboutExpTransition(null);
+    };
+
+    step(startTime);
 
     return () => {
       cancelled = true;
@@ -4408,163 +4130,103 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                 }}
               >
                 {isMobile ? (
-                  <div className="fixed top-[56px] left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-1.5 rounded-full bg-black/90 border border-zinc-800/80 backdrop-blur-md shadow-[0_6px_24px_rgba(0,0,0,0.75)]">
-                    {agentCards.map((agent, idx) => {
-                      const isGlowing = activeExperienceAgents.has(agent.id);
-                      return (
-                        <button
-                          key={agent.id}
-                          type="button"
-                          onClick={() => handleExpRobotClick(agent.id)}
-                          title={agent.area}
-                          className={`relative flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ${
-                            showExpRobots
-                              ? "pointer-events-auto"
-                              : "pointer-events-none"
-                          }`}
-                        >
-                          <div
-                            className={`absolute inset-0 rounded-full transition-opacity duration-300 pointer-events-none ${
-                              isGlowing
-                                ? "bg-emerald-400/25 blur-md opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-                          <div
-                            ref={(el) => {
-                              expRobotRefs.current[idx] = el;
-                            }}
-                            className="relative flex h-[44px] w-[44px] items-center justify-center cursor-pointer"
-                          >
-                            <motion.img
-                              src={agent.sprite}
-                              alt={agent.area}
-                              animate={
-                                reduceMotion ? {} : { y: [0, -2.5, 0] }
-                              }
-                              transition={
-                                reduceMotion
-                                  ? {}
-                                  : {
-                                      duration: 2.2,
-                                      repeat: Infinity,
-                                      ease: "easeInOut",
-                                      delay: idx * 0.45,
-                                    }
-                              }
-                              className={`h-[40px] w-[40px] object-contain cursor-pointer transition-all duration-300 ${
-                                isGlowing
-                                  ? "opacity-100 scale-105"
-                                  : "opacity-45 scale-95"
-                              }`}
-                              style={{
-                                imageRendering: "pixelated",
-                                filter: isGlowing
-                                  ? "drop-shadow(0 0 10px rgba(77, 255, 176, 0.85)) drop-shadow(0 0 18px rgba(16, 185, 129, 0.5))"
-                                  : "drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6))",
-                              }}
-                              draggable={false}
-                            />
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  agentCards.map((agent, idx) => {
-                    const isGlowing = activeExperienceAgents.has(agent.id);
-                    return (
-                      <div
+                  <div className="fixed top-[56px] left-1/2 -translate-x-1/2 flex items-center gap-5 px-4 py-1.5">
+                    {agentCards.map((agent, idx) => (
+                      <button
                         key={agent.id}
-                        style={desktopPositions[idx]}
+                        type="button"
                         onClick={() => handleExpRobotClick(agent.id)}
-                        className={`fixed flex flex-col items-center gap-2 cursor-pointer select-none group ${
+                        title={agent.area}
+                        aria-label={agent.area}
+                        className={`relative flex items-center justify-center cursor-pointer ${
                           showExpRobots
                             ? "pointer-events-auto"
                             : "pointer-events-none"
                         }`}
                       >
-                        {/* Soft emerald glow aura when matching the visible Experience job */}
-                        <div
-                          className={`absolute -inset-4 rounded-full pointer-events-none transition-all duration-500 ${
-                            isGlowing
-                              ? "bg-emerald-400/20 blur-xl opacity-100 scale-110"
-                              : "bg-emerald-500/0 blur-lg opacity-0 scale-90 group-hover:opacity-40 group-hover:bg-emerald-400/10"
-                          }`}
-                        />
-
                         <div
                           ref={(el) => {
                             expRobotRefs.current[idx] = el;
                           }}
-                          className="relative flex h-[72px] w-[72px] items-center justify-center cursor-pointer"
+                          className="relative flex h-[44px] w-[44px] items-center justify-center cursor-pointer"
                         >
                           <motion.img
                             src={agent.sprite}
                             alt={agent.area}
-                            animate={reduceMotion ? {} : { y: [0, -5, 0] }}
+                            animate={reduceMotion ? {} : { y: [0, -2.5, 0] }}
                             transition={
                               reduceMotion
                                 ? {}
                                 : {
-                                    duration: 2.4,
+                                    duration: 2.2,
                                     repeat: Infinity,
                                     ease: "easeInOut",
-                                    delay: idx * 0.5,
+                                    delay: idx * 0.45,
                                   }
                             }
-                            className={`h-[72px] w-[72px] object-contain cursor-pointer transition-all duration-300 ${
-                              isGlowing
-                                ? "opacity-100 scale-105"
-                                : "opacity-45 scale-95 group-hover:opacity-85 group-hover:scale-100"
-                            }`}
+                            className="h-[44px] w-[44px] object-contain cursor-pointer"
                             style={{
                               imageRendering: "pixelated",
-                              filter: isGlowing
-                                ? "drop-shadow(0 0 12px rgba(77, 255, 176, 0.85)) drop-shadow(0 0 26px rgba(16, 185, 129, 0.45))"
-                                : "drop-shadow(0 6px 14px rgba(0, 0, 0, 0.7))",
+                              filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6))",
                             }}
                             draggable={false}
                           />
                         </div>
-
-                        <div
-                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded border font-mono text-[9px] tracking-wider uppercase transition-all duration-300 ${
-                            isGlowing
-                              ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-300 shadow-[0_0_12px_rgba(77,255,176,0.28)]"
-                              : "border-zinc-800/80 bg-zinc-950/80 text-zinc-500 group-hover:border-zinc-700 group-hover:text-zinc-300"
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                              isGlowing
-                                ? "bg-[#4dffb0] shadow-[0_0_8px_#4dffb0]"
-                                : "bg-zinc-700"
-                            }`}
-                          />
-                          <span>{agent.shortLabel}</span>
-                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  agentCards.map((agent, idx) => (
+                    <div
+                      key={agent.id}
+                      style={desktopPositions[idx]}
+                      onClick={() => handleExpRobotClick(agent.id)}
+                      title={agent.area}
+                      className={`fixed flex items-center justify-center cursor-pointer select-none group ${
+                        showExpRobots
+                          ? "pointer-events-auto"
+                          : "pointer-events-none"
+                      }`}
+                    >
+                      <div
+                        ref={(el) => {
+                          expRobotRefs.current[idx] = el;
+                        }}
+                        className="relative flex h-[72px] w-[72px] items-center justify-center cursor-pointer"
+                      >
+                        <motion.img
+                          src={agent.sprite}
+                          alt={agent.area}
+                          animate={reduceMotion ? {} : { y: [0, -5, 0] }}
+                          transition={
+                            reduceMotion
+                              ? {}
+                              : {
+                                  duration: 2.4,
+                                  repeat: Infinity,
+                                  ease: "easeInOut",
+                                  delay: idx * 0.5,
+                                }
+                          }
+                          className="h-[72px] w-[72px] object-contain cursor-pointer transition-transform duration-200 group-hover:scale-110"
+                          style={{
+                            imageRendering: "pixelated",
+                            filter: "drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6))",
+                          }}
+                          draggable={false}
+                        />
                       </div>
-                    );
-                  })
+                    </div>
+                  ))
                 )}
               </div>
             )}
 
-            {/* Timed (~1.6s) About <-> Experience Disintegration & Flying Robots Layer */}
+            {/* Timed About <-> Experience flying robots layer */}
             {aboutExpTransition && (
               <div className="fixed inset-0 z-[210] pointer-events-none overflow-hidden">
-                <canvas
-                  ref={pixelCanvasRef}
-                  className="fixed inset-0 h-screen w-screen pointer-events-none"
-                  style={{ imageRendering: "pixelated" }}
-                />
-
                 {agentCards.map((agent, idx) => {
-                  const initialBox =
-                    aboutExpTransition.direction === "forward"
-                      ? aboutExpTransition.fromRects[idx]
-                      : aboutExpTransition.fromRects[idx];
+                  const initialBox = aboutExpTransition.fromRects[idx];
                   return (
                     <div
                       key={agent.id}
@@ -4585,32 +4247,28 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         className="h-full w-full object-contain cursor-pointer"
                         style={{
                           imageRendering: "pixelated",
-                          filter:
-                            "drop-shadow(0 0 14px rgba(77, 255, 176, 0.85)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.75))",
+                          filter: "drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6))",
                         }}
                         draggable={false}
                       />
 
-                      {/* Intense Pixel-Art Thruster Plume */}
+                      {/* Pixel-art thruster plume (no glow, flat pixel colors) */}
                       <div
                         ref={(el) => {
                           flyingThrusterRefs.current[idx] = el;
                         }}
-                        className="absolute left-1/2 top-[86%] flex flex-col items-center pointer-events-none"
+                        className="absolute left-1/2 top-[84%] -z-10 flex flex-col items-center pointer-events-none"
                         style={{
-                          transform: "translateX(-50%) scaleY(1)",
+                          opacity: 0,
+                          transform: "translateX(-50%) scaleY(0.4)",
                           transformOrigin: "top center",
+                          imageRendering: "pixelated",
                         }}
                       >
-                        <div className="h-[5px] w-[18px] bg-[#ffffff] shadow-[0_0_12px_#4dffb0]" />
-                        <div className="h-[7px] w-[14px] bg-[#a7f3d0] shadow-[0_0_14px_#4dffb0]" />
-                        <div className="h-[9px] w-[10px] bg-[#4dffb0] shadow-[0_0_16px_#10b981]" />
-                        <div className="h-[8px] w-[6px] bg-[#10b981]" />
-                        <div className="mt-[2px] flex gap-[4px]">
-                          <div className="h-[4px] w-[4px] bg-[#4dffb0]" />
-                          <div className="h-[5px] w-[4px] bg-[#a7f3d0]" />
-                          <div className="h-[4px] w-[4px] bg-[#4dffb0]" />
-                        </div>
+                        <div className="h-[4px] w-[14px] bg-[#fff7d6]" />
+                        <div className="h-[5px] w-[10px] bg-[#ffd166]" />
+                        <div className="h-[6px] w-[6px] bg-[#ff8c42]" />
+                        <div className="h-[4px] w-[2px] bg-[#e4572e]" />
                       </div>
                     </div>
                   );
