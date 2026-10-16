@@ -34,6 +34,16 @@ export const EXP_PROJECTS_TIMELINE = {
     ["#d97757", "#f0a07a"], // claude
     ["#10a37f", "#34d3a8"], // chatgpt
   ],
+  /**
+   * "unfold": robot -> coloured square -> window unfolds (variant A).
+   * "reassemble": robot breaks into its own pixels which rebuild the panel (variant B).
+   */
+  revealStyle: "reassemble" as "unfold" | "reassemble",
+  assembleStaggerMs: 220,
+  assembleTravelMs: 240,
+  crossfadeMs: 160,
+  maxParticles: 800,
+  spriteGrid: 14,
   squarePx: 14,
   unfoldMs: 300,
   dissolveMs: 160,
@@ -48,10 +58,16 @@ export const EXP_PROJECTS_TIMELINE = {
   titleCharMs: 22,
 };
 
+const REVEAL_MS =
+  EXP_PROJECTS_TIMELINE.revealStyle === "unfold"
+    ? EXP_PROJECTS_TIMELINE.unfoldMs + EXP_PROJECTS_TIMELINE.dissolveMs
+    : EXP_PROJECTS_TIMELINE.assembleStaggerMs +
+      EXP_PROJECTS_TIMELINE.assembleTravelMs +
+      EXP_PROJECTS_TIMELINE.crossfadeMs;
+
 export const EXP_PROJECTS_DURATION_MS =
   Math.max(...EXP_PROJECTS_TIMELINE.arrivals) +
-  EXP_PROJECTS_TIMELINE.unfoldMs +
-  EXP_PROJECTS_TIMELINE.dissolveMs +
+  REVEAL_MS +
   EXP_PROJECTS_TIMELINE.tailMs;
 
 export const EXP_PROJECTS_REDUCED_MS = 400;
@@ -369,6 +385,126 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     ctx.strokeRect(vb.left + 1, vb.top + 1, vb.width - 2, vb.height - 2);
   };
 
+  // ---------- "reassemble" (variant B) ----------
+  const reassemble = T.revealStyle === "reassemble";
+  type Sample = { u: number; v: number; color: string };
+  const spriteSamples: Sample[][] = [];
+  const sampleSprite = (i: number): Sample[] => {
+    if (spriteSamples[i]) return spriteSamples[i];
+    const out: Sample[] = [];
+    const img = robots[i]?.querySelector("img");
+    const G = T.spriteGrid;
+    try {
+      if (img && img.complete && img.naturalWidth > 0) {
+        const oc = document.createElement("canvas");
+        oc.width = G;
+        oc.height = G;
+        const o = oc.getContext("2d");
+        if (o) {
+          o.imageSmoothingEnabled = true;
+          o.drawImage(img, 0, 0, G, G);
+          const data = o.getImageData(0, 0, G, G).data;
+          for (let y = 0; y < G; y++) {
+            for (let x = 0; x < G; x++) {
+              const a = data[(y * G + x) * 4 + 3];
+              if (a < 90) continue;
+              const r = data[(y * G + x) * 4];
+              const g = data[(y * G + x) * 4 + 1];
+              const b = data[(y * G + x) * 4 + 2];
+              out.push({ u: (x + 0.5) / G, v: (y + 0.5) / G, color: `rgb(${r},${g},${b})` });
+            }
+          }
+        }
+      }
+    } catch {
+      /* tainted or not loaded: fall back to palette */
+    }
+    if (out.length === 0) {
+      const [c0, c1] = T.colors[i];
+      for (let k = 0; k < 64; k++)
+        out.push({ u: ((k % 8) + 0.5) / 8, v: (Math.floor(k / 8) + 0.5) / 8, color: k % 2 ? c0 : c1 });
+    }
+    spriteSamples[i] = out;
+    return out;
+  };
+
+  type Particle = { sx: number; sy: number; tx: number; ty: number; delay: number; color: string };
+  const grids: Partial<Record<PanelKey, { cell: number; srcSize: number; parts: Particle[] }>> = {};
+  const buildGrid = (k: PanelKey, owner: number, l: Landing) => {
+    const vb = visibleBox(k);
+    if (!vb) return null;
+    const isPrimary = T.panels[owner][0] === k;
+    const samples = sampleSprite(owner);
+    const cell = Math.max(6, Math.ceil(Math.sqrt((vb.width * vb.height) / T.maxParticles)));
+    const cols = Math.ceil(vb.width / cell);
+    const rows = Math.ceil(vb.height / cell);
+    // Source = the robot as it was at arrival (or the streak head for a secondary bar).
+    const robotSize = isPrimary ? 72 * T.flightScale : 22;
+    const parts: Particle[] = [];
+    let maxD = 1;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const tx = vb.left + c * cell;
+        const ty = vb.top + r * cell;
+        const d = Math.hypot(tx - l.x, ty - l.y);
+        if (d > maxD) maxD = d;
+        const smp = samples[(r * cols + c) % samples.length];
+        parts.push({
+          sx: l.x - robotSize / 2 + smp.u * robotSize,
+          sy: l.y - robotSize / 2 + smp.v * robotSize,
+          tx,
+          ty,
+          delay: d, // normalised below
+          color: smp.color,
+        });
+      }
+    }
+    // ordered stagger: a wave from the landing point outwards
+    parts.forEach((pt) => (pt.delay = (pt.delay / maxD) * T.assembleStaggerMs));
+    const g = { cell, srcSize: robotSize / T.spriteGrid, parts };
+    grids[k] = g;
+    return g;
+  };
+
+  const drawReassemble = (k: PanelKey, owner: number, l: Landing, tf: number, start: number) => {
+    const el = animPanels[k];
+    if (!el) return;
+    const t = tf - start;
+    const settle = T.assembleStaggerMs + T.assembleTravelMs;
+    if (t < 0) {
+      el.style.clipPath = "inset(50%)";
+      return;
+    }
+    if (t >= settle + T.crossfadeMs) {
+      el.style.clipPath = "";
+      return;
+    }
+    const g = grids[k] ?? buildGrid(k, owner, l);
+    if (!g || !ctx) return;
+    // panel stays hidden while the grid builds, then crossfades in under it
+    el.style.clipPath = t < settle ? "inset(50%)" : "";
+    const fade = t < settle ? 1 : 1 - (t - settle) / T.crossfadeMs;
+    ctx.globalAlpha = fade;
+    for (let n = 0; n < g.parts.length; n++) {
+      const pt = g.parts[n];
+      const p = clamp01((t - pt.delay) / T.assembleTravelMs);
+      const e = easeOutCubic(p);
+      const size = lerp(g.srcSize, g.cell, e);
+      ctx.fillStyle = pt.color;
+      ctx.fillRect(lerp(pt.sx, pt.tx, e), lerp(pt.sy, pt.ty, e), size, size);
+    }
+    // faint frame once the grid has landed, so it reads as a window
+    if (t >= settle) {
+      const vb = visibleBox(k);
+      if (vb) {
+        ctx.strokeStyle = `rgba(255,255,255,${(0.8 * fade).toFixed(3)})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(vb.left + 1, vb.top + 1, vb.width - 2, vb.height - 2);
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+
   (Object.keys(animPanels) as PanelKey[]).forEach((k) => {
     const el = animPanels[k];
     if (el && forward) el.style.clipPath = "inset(50%)";
@@ -426,6 +562,10 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
             rot = Math.max(-12, Math.min(12, vx * 0.015)) * Math.sin(Math.PI * u);
             scale = 1 + (T.flightScale - 1) * Math.min(1, u * 2.5);
           }
+        } else if (reassemble && tf >= arr - T.shrinkMs && tf < arr) {
+          x = target.x;
+          y = target.y;
+          scale = T.flightScale;
         } else if (tf >= arr - T.shrinkMs && tf < arr) {
           const sp = (tf - (arr - T.shrinkMs)) / T.shrinkMs;
           x = target.x;
@@ -440,7 +580,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
         el.style.transform = `translate3d(${(x - base / 2).toFixed(1)}px, ${(y - base / 2).toFixed(1)}px, 0) scale(${scale.toFixed(3)}) rotate(${rot.toFixed(2)}deg)`;
         el.style.opacity = alpha.toFixed(3);
         // robot collapses into a square of its own colour
-        if (ctx && tf >= arr - T.shrinkMs && tf < arr) {
+        if (!reassemble && ctx && tf >= arr - T.shrinkMs && tf < arr) {
           const sp = (tf - (arr - T.shrinkMs)) / T.shrinkMs;
           const sz = lerp(base * 0.6, T.squarePx, sp);
           ctx.globalAlpha = sp;
@@ -479,7 +619,8 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
       if (!l) return;
       const start =
         T.arrivals[owner] + (T.panels[owner].indexOf(k) > 0 ? T.streakMs : 0);
-      drawUnfold(k, owner, l, tf, start);
+      if (reassemble) drawReassemble(k, owner, l, tf, start);
+      else drawUnfold(k, owner, l, tf, start);
     });
     // --- title typing (forward only) ---
     if (forward && opts.titleEl && opts.titleLength) {
