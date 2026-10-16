@@ -99,6 +99,331 @@ const TypewriterText = ({
 
 export const commands = ["about", "experience", "projects", "contact", "cv", "ai"];
 
+type AgentId = "frontend" | "backend" | "ai" | "devops";
+
+interface RectBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface AboutPixelBlock {
+  x0: number;
+  y0: number;
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+  vx: number;
+  vy0: number;
+  gravity: number;
+  delay: number;
+  isSpark: boolean;
+}
+
+const PIXEL_BLOCK_SIZE = 6;
+const ABOUT_EXP_DURATION_MS = 1600;
+const ABOUT_EXP_REDUCED_MS = 450;
+
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = clamp01((x - edge0) / (edge1 - edge0));
+  return t * t * (3 - 2 * t);
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/**
+ * Maps a job's tech tags in Experience to the 4 agent areas currently in NEURAL_SKILL_MATRIX:
+ * - frontend (Gemini): React, React Native, TypeScript, JavaScript, HTML/CSS, Mobile Development
+ * - backend (Cursor): Node.js, SQL, PHP, System Design, APIs
+ * - ai (Claude): AI, LLMs, MCPs, n8n, IoT, Agile
+ * - devops (ChatGPT): AWS, Docker, Git, DevOps, CI/CD
+ */
+function getMatchingAgentsForTech(techList: string[]): Set<AgentId> {
+  const matched = new Set<AgentId>();
+  for (const raw of techList) {
+    const tag = raw.toLowerCase().trim();
+    if (
+      tag.includes("react") ||
+      tag.includes("typescript") ||
+      tag.includes("javascript") ||
+      tag.includes("html") ||
+      tag.includes("css") ||
+      tag.includes("mobile") ||
+      tag.includes("frontend") ||
+      tag.includes("tailwind")
+    ) {
+      matched.add("frontend");
+    }
+    if (
+      tag.includes("node") ||
+      tag.includes("sql") ||
+      tag.includes("php") ||
+      tag.includes("system design") ||
+      tag.includes("api") ||
+      tag.includes("backend") ||
+      tag.includes("postgres")
+    ) {
+      matched.add("backend");
+    }
+    if (
+      tag.includes("ai") ||
+      tag.includes("llm") ||
+      tag.includes("mcp") ||
+      tag.includes("n8n") ||
+      tag.includes("iot") ||
+      tag.includes("agile")
+    ) {
+      matched.add("ai");
+    }
+    if (
+      tag.includes("aws") ||
+      tag.includes("docker") ||
+      tag.includes("git") ||
+      tag.includes("devops") ||
+      tag.includes("ci/cd") ||
+      tag.includes("vercel")
+    ) {
+      matched.add("devops");
+    }
+  }
+  return matched;
+}
+
+/**
+ * Samples the live About section DOM into ~6px pixel blocks for the CRT green (#4dffb0)
+ * disintegration & reassembly transition.
+ */
+function sampleAboutPixelBlocks(
+  aboutEl: HTMLElement | null,
+  vw: number,
+  vh: number,
+): AboutPixelBlock[] {
+  const step = PIXEL_BLOCK_SIZE;
+  const cols = Math.max(1, Math.ceil(vw / step));
+  const rows = Math.max(1, Math.ceil(vh / step));
+  const offscreen = document.createElement("canvas");
+  offscreen.width = cols;
+  offscreen.height = rows;
+  const ctx = offscreen.getContext("2d", { willReadFrequently: true });
+  if (!ctx || !aboutEl) return [];
+
+  ctx.imageSmoothingEnabled = false;
+
+  // 1. Sample the profile portrait image if visible
+  const portraitImg = aboutEl.querySelector<HTMLImageElement>(
+    'img[src*="avatar-complete"]',
+  );
+  if (portraitImg) {
+    const r = portraitImg.getBoundingClientRect();
+    if (r.bottom > 0 && r.top < vh && r.width > 4 && r.height > 4) {
+      const gx = Math.floor(r.left / step);
+      const gy = Math.floor(r.top / step);
+      const gw = Math.max(2, Math.ceil(r.width / step));
+      const gh = Math.max(2, Math.ceil(r.height / step));
+      try {
+        if (portraitImg.complete && portraitImg.naturalWidth > 0) {
+          ctx.drawImage(portraitImg, gx, gy, gw, gh);
+        } else {
+          ctx.fillStyle = "rgba(16, 185, 129, 0.35)";
+          ctx.fillRect(gx, gy, gw, gh);
+        }
+      } catch {
+        ctx.fillStyle = "rgba(16, 185, 129, 0.35)";
+        ctx.fillRect(gx, gy, gw, gh);
+      }
+      ctx.strokeStyle = "rgba(77, 255, 176, 0.75)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(gx + 0.5, gy + 0.5, Math.max(1, gw - 1), Math.max(1, gh - 1));
+    }
+  }
+
+  // 2. Sample card boxes, badges, chips, and dividers
+  const boxNodes = aboutEl.querySelectorAll<HTMLElement>(
+    "[data-about-card], [data-about-chip], [data-about-badge], [data-about-divider]",
+  );
+  boxNodes.forEach((node) => {
+    const r = node.getBoundingClientRect();
+    if (r.bottom <= 0 || r.top >= vh || r.width < 2 || r.height < 1) return;
+    const gx = Math.floor(r.left / step);
+    const gy = Math.floor(r.top / step);
+    const gw = Math.max(1, Math.ceil(r.width / step));
+    const gh = Math.max(1, Math.ceil(r.height / step));
+
+    if (node.hasAttribute("data-about-divider")) {
+      ctx.fillStyle = "rgba(63, 63, 70, 0.85)";
+      ctx.fillRect(gx, gy, gw, 1);
+      return;
+    }
+
+    const isEmerald = node.hasAttribute("data-about-badge");
+    ctx.fillStyle = isEmerald
+      ? "rgba(16, 185, 129, 0.24)"
+      : "rgba(24, 24, 27, 0.88)";
+    ctx.fillRect(gx, gy, gw, gh);
+
+    ctx.strokeStyle = isEmerald
+      ? "rgba(77, 255, 176, 0.65)"
+      : "rgba(63, 63, 70, 0.85)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(gx + 0.5, gy + 0.5, Math.max(1, gw - 1), Math.max(1, gh - 1));
+  });
+
+  // 3. Sample all visible text lines at their exact client rects
+  const walker = document.createTreeWalker(aboutEl, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let currentNode = walker.nextNode();
+  while (currentNode) {
+    const text = currentNode.textContent?.trim();
+    const parent = currentNode.parentElement;
+    if (text && parent) {
+      range.selectNodeContents(currentNode);
+      const clientRects = range.getClientRects();
+      const computed = window.getComputedStyle(parent);
+      ctx.fillStyle = computed.color || "rgb(228, 228, 231)";
+      for (let i = 0; i < clientRects.length; i++) {
+        const cr = clientRects[i];
+        if (cr.bottom <= 0 || cr.top >= vh || cr.width < 2 || cr.height < 2) {
+          continue;
+        }
+        const gx0 = Math.max(0, Math.floor(cr.left / step));
+        const gx1 = Math.min(cols - 1, Math.ceil(cr.right / step));
+        const gy0 = Math.max(0, Math.floor((cr.top + cr.height * 0.2) / step));
+        const gy1 = Math.min(
+          rows - 1,
+          Math.max(gy0, Math.floor((cr.bottom - cr.height * 0.18) / step)),
+        );
+        for (let gy = gy0; gy <= gy1; gy++) {
+          for (let gx = gx0; gx <= gx1; gx++) {
+            // Leave tiny character gaps so text lines look like pixelated glyphs
+            if ((gx + gy * 3) % 7 !== 0) {
+              ctx.fillRect(gx, gy, 1, 1);
+            }
+          }
+        }
+      }
+    }
+    currentNode = walker.nextNode();
+  }
+
+  const imgData = ctx.getImageData(0, 0, cols, rows).data;
+  const blocks: AboutPixelBlock[] = [];
+
+  for (let gy = 0; gy < rows; gy++) {
+    for (let gx = 0; gx < cols; gx++) {
+      const idx = (gy * cols + gx) * 4;
+      const a = imgData[idx + 3];
+      if (a < 24) continue;
+
+      const x0 = gx * step;
+      const y0 = gy * step;
+      // Deterministic pseudo-randoms per grid cell
+      const seed = (gx * 73856093) ^ (gy * 19349663);
+      const rnd1 = ((seed >>> 0) % 1000) / 1000;
+      const rnd2 = (((seed * 1664525 + 1013904223) >>> 0) % 1000) / 1000;
+      const rnd3 = (((seed * 22695477 + 1) >>> 0) % 1000) / 1000;
+
+      // Bottom/card blocks disintegrate slightly earlier as the 4 robots launch
+      const normY = clamp01((vh - y0) / Math.max(1, vh));
+      const delay = clamp01(normY * 0.18 + rnd1 * 0.16);
+      const centerOffset = (x0 - vw * 0.5) / Math.max(1, vw * 0.5);
+
+      blocks.push({
+        x0,
+        y0,
+        r: imgData[idx],
+        g: imgData[idx + 1],
+        b: imgData[idx + 2],
+        a: a / 255,
+        vx: (rnd2 - 0.5) * 115 + centerOffset * 48,
+        vy0: -38 - rnd3 * 72,
+        gravity: 320 + rnd1 * 280,
+        delay,
+        isSpark: rnd2 > 0.84,
+      });
+    }
+  }
+
+  return blocks;
+}
+
+function renderAboutPixelCanvas(
+  canvas: HTMLCanvasElement,
+  blocks: AboutPixelBlock[],
+  progress: number,
+  reduceMotion: boolean,
+) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  if (canvas.width !== vw || canvas.height !== vh) {
+    canvas.width = vw;
+    canvas.height = vh;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, vw, vh);
+
+  if (reduceMotion) {
+    const fadeAlpha = 1 - clamp01(progress);
+    ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha * 0.65})`;
+    ctx.fillRect(0, 0, vw, vh);
+    return;
+  }
+
+  // Dark CRT backdrop that dissolves away as Experience emerges underneath
+  const backdropAlpha = 1 - smoothstep(0.15, 0.72, progress);
+  if (backdropAlpha > 0.005) {
+    ctx.fillStyle = `rgba(6, 6, 8, ${backdropAlpha * 0.94})`;
+    ctx.fillRect(0, 0, vw, vh);
+  }
+
+  const size = PIXEL_BLOCK_SIZE;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const span = Math.max(0.25, 0.94 - b.delay);
+    const bp = clamp01((progress - b.delay) / span);
+    if (bp >= 1) continue;
+
+    let x = b.x0;
+    let y = b.y0;
+    let cr = b.r;
+    let cg = b.g;
+    let cb = b.b;
+    let alpha = b.a;
+
+    if (bp > 0) {
+      // Snap positions to 2px steps for authentic pixel-art motion
+      x = Math.round((b.x0 + b.vx * bp) / 2) * 2;
+      y = Math.round((b.y0 + b.vy0 * bp + 0.5 * b.gravity * bp * bp) / 2) * 2;
+
+      // Tint rapidly toward CRT green #4dffb0 (77, 255, 176)
+      const tint = clamp01(bp * 2.8);
+      const targetR = b.isSpark ? 185 : 77;
+      const targetG = 255;
+      const targetB = b.isSpark ? 215 : 176;
+      cr = Math.round(b.r + (targetR - b.r) * tint);
+      cg = Math.round(b.g + (targetG - b.g) * tint);
+      cb = Math.round(b.b + (targetB - b.b) * tint);
+
+      alpha = b.a * (1 - Math.pow(bp, 1.55));
+    }
+
+    if (alpha <= 0.02 || y > vh + size || x < -size || x > vw + size) continue;
+
+    ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha.toFixed(3)})`;
+    ctx.fillRect(x, y, size - 1, size - 1);
+  }
+}
+
 const ScanningEffect = () => (
   <motion.div
     className="absolute inset-0 z-20 pointer-events-none overflow-hidden"
@@ -829,13 +1154,59 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const [hasOpenedProject, setHasOpenedProject] = useState(false);
   const [miniDisplayPose, setMiniDisplayPose] = useState<AvatarPose>("wave");
   const [miniAnim, setMiniAnim] = useState<"idle" | "pop">("idle");
+  const [aboutExpTransition, setAboutExpTransition] = useState<{
+    direction: "forward" | "reverse";
+    fromRects: RectBox[];
+    toRects: RectBox[];
+  } | null>(null);
+  const [activeExperienceIndex, setActiveExperienceIndex] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const shellOutputRef = useRef<HTMLDivElement>(null);
   const experienceRailRef = useRef<HTMLDivElement>(null);
   const experienceNodeRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const experienceItemRefs = useRef<Array<HTMLDivElement | null>>([]);
   const experiencePulseY = useMotionValue(-24);
+
+  const overlayScrollRef = useRef<HTMLDivElement>(null);
+  const innerScrollRef = useRef<HTMLDivElement>(null);
+  const aboutSectionRef = useRef<HTMLDivElement>(null);
+  const aboutCardsGridRef = useRef<HTMLDivElement>(null);
+  const expSectionRef = useRef<HTMLDivElement>(null);
+  const aboutRobotRefs = useRef<Array<HTMLElement | null>>([
+    null,
+    null,
+    null,
+    null,
+  ]);
+  const expRobotRefs = useRef<Array<HTMLElement | null>>([
+    null,
+    null,
+    null,
+    null,
+  ]);
+  const flyingRobotRefs = useRef<Array<HTMLDivElement | null>>([
+    null,
+    null,
+    null,
+    null,
+  ]);
+  const flyingThrusterRefs = useRef<Array<HTMLDivElement | null>>([
+    null,
+    null,
+    null,
+    null,
+  ]);
+  const pixelCanvasRef = useRef<HTMLCanvasElement>(null);
+  const isAboutExpTransitioningRef = useRef(false);
+  const aboutExpRafRef = useRef<number>(0);
+  const capturedBlocksRef = useRef<AboutPixelBlock[]>([]);
+  const capturedAboutScrollTopRef = useRef<number>(0);
+  const hasVisitedAboutRef = useRef(false);
+  const lastTransitionEndRef = useRef<number>(0);
+  const activeViewRef = useRef<TerminalView>(activeView);
+  activeViewRef.current = activeView;
 
   const poseRef = useRef<AvatarPose>("idle");
   const animRef = useRef<"idle" | "pop" | "squash" | "">("idle");
@@ -844,6 +1215,56 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const sleepTimerRef = useRef<number | null>(null);
   const squashTimerRef = useRef<number | null>(null);
   const miniPopTimerRef = useRef<number | null>(null);
+
+  const agentCards: Array<{
+    id: AgentId;
+    area: string;
+    shortLabel: string;
+    sprite: string;
+    skills: string[];
+  }> = [
+    {
+      id: "frontend",
+      area: "Frontend",
+      shortLabel: "FRONTEND",
+      sprite: "/hero/agents/gemini.png",
+      skills: aboutData.skills.frontend,
+    },
+    {
+      id: "backend",
+      area: "Backend",
+      shortLabel: "BACKEND",
+      sprite: "/hero/agents/cursor.png",
+      skills: aboutData.skills.backend.filter((s) => s !== "AWS"),
+    },
+    {
+      id: "ai",
+      area: language === "es" ? "IA y Agentes" : "AI & Agents",
+      shortLabel: language === "es" ? "IA / AGENTES" : "AI / AGENTS",
+      sprite: "/hero/agents/claude.png",
+      skills: aboutData.skills.tools_ia.filter((s) =>
+        ["AI Agents", "LLMs", "MCPs", "n8n"].includes(s),
+      ),
+    },
+    {
+      id: "devops",
+      area: language === "es" ? "DevOps y Herramientas" : "DevOps & Tools",
+      shortLabel: "DEVOPS",
+      sprite: "/hero/agents/chatgpt.png",
+      skills: [
+        ...aboutData.skills.tools_ia.filter((s) =>
+          ["Git", "Docker"].includes(s),
+        ),
+        ...(aboutData.skills.backend.includes("AWS") ? ["AWS"] : []),
+      ],
+    },
+  ];
+
+  const activeExperienceAgents = getMatchingAgentsForTech(
+    experienceData[activeExperienceIndex]?.tech ??
+      experienceData[0]?.tech ??
+      [],
+  );
 
   const activeProject =
     projectEntries.find((project) => project.id === activeProjectId) ??
@@ -864,15 +1285,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const usesTouchNavigationCopy = isMobile || isCompactViewport;
 
   const sectionMiniPose: AvatarPose | null =
-    !isAiMode && activeView === "experience"
-      ? "laptop"
-      : !isAiMode && activeView === "projects"
-        ? hasOpenedProject
-          ? "laptop"
-          : "coffee"
-        : !isAiMode && activeView === "cv"
-          ? "gym"
-          : null;
+    !isAiMode && activeView === "projects"
+      ? hasOpenedProject
+        ? "laptop"
+        : "coffee"
+      : !isAiMode && activeView === "cv"
+        ? "gym"
+        : null;
 
   // Preload all pixel-art sprites on mount
   useEffect(() => {
@@ -1239,12 +1658,328 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }
   };
 
+  const getFallbackExpRect = useCallback((idx: number): RectBox => {
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+    if (vw < 768) {
+      const size = 44;
+      const gap = 16;
+      const totalW = 4 * size + 3 * gap;
+      const startX = (vw - totalW) / 2;
+      return {
+        left: startX + idx * (size + gap),
+        top: 64,
+        width: size,
+        height: size,
+      };
+    }
+    const size = 72;
+    const sideOffsetOuter = Math.max(18, Math.min(130, vw * 0.5 - 510));
+    const sideOffsetInner = Math.max(28, Math.min(165, vw * 0.5 - 475));
+    const configs = [
+      { left: sideOffsetOuter, top: vh * 0.24 },
+      { left: sideOffsetInner, top: vh * 0.56 },
+      { left: vw - sideOffsetInner - size, top: vh * 0.29 },
+      { left: vw - sideOffsetOuter - size, top: vh * 0.61 },
+    ];
+    const cfg = configs[idx] ?? configs[0];
+    return { left: cfg.left, top: cfg.top, width: size, height: size };
+  }, []);
+
+  const getActiveScroller = useCallback((): HTMLElement | null => {
+    const inner = innerScrollRef.current;
+    const outer = overlayScrollRef.current;
+    if (inner && inner.scrollHeight > inner.clientHeight + 4) {
+      return inner;
+    }
+    if (outer) {
+      return outer;
+    }
+    return document.querySelector<HTMLElement>("[data-section-overlay]");
+  }, []);
+
+  const startAboutExpTransition = useCallback(
+    (direction: "forward" | "reverse") => {
+      if (isAboutExpTransitioningRef.current) return;
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      if (direction === "forward") {
+        const aboutRects = [0, 1, 2, 3].map((i) => {
+          const r = aboutRobotRefs.current[i]?.getBoundingClientRect();
+          return r && r.width > 0
+            ? { left: r.left, top: r.top, width: r.width, height: r.height }
+            : getFallbackExpRect(i);
+        });
+        const expRects = [0, 1, 2, 3].map((i) => {
+          const r = expRobotRefs.current[i]?.getBoundingClientRect();
+          return r && r.width > 0
+            ? { left: r.left, top: r.top, width: r.width, height: r.height }
+            : getFallbackExpRect(i);
+        });
+
+        const scroller = getActiveScroller();
+        capturedAboutScrollTopRef.current = scroller?.scrollTop ?? 0;
+        capturedBlocksRef.current = sampleAboutPixelBlocks(
+          aboutSectionRef.current,
+          vw,
+          vh,
+        );
+
+        hasVisitedAboutRef.current = true;
+        isAboutExpTransitioningRef.current = true;
+        setActiveExperienceIndex(0);
+        setAboutExpTransition({
+          direction: "forward",
+          fromRects: aboutRects,
+          toRects: expRects,
+        });
+        setTerminalMode("shell");
+        setIsExpanded(true);
+        setActiveView("experience");
+
+        window.requestAnimationFrame(() => {
+          if (overlayScrollRef.current) overlayScrollRef.current.scrollTop = 0;
+          if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
+        });
+      } else {
+        const expRects = [0, 1, 2, 3].map((i) => {
+          const r = expRobotRefs.current[i]?.getBoundingClientRect();
+          return r && r.width > 0
+            ? { left: r.left, top: r.top, width: r.width, height: r.height }
+            : getFallbackExpRect(i);
+        });
+
+        hasVisitedAboutRef.current = true;
+        isAboutExpTransitioningRef.current = true;
+        setAboutTypedLength(aboutData.bio.length + 4);
+        setAboutExpTransition({
+          direction: "reverse",
+          fromRects: expRects,
+          toRects: expRects,
+        });
+        setTerminalMode("shell");
+        setIsExpanded(true);
+        setActiveView("about");
+      }
+    },
+    [aboutData.bio.length, getActiveScroller, getFallbackExpRect],
+  );
+
+  // Drive the ~1.6s forward/reverse canvas + flying robots animation
+  useEffect(() => {
+    if (!aboutExpTransition) return;
+
+    const { direction, fromRects, toRects } = aboutExpTransition;
+    const duration = reduceMotion
+      ? ABOUT_EXP_REDUCED_MS
+      : ABOUT_EXP_DURATION_MS;
+    let cancelled = false;
+
+    const applyFlyingRobotsFrame = (
+      aboutRects: RectBox[],
+      expRects: RectBox[],
+      p: number,
+      now: number,
+    ) => {
+      for (let i = 0; i < 4; i++) {
+        const robotEl = flyingRobotRefs.current[i];
+        const thrusterEl = flyingThrusterRefs.current[i];
+        if (!robotEl) continue;
+
+        const stagger = i * 0.035;
+        const span = 1 - 3 * 0.035;
+        const u =
+          direction === "forward"
+            ? clamp01((p - stagger) / span)
+            : 1 - clamp01((1 - p - stagger) / span);
+        const e = easeInOutCubic(u);
+
+        const a = aboutRects[i] ?? expRects[i];
+        const b = expRects[i] ?? aboutRects[i];
+
+        const left = a.left + (b.left - a.left) * e;
+        const top = a.top + (b.top - a.top) * e;
+        const width = a.width + (b.width - a.width) * e;
+        const height = a.height + (b.height - a.height) * e;
+
+        // Upward takeoff impulse when launching from cards (or returning from Experience)
+        const arcPhase =
+          direction === "forward"
+            ? Math.pow(u, 0.72)
+            : Math.pow(1 - u, 0.72);
+        const liftY = reduceMotion
+          ? 0
+          : -115 * Math.sin(Math.PI * arcPhase) * (1 - 0.18 * u);
+        const dx = b.left - a.left;
+        const dirSign = direction === "forward" ? 1 : -1;
+        const tilt = reduceMotion
+          ? 0
+          : Math.max(
+              -13,
+              Math.min(13, dx * 0.028 * Math.sin(Math.PI * u) * dirSign),
+            );
+        const scaleBoost = reduceMotion ? 1 : 1 + 0.1 * Math.sin(Math.PI * u);
+
+        robotEl.style.width = `${width}px`;
+        robotEl.style.height = `${height}px`;
+        robotEl.style.transform = `translate3d(${left}px, ${top + liftY}px, 0) rotate(${tilt}deg) scale(${scaleBoost})`;
+
+        if (thrusterEl) {
+          const activity = reduceMotion
+            ? 0
+            : Math.pow(Math.sin(Math.PI * u), 0.6);
+          const flicker =
+            0.82 + 0.34 * Math.sin(now * 0.055 + i * 1.9);
+          const thrustScaleY = Math.max(0.2, (0.45 + 1.35 * activity) * flicker);
+          const thrustOpacity = clamp01(activity * 1.65);
+          thrusterEl.style.opacity = String(thrustOpacity);
+          thrusterEl.style.transform = `translateX(-50%) scaleY(${thrustScaleY.toFixed(2)})`;
+        }
+      }
+    };
+
+    const startLoop = (
+      resolvedAboutRects: RectBox[],
+      resolvedExpRects: RectBox[],
+    ) => {
+      const startTime = performance.now();
+
+      const step = (now: number) => {
+        if (cancelled) return;
+        const raw = clamp01((now - startTime) / duration);
+        const p = direction === "forward" ? raw : 1 - raw;
+
+        if (pixelCanvasRef.current) {
+          renderAboutPixelCanvas(
+            pixelCanvasRef.current,
+            capturedBlocksRef.current,
+            p,
+            reduceMotion,
+          );
+        }
+
+        if (direction === "forward" && expSectionRef.current) {
+          const expAlpha = reduceMotion ? raw : smoothstep(0.22, 0.86, raw);
+          expSectionRef.current.style.opacity = String(expAlpha);
+        } else if (direction === "reverse" && aboutSectionRef.current) {
+          const aboutAlpha = reduceMotion
+            ? raw
+            : 1 - smoothstep(0.0, 0.3, p);
+          aboutSectionRef.current.style.opacity = String(aboutAlpha);
+        }
+
+        applyFlyingRobotsFrame(resolvedAboutRects, resolvedExpRects, p, now);
+
+        if (raw < 1) {
+          aboutExpRafRef.current = window.requestAnimationFrame(step);
+        } else {
+          if (expSectionRef.current) expSectionRef.current.style.opacity = "1";
+          if (aboutSectionRef.current)
+            aboutSectionRef.current.style.opacity = "1";
+          isAboutExpTransitioningRef.current = false;
+          lastTransitionEndRef.current = performance.now();
+          setAboutExpTransition(null);
+        }
+      };
+
+      // Render initial frame immediately
+      step(startTime);
+    };
+
+    if (direction === "forward") {
+      if (expSectionRef.current) {
+        expSectionRef.current.style.opacity = "0";
+      }
+      if (pixelCanvasRef.current) {
+        renderAboutPixelCanvas(
+          pixelCanvasRef.current,
+          capturedBlocksRef.current,
+          0,
+          reduceMotion,
+        );
+      }
+      applyFlyingRobotsFrame(fromRects, toRects, 0, performance.now());
+
+      window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        const liveExpRects = [0, 1, 2, 3].map((i) => {
+          const r = expRobotRefs.current[i]?.getBoundingClientRect();
+          return r && r.width > 0
+            ? { left: r.left, top: r.top, width: r.width, height: r.height }
+            : toRects[i];
+        });
+        startLoop(fromRects, liveExpRects);
+      });
+    } else {
+      // Reverse (Experience -> About): wait 1 frame for About DOM to mount & scroll into place
+      if (aboutSectionRef.current) {
+        aboutSectionRef.current.style.opacity = "0";
+      }
+      applyFlyingRobotsFrame(fromRects, fromRects, 1, performance.now());
+
+      window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        if (aboutSectionRef.current) {
+          aboutSectionRef.current.style.opacity = "0";
+        }
+        const scroller = getActiveScroller();
+        if (scroller) {
+          scroller.scrollTop = capturedAboutScrollTopRef.current;
+          const cardsGrid = aboutCardsGridRef.current;
+          if (cardsGrid) {
+            const cr = cardsGrid.getBoundingClientRect();
+            const vh = window.innerHeight;
+            if (cr.bottom > vh - 24 || cr.top < 56) {
+              const targetDelta = cr.bottom - (vh - 72);
+              scroller.scrollTop = Math.max(0, scroller.scrollTop + targetDelta);
+            }
+          }
+        }
+
+        const liveAboutRects = [0, 1, 2, 3].map((i) => {
+          const r = aboutRobotRefs.current[i]?.getBoundingClientRect();
+          return r && r.width > 0
+            ? { left: r.left, top: r.top, width: r.width, height: r.height }
+            : fromRects[i];
+        });
+
+        capturedBlocksRef.current = sampleAboutPixelBlocks(
+          aboutSectionRef.current,
+          window.innerWidth,
+          window.innerHeight,
+        );
+
+        startLoop(liveAboutRects, fromRects);
+      });
+    }
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(aboutExpRafRef.current);
+    };
+  }, [aboutExpTransition, getActiveScroller, reduceMotion]);
+
   const handleCommand = (cmd: string) => {
+    if (isAboutExpTransitioningRef.current) return;
     setHasInteracted(true);
     const cleanCmd = cmd.toLowerCase().trim();
 
     if (!cleanCmd) {
       setInputValue("");
+      return;
+    }
+
+    if (cleanCmd === "experience" && isExpanded && activeView === "about") {
+      setInputValue("");
+      startAboutExpTransition("forward");
+      return;
+    }
+
+    if (cleanCmd === "about" && isExpanded && activeView === "experience") {
+      setInputValue("");
+      startAboutExpTransition("reverse");
       return;
     }
 
@@ -1272,6 +2007,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   };
 
   const handleNext = () => {
+    if (isAboutExpTransitioningRef.current) return;
+
+    if (activeView === "about") {
+      startAboutExpTransition("forward");
+      return;
+    }
+
     if (activeView === "projects") {
       if (hasNextProject) {
         setActiveProjectId(projectEntries[activeProjectIndex + 1].id);
@@ -1293,6 +2035,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   };
 
   const closeExpanded = () => {
+    if (isAboutExpTransitioningRef.current) return;
     if (isAiMode) {
       exitAiMode();
     }
@@ -1300,8 +2043,21 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     setActiveView("terminal");
   };
 
+  const handleExternalClose = useCallback(() => {
+    if (isAboutExpTransitioningRef.current) return;
+    if (activeViewRef.current === "experience") {
+      startAboutExpTransition("reverse");
+      return;
+    }
+    if (performance.now() - lastTransitionEndRef.current < 420) return;
+    closeExpanded();
+  }, [startAboutExpTransition]);
+
   // Let external UIs (e.g. the video hero) drive the same command router.
-  useImperativeHandle(ref, () => ({ runCommand: handleCommand, close: closeExpanded }));
+  useImperativeHandle(ref, () => ({
+    runCommand: handleCommand,
+    close: handleExternalClose,
+  }));
 
   useEffect(() => {
     onExpandedChange?.(isExpanded);
@@ -1318,25 +2074,199 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     return () => clearTimeout(timer);
   }, [hasInteracted, activeView]);
 
-  // Lock body scroll and listen for Enter key when expanded
+  // Lock body scroll and listen for Enter / Escape / Scroll triggers when expanded
   useEffect(() => {
-    if (isExpanded) {
-      document.body.style.overflow = "hidden";
-      const handleGlobalKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Enter" && activeView !== "terminal") {
-          e.preventDefault();
-          handleNext();
-        }
-      };
-      window.addEventListener("keydown", handleGlobalKeyDown);
-      return () => {
-        document.body.style.overflow = "auto";
-        window.removeEventListener("keydown", handleGlobalKeyDown);
-      };
-    } else {
+    if (!isExpanded) {
       document.body.style.overflow = "auto";
+      return;
     }
-  }, [isExpanded, activeView, handleNext]);
+
+    document.body.style.overflow = "hidden";
+    let bottomWheelAccum = 0;
+    let topWheelAccum = 0;
+    let lastScrollTime = 0;
+    let touchStartY = 0;
+    let touchFired = false;
+
+    const isAtBottom = () => {
+      const scroller = getActiveScroller();
+      if (!scroller) return true;
+      return (
+        scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 10
+      );
+    };
+
+    const isAtTop = () => {
+      const outer = overlayScrollRef.current;
+      const inner = innerScrollRef.current;
+      const outerTop = !outer || outer.scrollTop <= 2;
+      const innerTop = !inner || inner.scrollTop <= 2;
+      return outerTop && innerTop;
+    };
+
+    const onScroll = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target === overlayScrollRef.current ||
+          target === innerScrollRef.current ||
+          target.hasAttribute?.("data-section-overlay"))
+      ) {
+        lastScrollTime = performance.now();
+        if (!isAtBottom()) bottomWheelAccum = 0;
+        if (!isAtTop()) topWheelAccum = 0;
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (isAboutExpTransitioningRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      if (activeViewRef.current === "about" && e.deltaY > 4) {
+        if (isAtBottom()) {
+          const settledAtBottom = performance.now() - lastScrollTime > 160;
+          bottomWheelAccum += e.deltaY;
+          if (settledAtBottom || bottomWheelAccum >= 85) {
+            e.preventDefault();
+            bottomWheelAccum = 0;
+            startAboutExpTransition("forward");
+          }
+        } else {
+          bottomWheelAccum = 0;
+        }
+      } else if (activeViewRef.current === "experience" && e.deltaY < -4) {
+        if (isAtTop()) {
+          const settledAtTop = performance.now() - lastScrollTime > 220;
+          topWheelAccum += Math.abs(e.deltaY);
+          if (settledAtTop || topWheelAccum >= 90) {
+            e.preventDefault();
+            topWheelAccum = 0;
+            startAboutExpTransition("reverse");
+          }
+        } else {
+          topWheelAccum = 0;
+        }
+      }
+    };
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const isFormField =
+        (activeViewRef.current === "terminal" ||
+          activeViewRef.current === "contact") &&
+        el &&
+        (el.isContentEditable ||
+          /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+
+      if (isAboutExpTransitioningRef.current) {
+        if (
+          [
+            "Enter",
+            "Escape",
+            "ArrowDown",
+            "ArrowUp",
+            "PageDown",
+            "PageUp",
+            " ",
+          ].includes(e.key)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+
+      if (isFormField) return;
+
+      if (e.key === "Enter" && activeViewRef.current !== "terminal") {
+        e.preventDefault();
+        handleNext();
+        return;
+      }
+
+      if (e.key === "Escape" && activeViewRef.current === "experience") {
+        e.preventDefault();
+        e.stopPropagation();
+        startAboutExpTransition("reverse");
+        return;
+      }
+
+      if (
+        activeViewRef.current === "about" &&
+        ["ArrowDown", "PageDown", " "].includes(e.key) &&
+        isAtBottom()
+      ) {
+        e.preventDefault();
+        startAboutExpTransition("forward");
+        return;
+      }
+
+      if (
+        activeViewRef.current === "experience" &&
+        ["ArrowUp", "PageUp"].includes(e.key) &&
+        isAtTop()
+      ) {
+        e.preventDefault();
+        startAboutExpTransition("reverse");
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0]?.clientY ?? 0;
+      touchFired = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (isAboutExpTransitioningRef.current) {
+        e.preventDefault();
+        return;
+      }
+      if (touchFired) return;
+      if (performance.now() - lastTransitionEndRef.current < 380) return;
+
+      const dy = (e.touches[0]?.clientY ?? 0) - touchStartY;
+      if (activeViewRef.current === "about" && dy < -42 && isAtBottom()) {
+        touchFired = true;
+        startAboutExpTransition("forward");
+      } else if (
+        activeViewRef.current === "experience" &&
+        dy > 48 &&
+        isAtTop()
+      ) {
+        touchFired = true;
+        startAboutExpTransition("reverse");
+      }
+    };
+
+    document.addEventListener("scroll", onScroll, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", handleGlobalKeyDown, { capture: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      document.body.style.overflow = "auto";
+      document.removeEventListener("scroll", onScroll, { capture: true });
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", handleGlobalKeyDown, {
+        capture: true,
+      });
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [
+    isExpanded,
+    activeView,
+    getActiveScroller,
+    handleNext,
+    startAboutExpTransition,
+  ]);
 
   const handleTerminalClick = () => {
     if (activeView === "terminal") {
@@ -1420,6 +2350,67 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     });
   }, [chatHistory, isAiMode, activeView]);
 
+  // Track which Experience job is visible while scrolling so matching robots glow
+  useEffect(() => {
+    if (activeView !== "experience") {
+      return;
+    }
+
+    const updateActiveJob = () => {
+      const scroller = getActiveScroller();
+      if (scroller) {
+        if (scroller.scrollTop <= 20) {
+          setActiveExperienceIndex(0);
+          return;
+        }
+        if (
+          scroller.scrollTop + scroller.clientHeight >=
+          scroller.scrollHeight - 24
+        ) {
+          setActiveExperienceIndex(Math.max(0, experienceData.length - 1));
+          return;
+        }
+      }
+
+      const anchorY = window.innerHeight * 0.42;
+      let bestIdx = 0;
+      let bestDist = Infinity;
+
+      for (let i = 0; i < experienceData.length; i++) {
+        const node = experienceItemRefs.current[i];
+        if (!node) continue;
+        const r = node.getBoundingClientRect();
+        if (r.top <= anchorY && r.bottom >= anchorY) {
+          bestIdx = i;
+          bestDist = 0;
+          break;
+        }
+        const center = (r.top + r.bottom) * 0.5;
+        const dist = Math.abs(center - anchorY);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = i;
+        }
+      }
+
+      setActiveExperienceIndex(bestIdx);
+    };
+
+    updateActiveJob();
+    document.addEventListener("scroll", updateActiveJob, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("resize", updateActiveJob);
+
+    return () => {
+      document.removeEventListener("scroll", updateActiveJob, {
+        capture: true,
+      });
+      window.removeEventListener("resize", updateActiveJob);
+    };
+  }, [activeView, experienceData.length, getActiveScroller]);
+
   useEffect(() => {
     if (activeView !== "experience") {
       return;
@@ -1496,13 +2487,20 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       return;
     }
 
-    let frame = 0;
     const fullText = `"${aboutData.bio}"`;
+    if (hasVisitedAboutRef.current || isAboutExpTransitioningRef.current) {
+      setAboutTypedLength(fullText.length);
+      return;
+    }
+
+    let frame = 0;
     const tick = () => {
       frame += 3;
       setAboutTypedLength(Math.min(frame, fullText.length));
       if (frame < fullText.length) {
         window.setTimeout(tick, 18);
+      } else {
+        hasVisitedAboutRef.current = true;
       }
     };
 
@@ -1511,7 +2509,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     return () => {
       window.clearTimeout(startDelay);
     };
-  }, [activeView]);
+  }, [activeView, aboutData.bio]);
 
   useEffect(() => {
     setActiveProjectImageIndex(0);
@@ -1552,7 +2550,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           ${isExpanded ? "border-none rounded-none" : "border-zinc-800 rounded-2xl"}
         `}
       style={{
-        background: isExpanded ? "rgba(9, 9, 11, 1)" : "rgba(9, 9, 11, 0.98)",
+        background:
+          isExpanded && activeView === "experience"
+            ? "#000000"
+            : isExpanded
+              ? "rgba(9, 9, 11, 1)"
+              : "rgba(9, 9, 11, 0.98)",
         borderColor: isExpanded ? "transparent" : "rgba(16, 185, 129, 0.3)",
       }}
     >
@@ -2110,9 +3113,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex h-full min-h-0 flex-col bg-black/40"
+              className={`flex h-full min-h-0 flex-col ${
+                activeView === "experience" ? "bg-black" : "bg-black/40"
+              }`}
             >
               <div
+                ref={innerScrollRef}
                 className={`flex flex-1 min-h-0 flex-col ${
                   activeView === "projects"
                     ? usesProjectSplitScroll
@@ -2127,7 +3133,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                       ? usesProjectSplitScroll
                         ? "h-full w-full min-h-0"
                         : "w-full min-h-full"
-                      : "max-w-6xl mx-auto min-h-full"
+                      : activeView === "experience"
+                        ? "max-w-4xl mx-auto w-full min-h-full md:px-20 lg:px-28"
+                        : "max-w-6xl mx-auto min-h-full"
                   } flex flex-1 min-h-0 flex-col`}
                 >
                   <div
@@ -2138,11 +3146,22 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                     }
                   >
                     {activeView === "about" && (
-                      <div className="space-y-12 pb-12">
+                      <div
+                        ref={aboutSectionRef}
+                        className="space-y-12 pb-12"
+                        style={{
+                          opacity:
+                            aboutExpTransition?.direction === "reverse" ? 0 : 1,
+                        }}
+                      >
                         {/* Profile Header Section */}
                         <div className="grid md:grid-cols-12 gap-12 items-start">
                           <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
+                            initial={
+                              hasVisitedAboutRef.current
+                                ? false
+                                : { opacity: 0, scale: 0.9 }
+                            }
                             animate={{ opacity: 1, scale: 1 }}
                             className="md:col-span-4 relative group mx-auto md:mx-0 max-w-sm"
                           >
@@ -2167,7 +3186,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
                           <div className="md:col-span-8 space-y-8 pt-4">
                             <div className="space-y-6">
-                              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                              <div
+                                data-about-badge=""
+                                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20"
+                              >
                                 <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                                 <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest">
                                   SYSTEM_IDENTIFIED: HUMAN_ENGINEER
@@ -2203,7 +3225,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                              <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
+                              <div
+                                data-about-card=""
+                                className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors"
+                              >
                                 <span className="text-[10px] text-zinc-500 uppercase font-mono">
                                   {t("LABEL_LOCATION")}
                                 </span>
@@ -2211,7 +3236,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   {aboutData.location}
                                 </p>
                               </div>
-                              <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors">
+                              <div
+                                data-about-card=""
+                                className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors"
+                              >
                                 <span className="text-[10px] text-zinc-500 uppercase font-mono">
                                   {t("LABEL_EDUCATION")}
                                 </span>
@@ -2219,7 +3247,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   {aboutData.education}
                                 </p>
                               </div>
-                              <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-1 col-span-2 sm:col-span-1">
+                              <div
+                                data-about-badge=""
+                                className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-1 col-span-2 sm:col-span-1"
+                              >
                                 <span className="text-[10px] text-emerald-500/70 uppercase font-mono">
                                   {t("LABEL_STATUS")}
                                 </span>
@@ -2237,142 +3268,103 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         {/* Knowledge Base Section (Agent Fleet Matrix) */}
                         <div className="space-y-6">
                           <div className="flex items-center gap-4">
-                            <div className="h-px flex-1 bg-zinc-800" />
+                            <div
+                              data-about-divider=""
+                              className="h-px flex-1 bg-zinc-800"
+                            />
                             <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em]">
                               {t("NEURAL_SKILL_MATRIX")}
                             </h3>
-                            <div className="h-px flex-1 bg-zinc-800" />
+                            <div
+                              data-about-divider=""
+                              className="h-px flex-1 bg-zinc-800"
+                            />
                           </div>
 
                           {/* 4 Cards Row (2x2 on mobile, 4-col on desktop) */}
-                          {(() => {
-                            const agentCards = [
-                              {
-                                id: "frontend",
-                                area: "Frontend",
-                                sprite: "/hero/agents/gemini.png",
-                                skills: aboutData.skills.frontend,
-                              },
-                              {
-                                id: "backend",
-                                area: "Backend",
-                                sprite: "/hero/agents/cursor.png",
-                                skills: aboutData.skills.backend.filter((s) => s !== "AWS"),
-                              },
-                              {
-                                id: "ai",
-                                area: language === "es" ? "IA y Agentes" : "AI & Agents",
-                                sprite: "/hero/agents/claude.png",
-                                skills: aboutData.skills.tools_ia.filter((s) =>
-                                  ["AI Agents", "LLMs", "MCPs", "n8n"].includes(s),
-                                ),
-                              },
-                              {
-                                id: "devops",
-                                area: language === "es" ? "DevOps y Herramientas" : "DevOps & Tools",
-                                sprite: "/hero/agents/chatgpt.png",
-                                skills: [
-                                  ...aboutData.skills.tools_ia.filter((s) =>
-                                    ["Git", "Docker"].includes(s),
-                                  ),
-                                  ...(aboutData.skills.backend.includes("AWS") ? ["AWS"] : []),
-                                ],
-                              },
-                            ];
-
-                            return (
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                                {agentCards.map((agent, idx) => (
-                                  <div
-                                    key={agent.id}
-                                    className="group relative flex flex-col items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3 sm:p-4 text-center font-mono cursor-pointer transition-all duration-300 hover:border-emerald-500/40 hover:bg-zinc-900/60 shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]"
-                                  >
-                                    {/* Floating robot sprite */}
-                                    <div className="relative flex h-[72px] sm:h-[88px] w-full items-center justify-center">
-                                      <motion.img
-                                        src={agent.sprite}
-                                        alt={agent.area}
-                                        animate={reduceMotion ? {} : { y: [0, -3.5, 0] }}
-                                        transition={
-                                          reduceMotion
-                                            ? {}
-                                            : {
-                                                duration: 2.2,
-                                                repeat: Infinity,
-                                                ease: "easeInOut",
-                                                delay: idx * 0.45,
-                                              }
-                                        }
-                                        className="h-[62px] w-auto sm:h-[71px] max-w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-1.5"
-                                        style={{ imageRendering: "pixelated" }}
-                                        draggable={false}
-                                      />
-                                    </div>
-
-                                    {/* Area Title & Directly Visible Skills */}
-                                    <div className="w-full flex-1 flex flex-col justify-start pt-2.5 border-t border-zinc-800/60 space-y-2">
-                                      <h4 className="text-xs sm:text-[13px] font-mono font-bold text-emerald-400 tracking-wide uppercase">
-                                        {agent.area}
-                                      </h4>
-
-                                      <div className="flex flex-wrap justify-center gap-1 pt-0.5">
-                                        {agent.skills.map((skill) => (
-                                          <span
-                                            key={skill}
-                                            className="px-1.5 py-0.5 bg-black/40 border border-zinc-800/80 text-[10px] text-zinc-300 font-mono rounded group-hover:border-emerald-500/30 group-hover:text-zinc-100 transition-colors"
-                                          >
-                                            {skill}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          })()}
-                        </div>
-
-                        {/* Bottom Navigation Hint: Claude */}
-                        <div className="flex flex-col items-center justify-center pt-8 pb-2 text-center">
                           <div
-                            className="hero-bubble-anchor mb-3"
-                            data-tail="down"
-                            style={{ "--tail-x": "50%" } as React.CSSProperties}
+                            ref={aboutCardsGridRef}
+                            className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
                           >
-                            <div className="hero-bubble !static text-center shadow-[0_0_18px_rgba(0,187,127,0.25)]">
-                              <p className="hero-bubble-text text-zinc-200 font-mono text-xs sm:text-sm">
-                                {language === "es"
-                                  ? "sigue bajando o presiona Enter"
-                                  : "keep scrolling or press Enter"}
-                                <span className="inline-block w-1.5 h-3 bg-[#00bb7f] ml-1.5 align-middle animate-pulse" />
-                              </p>
-                              <span className="hero-bubble-tail" />
-                            </div>
+                            {agentCards.map((agent, idx) => (
+                              <div
+                                key={agent.id}
+                                data-about-card=""
+                                onClick={() =>
+                                  startAboutExpTransition("forward")
+                                }
+                                className="group relative flex flex-col items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3 sm:p-4 text-center font-mono cursor-pointer transition-all duration-300 hover:border-emerald-500/40 hover:bg-zinc-900/60 shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]"
+                              >
+                                {/* Floating robot sprite */}
+                                <div className="relative flex h-[72px] sm:h-[88px] w-full items-center justify-center">
+                                  <div
+                                    ref={(el) => {
+                                      aboutRobotRefs.current[idx] = el;
+                                    }}
+                                    className="relative flex h-[62px] w-[62px] sm:h-[71px] sm:w-[71px] items-center justify-center cursor-pointer"
+                                  >
+                                    <motion.img
+                                      src={agent.sprite}
+                                      alt={agent.area}
+                                      animate={
+                                        reduceMotion ? {} : { y: [0, -3.5, 0] }
+                                      }
+                                      transition={
+                                        reduceMotion
+                                          ? {}
+                                          : {
+                                              duration: 2.2,
+                                              repeat: Infinity,
+                                              ease: "easeInOut",
+                                              delay: idx * 0.45,
+                                            }
+                                      }
+                                      className="h-[62px] w-auto sm:h-[71px] max-w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-1.5 cursor-pointer"
+                                      style={{
+                                        imageRendering: "pixelated",
+                                        visibility: aboutExpTransition
+                                          ? "hidden"
+                                          : "visible",
+                                      }}
+                                      draggable={false}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Area Title & Directly Visible Skills */}
+                                <div className="w-full flex-1 flex flex-col justify-start pt-2.5 border-t border-zinc-800/60 space-y-2">
+                                  <h4 className="text-xs sm:text-[13px] font-mono font-bold text-emerald-400 tracking-wide uppercase">
+                                    {agent.area}
+                                  </h4>
+
+                                  <div className="flex flex-wrap justify-center gap-1 pt-0.5">
+                                    {agent.skills.map((skill) => (
+                                      <span
+                                        key={skill}
+                                        data-about-chip=""
+                                        className="px-1.5 py-0.5 bg-black/40 border border-zinc-800/80 text-[10px] text-zinc-300 font-mono rounded group-hover:border-emerald-500/30 group-hover:text-zinc-100 transition-colors"
+                                      >
+                                        {skill}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <motion.div
-                            animate={reduceMotion ? {} : { y: [0, -3.5, 0] }}
-                            transition={
-                              reduceMotion
-                                ? {}
-                                : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }
-                            }
-                            className="relative cursor-pointer"
-                          >
-                            <img
-                              src="/hero/agents/claude.png"
-                              alt="Claude"
-                              className="h-[53px] w-auto object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] cursor-pointer"
-                              style={{ imageRendering: "pixelated" }}
-                              draggable={false}
-                            />
-                          </motion.div>
                         </div>
                       </div>
                     )}
 
                     {activeView === "experience" && (
-                      <div className="space-y-12">
+                      <div
+                        ref={expSectionRef}
+                        className="space-y-12 pt-14 md:pt-0"
+                        style={{
+                          opacity:
+                            aboutExpTransition?.direction === "forward" ? 0 : 1,
+                        }}
+                      >
                         {/* Terminal Command Simulation */}
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-xs font-mono">
@@ -2402,62 +3394,88 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           </div>
 
                           <div className="space-y-16 relative">
-                            {experienceData.map((exp, i) => (
-                              <motion.div
-                                key={i}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.2 + i * 0.1 }}
-                                className="relative"
-                              >
-                                <div
+                            {experienceData.map((exp, i) => {
+                              const isJobActive = i === activeExperienceIndex;
+                              return (
+                                <motion.div
+                                  key={i}
                                   ref={(node) => {
-                                    experienceNodeRefs.current[i] = node;
+                                    experienceItemRefs.current[i] = node;
                                   }}
-                                  className="absolute left-0 top-1.5 w-6 -translate-x-[40px] md:-translate-x-[56px] flex justify-center"
+                                  initial={
+                                    aboutExpTransition
+                                      ? false
+                                      : { opacity: 0, x: -10 }
+                                  }
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: 0.1 + i * 0.08 }}
+                                  className="relative"
                                 >
-                                  <ExperienceNodeMarker
-                                    pulseY={experiencePulseY}
-                                    targetY={experienceNodeTargets[i] ?? 0}
-                                  />
-                                </div>
+                                  <div
+                                    ref={(node) => {
+                                      experienceNodeRefs.current[i] = node;
+                                    }}
+                                    className="absolute left-0 top-1.5 w-6 -translate-x-[40px] md:-translate-x-[56px] flex justify-center"
+                                  >
+                                    <ExperienceNodeMarker
+                                      pulseY={experiencePulseY}
+                                      targetY={experienceNodeTargets[i] ?? 0}
+                                    />
+                                  </div>
 
-                                <div className="space-y-4">
-                                  <div className="flex flex-col gap-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="text-[10px] font-mono text-emerald-500 px-1.5 py-0.5 bg-emerald-500/5 border border-emerald-500/20 rounded">
-                                        {exp.period}
-                                      </span>
-                                      <span className="text-zinc-700 font-mono text-[10px]">
-                                        ::
-                                      </span>
-                                      <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-widest">
-                                        {exp.company}
-                                      </span>
-                                    </div>
-                                    <h3 className="text-xl font-bold text-zinc-100 tracking-tight">
-                                      {exp.role}
-                                    </h3>
-                                  </div>
-                                  <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl font-mono opacity-80">
-                                    {exp.description}
-                                  </p>
-                                  <div className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
-                                    {exp.tech.map((t, ti) => (
-                                      <span
-                                        key={ti}
-                                        className="text-[10px] font-mono text-zinc-600 flex items-center gap-1"
-                                      >
-                                        <span className="text-emerald-500/30">
-                                          #
+                                  <div className="space-y-4">
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span
+                                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
+                                            isJobActive
+                                              ? "text-emerald-300 bg-emerald-500/15 border-emerald-400/40 shadow-[0_0_12px_rgba(77,255,176,0.18)]"
+                                              : "text-emerald-500 bg-emerald-500/5 border-emerald-500/20"
+                                          }`}
+                                        >
+                                          {exp.period}
                                         </span>
-                                        {t}
-                                      </span>
-                                    ))}
+                                        <span className="text-zinc-700 font-mono text-[10px]">
+                                          ::
+                                        </span>
+                                        <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-widest">
+                                          {exp.company}
+                                        </span>
+                                      </div>
+                                      <h3 className="text-xl font-bold text-zinc-100 tracking-tight">
+                                        {exp.role}
+                                      </h3>
+                                    </div>
+                                    <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl font-mono opacity-80">
+                                      {exp.description}
+                                    </p>
+                                    <div className="flex flex-wrap gap-x-3 gap-y-2 pt-2">
+                                      {exp.tech.map((techItem, ti) => (
+                                        <span
+                                          key={ti}
+                                          className={`text-[10px] font-mono flex items-center gap-1 px-1.5 py-0.5 rounded border transition-all duration-300 ${
+                                            isJobActive
+                                              ? "text-emerald-300 border-emerald-500/35 bg-emerald-500/10 shadow-[0_0_10px_rgba(77,255,176,0.14)]"
+                                              : "text-zinc-500 border-transparent"
+                                          }`}
+                                        >
+                                          <span
+                                            className={
+                                              isJobActive
+                                                ? "text-emerald-400"
+                                                : "text-emerald-500/30"
+                                            }
+                                          >
+                                            #
+                                          </span>
+                                          {techItem}
+                                        </span>
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              </motion.div>
-                            ))}
+                                </motion.div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
@@ -3324,15 +4342,282 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       : null;
 
   if (isExpanded && typeof document !== "undefined") {
+    const showExpRobots =
+      activeView === "experience" && aboutExpTransition === null;
+
+    const handleExpRobotClick = (agentId: AgentId) => {
+      if (isAboutExpTransitioningRef.current) return;
+      const matchingIndices: number[] = [];
+      experienceData.forEach((exp, idx) => {
+        if (getMatchingAgentsForTech(exp.tech).has(agentId)) {
+          matchingIndices.push(idx);
+        }
+      });
+      if (matchingIndices.length === 0) return;
+      const nextIdx =
+        matchingIndices.find((idx) => idx > activeExperienceIndex) ??
+        matchingIndices[0];
+      setActiveExperienceIndex(nextIdx);
+      experienceItemRefs.current[nextIdx]?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "center",
+      });
+    };
+
+    const desktopPositions: Array<React.CSSProperties> = [
+      {
+        left: "clamp(18px, calc(50vw - 510px), 130px)",
+        top: "24%",
+      },
+      {
+        left: "clamp(28px, calc(50vw - 475px), 165px)",
+        top: "56%",
+      },
+      {
+        right: "clamp(28px, calc(50vw - 475px), 165px)",
+        top: "29%",
+      },
+      {
+        right: "clamp(18px, calc(50vw - 510px), 130px)",
+        top: "61%",
+      },
+    ];
+
     return (
       <>
         {createPortal(
-          <div
-            data-section-overlay=""
-            className={`fixed inset-0 z-[140] h-screen w-screen bg-zinc-950 ${usesProjectSplitScroll ? "overflow-hidden" : "overflow-y-auto"}`}
-          >
-            {panel}
-          </div>,
+          <>
+            <div
+              ref={overlayScrollRef}
+              data-section-overlay=""
+              className={`fixed inset-0 z-[140] h-screen w-screen ${
+                activeView === "experience" ? "bg-black" : "bg-zinc-950"
+              } ${usesProjectSplitScroll ? "overflow-hidden" : "overflow-y-auto"}`}
+            >
+              {panel}
+            </div>
+
+            {/* Fixed Experience Robot Fleet (2 left, 2 right on desktop; top bar on mobile) */}
+            {(activeView === "about" || activeView === "experience") && (
+              <div
+                aria-hidden={!showExpRobots}
+                className="fixed inset-0 z-[155] pointer-events-none"
+                style={{
+                  visibility: showExpRobots ? "visible" : "hidden",
+                  opacity: showExpRobots ? 1 : 0,
+                }}
+              >
+                {isMobile ? (
+                  <div className="fixed top-[56px] left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-1.5 rounded-full bg-black/90 border border-zinc-800/80 backdrop-blur-md shadow-[0_6px_24px_rgba(0,0,0,0.75)]">
+                    {agentCards.map((agent, idx) => {
+                      const isGlowing = activeExperienceAgents.has(agent.id);
+                      return (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          onClick={() => handleExpRobotClick(agent.id)}
+                          title={agent.area}
+                          className={`relative flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ${
+                            showExpRobots
+                              ? "pointer-events-auto"
+                              : "pointer-events-none"
+                          }`}
+                        >
+                          <div
+                            className={`absolute inset-0 rounded-full transition-opacity duration-300 pointer-events-none ${
+                              isGlowing
+                                ? "bg-emerald-400/25 blur-md opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+                          <div
+                            ref={(el) => {
+                              expRobotRefs.current[idx] = el;
+                            }}
+                            className="relative flex h-[44px] w-[44px] items-center justify-center cursor-pointer"
+                          >
+                            <motion.img
+                              src={agent.sprite}
+                              alt={agent.area}
+                              animate={
+                                reduceMotion ? {} : { y: [0, -2.5, 0] }
+                              }
+                              transition={
+                                reduceMotion
+                                  ? {}
+                                  : {
+                                      duration: 2.2,
+                                      repeat: Infinity,
+                                      ease: "easeInOut",
+                                      delay: idx * 0.45,
+                                    }
+                              }
+                              className={`h-[40px] w-[40px] object-contain cursor-pointer transition-all duration-300 ${
+                                isGlowing
+                                  ? "opacity-100 scale-105"
+                                  : "opacity-45 scale-95"
+                              }`}
+                              style={{
+                                imageRendering: "pixelated",
+                                filter: isGlowing
+                                  ? "drop-shadow(0 0 10px rgba(77, 255, 176, 0.85)) drop-shadow(0 0 18px rgba(16, 185, 129, 0.5))"
+                                  : "drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6))",
+                              }}
+                              draggable={false}
+                            />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  agentCards.map((agent, idx) => {
+                    const isGlowing = activeExperienceAgents.has(agent.id);
+                    return (
+                      <div
+                        key={agent.id}
+                        style={desktopPositions[idx]}
+                        onClick={() => handleExpRobotClick(agent.id)}
+                        className={`fixed flex flex-col items-center gap-2 cursor-pointer select-none group ${
+                          showExpRobots
+                            ? "pointer-events-auto"
+                            : "pointer-events-none"
+                        }`}
+                      >
+                        {/* Soft emerald glow aura when matching the visible Experience job */}
+                        <div
+                          className={`absolute -inset-4 rounded-full pointer-events-none transition-all duration-500 ${
+                            isGlowing
+                              ? "bg-emerald-400/20 blur-xl opacity-100 scale-110"
+                              : "bg-emerald-500/0 blur-lg opacity-0 scale-90 group-hover:opacity-40 group-hover:bg-emerald-400/10"
+                          }`}
+                        />
+
+                        <div
+                          ref={(el) => {
+                            expRobotRefs.current[idx] = el;
+                          }}
+                          className="relative flex h-[72px] w-[72px] items-center justify-center cursor-pointer"
+                        >
+                          <motion.img
+                            src={agent.sprite}
+                            alt={agent.area}
+                            animate={reduceMotion ? {} : { y: [0, -5, 0] }}
+                            transition={
+                              reduceMotion
+                                ? {}
+                                : {
+                                    duration: 2.4,
+                                    repeat: Infinity,
+                                    ease: "easeInOut",
+                                    delay: idx * 0.5,
+                                  }
+                            }
+                            className={`h-[72px] w-[72px] object-contain cursor-pointer transition-all duration-300 ${
+                              isGlowing
+                                ? "opacity-100 scale-105"
+                                : "opacity-45 scale-95 group-hover:opacity-85 group-hover:scale-100"
+                            }`}
+                            style={{
+                              imageRendering: "pixelated",
+                              filter: isGlowing
+                                ? "drop-shadow(0 0 12px rgba(77, 255, 176, 0.85)) drop-shadow(0 0 26px rgba(16, 185, 129, 0.45))"
+                                : "drop-shadow(0 6px 14px rgba(0, 0, 0, 0.7))",
+                            }}
+                            draggable={false}
+                          />
+                        </div>
+
+                        <div
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded border font-mono text-[9px] tracking-wider uppercase transition-all duration-300 ${
+                            isGlowing
+                              ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-300 shadow-[0_0_12px_rgba(77,255,176,0.28)]"
+                              : "border-zinc-800/80 bg-zinc-950/80 text-zinc-500 group-hover:border-zinc-700 group-hover:text-zinc-300"
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                              isGlowing
+                                ? "bg-[#4dffb0] shadow-[0_0_8px_#4dffb0]"
+                                : "bg-zinc-700"
+                            }`}
+                          />
+                          <span>{agent.shortLabel}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* Timed (~1.6s) About <-> Experience Disintegration & Flying Robots Layer */}
+            {aboutExpTransition && (
+              <div className="fixed inset-0 z-[210] pointer-events-none overflow-hidden">
+                <canvas
+                  ref={pixelCanvasRef}
+                  className="fixed inset-0 h-screen w-screen pointer-events-none"
+                  style={{ imageRendering: "pixelated" }}
+                />
+
+                {agentCards.map((agent, idx) => {
+                  const initialBox =
+                    aboutExpTransition.direction === "forward"
+                      ? aboutExpTransition.fromRects[idx]
+                      : aboutExpTransition.fromRects[idx];
+                  return (
+                    <div
+                      key={agent.id}
+                      ref={(el) => {
+                        flyingRobotRefs.current[idx] = el;
+                      }}
+                      className="fixed left-0 top-0 pointer-events-none cursor-pointer will-change-transform"
+                      style={{
+                        width: `${initialBox?.width ?? 71}px`,
+                        height: `${initialBox?.height ?? 71}px`,
+                        transform: `translate3d(${initialBox?.left ?? 0}px, ${initialBox?.top ?? 0}px, 0)`,
+                        transformOrigin: "center center",
+                      }}
+                    >
+                      <img
+                        src={agent.sprite}
+                        alt={agent.area}
+                        className="h-full w-full object-contain cursor-pointer"
+                        style={{
+                          imageRendering: "pixelated",
+                          filter:
+                            "drop-shadow(0 0 14px rgba(77, 255, 176, 0.85)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.75))",
+                        }}
+                        draggable={false}
+                      />
+
+                      {/* Intense Pixel-Art Thruster Plume */}
+                      <div
+                        ref={(el) => {
+                          flyingThrusterRefs.current[idx] = el;
+                        }}
+                        className="absolute left-1/2 top-[86%] flex flex-col items-center pointer-events-none"
+                        style={{
+                          transform: "translateX(-50%) scaleY(1)",
+                          transformOrigin: "top center",
+                        }}
+                      >
+                        <div className="h-[5px] w-[18px] bg-[#ffffff] shadow-[0_0_12px_#4dffb0]" />
+                        <div className="h-[7px] w-[14px] bg-[#a7f3d0] shadow-[0_0_14px_#4dffb0]" />
+                        <div className="h-[9px] w-[10px] bg-[#4dffb0] shadow-[0_0_16px_#10b981]" />
+                        <div className="h-[8px] w-[6px] bg-[#10b981]" />
+                        <div className="mt-[2px] flex gap-[4px]">
+                          <div className="h-[4px] w-[4px] bg-[#4dffb0]" />
+                          <div className="h-[5px] w-[4px] bg-[#a7f3d0]" />
+                          <div className="h-[4px] w-[4px] bg-[#4dffb0]" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>,
           document.body,
         )}
         {miniAvatar}
