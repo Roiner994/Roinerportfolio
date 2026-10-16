@@ -950,12 +950,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     null,
     null,
   ]);
-  const flyingThrusterRefs = useRef<Array<HTMLDivElement | null>>([
-    null,
-    null,
-    null,
-    null,
-  ]);
   const isAboutExpTransitioningRef = useRef(false);
   const aboutExpRafRef = useRef<number>(0);
   const aboutRectsCacheRef = useRef<RectBox[]>([]);
@@ -1652,15 +1646,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         robotEl.style.width = `${w.toFixed(1)}px`;
         robotEl.style.height = `${h.toFixed(1)}px`;
         robotEl.style.transform = `translate3d(${(x - w / 2).toFixed(1)}px, ${(y - h / 2).toFixed(1)}px, 0) rotate(${tilt.toFixed(2)}deg)`;
-
-        const thrusterEl = flyingThrusterRefs.current[i];
-        if (thrusterEl) {
-          const flicker = 0.1 * Math.sin(now * 0.05 + i * 2.1);
-          thrusterEl.style.opacity = reduceMotion
-            ? "0"
-            : clamp01(activity * 1.5).toFixed(3);
-          thrusterEl.style.transform = `translateX(-50%) scaleY(${(0.5 + 0.8 * activity + flicker).toFixed(2)})`;
-        }
       }
 
       if (raw < 1) {
@@ -4251,25 +4236,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         }}
                         draggable={false}
                       />
-
-                      {/* Pixel-art thruster plume (no glow, flat pixel colors) */}
-                      <div
-                        ref={(el) => {
-                          flyingThrusterRefs.current[idx] = el;
-                        }}
-                        className="absolute left-1/2 top-[84%] -z-10 flex flex-col items-center pointer-events-none"
-                        style={{
-                          opacity: 0,
-                          transform: "translateX(-50%) scaleY(0.4)",
-                          transformOrigin: "top center",
-                          imageRendering: "pixelated",
-                        }}
-                      >
-                        <div className="h-[4px] w-[14px] bg-[#fff7d6]" />
-                        <div className="h-[5px] w-[10px] bg-[#ffd166]" />
-                        <div className="h-[6px] w-[6px] bg-[#ff8c42]" />
-                        <div className="h-[4px] w-[2px] bg-[#e4572e]" />
-                      </div>
                     </div>
                   );
                 })}
