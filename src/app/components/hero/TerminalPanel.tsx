@@ -39,6 +39,7 @@ import {
   animate,
   useMotionValue,
   useTransform,
+  useReducedMotion,
   type MotionValue,
 } from "motion/react";
 import {
@@ -779,6 +780,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     projects: projectEntries,
   } = data;
   const isMobile = useIsMobile();
+  const reduceMotion = useReducedMotion() ?? false;
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const aboutStatusText =
     aboutData.status === "OPEN_FOR_NEW_PROJECTS"
       ? t("STATUS_OPEN_TO_NEW_PROJECTS")
@@ -2232,8 +2235,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           </div>
                         </div>
 
-                        {/* Knowledge Base Section (Skills) */}
-                        <div className="space-y-8">
+                        {/* Knowledge Base Section (Agent Fleet Matrix) */}
+                        <div className="space-y-6">
                           <div className="flex items-center gap-4">
                             <div className="h-px flex-1 bg-zinc-800" />
                             <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em]">
@@ -2242,36 +2245,234 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             <div className="h-px flex-1 bg-zinc-800" />
                           </div>
 
-                          <div className="grid sm:grid-cols-3 gap-6">
-                            {Object.entries(aboutData.skills).map(
-                              ([category, items], idx) => (
-                                <motion.div
-                                  key={category}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: 0.3 + idx * 0.1 }}
-                                  className="space-y-4 p-6 bg-zinc-900/30 border border-zinc-800/50 rounded-2xl group hover:bg-zinc-800/20 transition-all"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                                    <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">
-                                      {t(`SKILL_${category.toUpperCase()}`)}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {items.map((skill) => (
-                                      <span
-                                        key={skill}
-                                        className="px-2 py-1 bg-black/40 border border-zinc-800 text-[10px] text-zinc-400 font-mono rounded-md group-hover:border-emerald-500/20 group-hover:text-zinc-200 transition-colors"
+                          {/* 4 Agent Cards Row (2x2 on mobile, 4-col on desktop) */}
+                          {(() => {
+                            const agentCards = [
+                              {
+                                id: "cursor",
+                                tag: "> cursor-agent",
+                                name: "Cursor",
+                                area: "Frontend",
+                                sprite: "/hero/agents/cursor.png",
+                                skills: aboutData.skills.frontend,
+                              },
+                              {
+                                id: "claude",
+                                tag: "> claude-agent",
+                                name: "Claude",
+                                area: language === "es" ? "IA y agentes" : "AI & Agents",
+                                sprite: "/hero/agents/claude.png",
+                                skills: aboutData.skills.tools_ia.filter((s) =>
+                                  ["AI Agents", "LLMs", "MCPs", "n8n"].includes(s),
+                                ),
+                              },
+                              {
+                                id: "chatgpt",
+                                tag: "> chatgpt-agent",
+                                name: "ChatGPT",
+                                area: language === "es" ? "Backend y datos" : "Backend & Data",
+                                sprite: "/hero/agents/chatgpt.png",
+                                skills: aboutData.skills.backend.filter((s) => s !== "AWS"),
+                              },
+                              {
+                                id: "gemini",
+                                tag: "> gemini-agent",
+                                name: "Gemini",
+                                area: language === "es" ? "DevOps y herramientas" : "DevOps & Tools",
+                                sprite: "/hero/agents/gemini.png",
+                                skills: [
+                                  ...aboutData.skills.tools_ia.filter((s) =>
+                                    ["Git", "Docker"].includes(s),
+                                  ),
+                                  ...(aboutData.skills.backend.includes("AWS") ? ["AWS"] : []),
+                                ],
+                              },
+                            ];
+
+                            return (
+                              <div className="relative pt-12 sm:pt-14">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                                  {agentCards.map((agent, idx) => {
+                                    const isHovered = activeAgentId === agent.id;
+                                    return (
+                                      <div
+                                        key={agent.id}
+                                        tabIndex={0}
+                                        role="button"
+                                        aria-label={`${agent.name} - ${agent.area}`}
+                                        aria-expanded={isHovered}
+                                        onMouseEnter={() => setActiveAgentId(agent.id)}
+                                        onMouseLeave={() =>
+                                          setActiveAgentId((cur) => (cur === agent.id ? null : cur))
+                                        }
+                                        onFocus={() => setActiveAgentId(agent.id)}
+                                        onBlur={() =>
+                                          setActiveAgentId((cur) => (cur === agent.id ? null : cur))
+                                        }
+                                        onClick={() =>
+                                          setActiveAgentId((cur) =>
+                                            cur === agent.id ? null : agent.id,
+                                          )
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            setActiveAgentId((cur) =>
+                                              cur === agent.id ? null : agent.id,
+                                            );
+                                          }
+                                        }}
+                                        className={`group relative flex flex-col items-center justify-between rounded-xl border p-3 sm:p-4 text-center font-mono cursor-pointer transition-all duration-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 ${
+                                          isHovered
+                                            ? "border-emerald-500/60 bg-zinc-900/90 shadow-[0_0_20px_rgba(16,185,129,0.18)] z-30"
+                                            : "border-zinc-800/80 bg-zinc-950/60 hover:border-emerald-500/35 hover:bg-zinc-900/50 z-10"
+                                        }`}
                                       >
-                                        {skill}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </motion.div>
-                              ),
-                            )}
+                                        {/* Pixel speech bubble on hover/focus/tap */}
+                                        <AnimatePresence>
+                                          {isHovered && (
+                                            <motion.div
+                                              initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                                              exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                                              transition={{ duration: 0.15 }}
+                                              className={`hero-bubble-anchor absolute bottom-[calc(100%+10px)] pointer-events-none z-50 w-56 sm:w-64 ${
+                                                idx % 2 === 0
+                                                  ? "left-0 sm:left-1/2 sm:-translate-x-1/2"
+                                                  : "right-0 sm:left-1/2 sm:-translate-x-1/2"
+                                              } ${
+                                                idx === 0
+                                                  ? "sm:left-0 sm:translate-x-0"
+                                                  : idx === 3
+                                                  ? "sm:right-0 sm:left-auto sm:translate-x-0"
+                                                  : ""
+                                              }`}
+                                              data-tail="down"
+                                              style={{
+                                                "--tail-x":
+                                                  idx === 0
+                                                    ? isMobile
+                                                      ? "30%"
+                                                      : "25%"
+                                                    : idx === 3
+                                                    ? isMobile
+                                                      ? "70%"
+                                                      : "75%"
+                                                    : idx % 2 === 0
+                                                    ? "30%"
+                                                    : isMobile
+                                                    ? "70%"
+                                                    : "50%",
+                                              } as React.CSSProperties}
+                                            >
+                                              <div className="hero-bubble !w-full !max-w-none text-left shadow-[0_0_24px_rgba(0,187,127,0.3)]">
+                                                <div className="flex items-center justify-between border-b border-[#00bb7f]/25 pb-1 mb-1.5 text-[10px] text-zinc-400 font-mono">
+                                                  <span className="text-emerald-400 font-bold">
+                                                    {agent.tag}
+                                                  </span>
+                                                  <span className="text-zinc-500 font-mono">
+                                                    {agent.skills.length}{" "}
+                                                    {language === "es" ? "skills" : "skills"}
+                                                  </span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1">
+                                                  {agent.skills.map((skill) => (
+                                                    <span
+                                                      key={skill}
+                                                      className="px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/25 text-[10px] text-emerald-300 font-mono"
+                                                    >
+                                                      {skill}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                                <span className="hero-bubble-tail" />
+                                              </div>
+                                            </motion.div>
+                                          )}
+                                        </AnimatePresence>
+
+                                        {/* Floating robot sprite */}
+                                        <div className="relative flex h-20 sm:h-24 w-full items-center justify-center">
+                                          <motion.img
+                                            src={agent.sprite}
+                                            alt={agent.name}
+                                            animate={
+                                              reduceMotion
+                                                ? {}
+                                                : isHovered
+                                                ? { y: -6 }
+                                                : { y: [0, -3.5, 0] }
+                                            }
+                                            transition={
+                                              reduceMotion
+                                                ? {}
+                                                : isHovered
+                                                ? { duration: 0.2, ease: "easeOut" }
+                                                : {
+                                                    duration: 2.2,
+                                                    repeat: Infinity,
+                                                    ease: "easeInOut",
+                                                    delay: idx * 0.45,
+                                                  }
+                                            }
+                                            className="h-16 w-auto sm:h-20 max-w-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-transform duration-200 cursor-pointer"
+                                            style={{ imageRendering: "pixelated" }}
+                                            draggable={false}
+                                          />
+                                        </div>
+
+                                        {/* Agent tag & Area */}
+                                        <div className="w-full space-y-0.5 pt-2 border-t border-zinc-800/60">
+                                          <p className="text-[10px] sm:text-[11px] font-mono text-emerald-400 truncate">
+                                            {agent.tag}
+                                          </p>
+                                          <p className="text-[11px] sm:text-[12px] font-mono font-medium text-zinc-200 truncate">
+                                            {agent.area}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Bottom Navigation Hint: Claude */}
+                        <div className="flex flex-col items-center justify-center pt-8 pb-2 text-center">
+                          <div
+                            className="hero-bubble-anchor mb-3"
+                            data-tail="down"
+                            style={{ "--tail-x": "50%" } as React.CSSProperties}
+                          >
+                            <div className="hero-bubble !static text-center shadow-[0_0_18px_rgba(0,187,127,0.25)]">
+                              <p className="hero-bubble-text text-zinc-200 font-mono text-xs sm:text-sm">
+                                {language === "es"
+                                  ? "sigue bajando o presiona Enter"
+                                  : "keep scrolling or press Enter"}
+                                <span className="inline-block w-1.5 h-3 bg-[#00bb7f] ml-1.5 align-middle animate-pulse" />
+                              </p>
+                              <span className="hero-bubble-tail" />
+                            </div>
                           </div>
+                          <motion.div
+                            animate={reduceMotion ? {} : { y: [0, -3.5, 0] }}
+                            transition={
+                              reduceMotion
+                                ? {}
+                                : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }
+                            }
+                            className="relative cursor-pointer"
+                          >
+                            <img
+                              src="/hero/agents/claude.png"
+                              alt="Claude"
+                              className="h-12 w-auto object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] cursor-pointer"
+                              style={{ imageRendering: "pixelated" }}
+                              draggable={false}
+                            />
+                          </motion.div>
                         </div>
                       </div>
                     )}

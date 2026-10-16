@@ -101,6 +101,7 @@ export function HeroVideo() {
   const [hintDone, setHintDone] = useState(false);
   const [hintTyped, setHintTyped] = useState(0);
   const animatingRef = useRef(false);
+  const reversingRef = useRef(false);
   const animRafRef = useRef(0);
   const holdTimerRef = useRef(0);
   const renderRef = useHeroCrtTransition(
@@ -126,6 +127,7 @@ export function HeroVideo() {
       canPlay: () => !reduceMotion && !sectionOpenRef.current,
       getCommand: () => `cd ${targetRef.current}`,
       getProgress: () => progressRef.current,
+      isReversing: () => reversingRef.current,
     },
   );
 
@@ -134,6 +136,7 @@ export function HeroVideo() {
     (to: 0 | 1, onDone?: () => void) => {
       if (animatingRef.current) return false;
       animatingRef.current = true;
+      reversingRef.current = to === 0;
       const from = progressRef.current;
       const duration = (reduceMotion ? 600 : 3000) * Math.abs(to - from);
       const t0 = performance.now();
@@ -146,6 +149,7 @@ export function HeroVideo() {
           animRafRef.current = requestAnimationFrame(step);
         } else {
           animatingRef.current = false;
+          reversingRef.current = false;
           onDone?.();
         }
       };
@@ -158,7 +162,14 @@ export function HeroVideo() {
   /** Hero -> robot dissolve -> CRT -> `cd <section>` -> open that section. */
   const openForward = useCallback(
     (cmd: string) => {
-      if (sectionOpenRef.current || animatingRef.current || progressRef.current > 0) return false;
+      if (sectionOpenRef.current) return false;
+      if (reversingRef.current) {
+        cancelAnimationFrame(animRafRef.current);
+        animatingRef.current = false;
+        reversingRef.current = false;
+      } else if (animatingRef.current || progressRef.current > 0) {
+        return false;
+      }
       setHintDone(true);
       retarget(cmd);
       return animateTo(1, () => {

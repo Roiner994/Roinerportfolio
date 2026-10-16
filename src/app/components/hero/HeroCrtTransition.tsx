@@ -115,6 +115,8 @@ export function useHeroCrtTransition(
     getCommand: () => string;
     /** Time-based transition progress, 0 (hero) .. 1 (inside the CRT). */
     getProgress: () => number;
+    /** True while transitioning back from an opened section to the hero. */
+    isReversing?: () => boolean;
   },
 ) {
   const optsRef = useRef(opts);
@@ -301,6 +303,7 @@ export function useHeroCrtTransition(
       if (!video) return;
       const { reduceMotion, canPlay } = optsRef.current;
       const p = clamp01(optsRef.current.getProgress());
+      const reversing = optsRef.current.isReversing?.() ?? false;
 
       // The loop keeps playing through the transition (only the Cursor robot
       // is swapped for the cutout). Safety net: back on the hero, make sure
@@ -325,10 +328,11 @@ export function useHeroCrtTransition(
         }
         placeBubble(crr);
         const f = range(p, 0.25, 0.7);
-        setOpacity(r.ui.current, 1 - f);
+        const uiFadeRm = reversing ? 0 : f;
+        setOpacity(r.ui.current, 1 - uiFadeRm);
         setOpacity(r.crt.current, f);
         if (r.crt.current) r.crt.current.style.pointerEvents = f > 0.6 ? 'auto' : 'none';
-        if (r.ui.current) r.ui.current.style.pointerEvents = f > 0.4 ? 'none' : '';
+        if (r.ui.current) r.ui.current.style.pointerEvents = uiFadeRm > 0.4 ? 'none' : '';
         if (r.typed.current) r.typed.current.textContent = optsRef.current.getCommand();
         setOpacity(r.menu.current, f);
         setOpacity(r.robot.current, 0);
@@ -383,10 +387,10 @@ export function useHeroCrtTransition(
       const glow = range(p, 0.25, 0.45) * (1 - range(p, 0.6, 0.8));
       draw(d, glow, cr.s * scale);
 
-      const uiFade = range(p, 0.03, 0.2);
+      const uiFade = reversing ? 0 : range(p, 0.03, 0.2);
       setOpacity(r.ui.current, 1 - uiFade);
       if (r.ui.current) r.ui.current.style.pointerEvents = uiFade > 0.5 ? 'none' : '';
-      setOpacity(r.shades.current, 1 - range(p, 0.25, 0.5));
+      setOpacity(r.shades.current, reversing ? 1 : 1 - range(p, 0.25, 0.5));
 
       // 5) CRT terminal reveal + typing
       const c = range(p, 0.72, 0.82);
