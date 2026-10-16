@@ -3,10 +3,12 @@ import {
   useRef,
   useEffect,
   useCallback,
+  useLayoutEffect,
   forwardRef,
   useImperativeHandle,
 } from "react";
 import { createPortal } from "react-dom";
+import { runExpProjectsTransition, type Box as XpBox, type PanelKey as XpPanelKey } from "./expProjectsTransition";
 import {
   Terminal,
   Sparkles,
@@ -124,171 +126,22 @@ function easeInOutSine(t: number): number {
   return -(Math.cos(Math.PI * t) - 1) / 2;
 }
 
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
-}
-
-const EXP_PROJECTS_DURATION_MS = 2000;
-const EXP_PROJECTS_REDUCED_MS = 400;
-
 interface ExpProjectsTransition {
   direction: "forward" | "reverse";
   sourceMode: "experience" | "direct";
-  fromRects: RectBox[];
-  toCenters: Array<{ x: number; y: number }>;
 }
 
-function renderExpProjectsCanvas(
-  canvas: HTMLCanvasElement,
-  transition: ExpProjectsTransition,
-  elapsed: number,
-  reduceMotion: boolean,
-  panelRects: {
-    sidebar: RectBox | null;
-    text: RectBox | null;
-    media: RectBox | null;
-    breadcrumb: RectBox | null;
-  },
-) {
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-  if (canvas.width !== vw || canvas.height !== vh) {
-    canvas.width = vw;
-    canvas.height = vh;
-  }
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, vw, vh);
-
-  if (reduceMotion) return;
-
-  const { direction, toCenters } = transition;
-  const arriveTimes = [1000, 580, 720, 860];
-  const reverseEmerges = [140, 500, 380, 260];
-
-  if (direction === "forward") {
-    for (let i = 0; i < 4; i++) {
-      const arr = arriveTimes[i];
-      const center = toCenters[i];
-      if (!center) continue;
-
-      if (elapsed >= arr && elapsed <= arr + 280) {
-        const dt = elapsed - arr;
-
-        if (dt <= 180) {
-          const fp = dt / 180;
-          const radius = 6 + fp * 48;
-          const alpha = Math.max(0, 1 - fp);
-          const grad = ctx.createRadialGradient(
-            center.x,
-            center.y,
-            0,
-            center.x,
-            center.y,
-            radius,
-          );
-          grad.addColorStop(0, `rgba(255, 255, 255, ${(alpha * 0.95).toFixed(3)})`);
-          grad.addColorStop(0.35, `rgba(234, 255, 244, ${(alpha * 0.85).toFixed(3)})`);
-          grad.addColorStop(0.75, `rgba(77, 255, 176, ${(alpha * 0.6).toFixed(3)})`);
-          grad.addColorStop(1, "rgba(77, 255, 176, 0)");
-
-          ctx.save();
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-
-        if (dt <= 220) {
-          const pp = dt / 220;
-          const pDist = pp * 52;
-          const alpha = Math.max(0, 1 - pp);
-          const colors = ["#ffffff", "#eafff4", "#4dffb0", "#a7f3d0"];
-
-          for (let k = 0; k < 16; k++) {
-            const angle = (k / 16) * Math.PI * 2 + i * 0.25;
-            const px = Math.round((center.x + Math.cos(angle) * pDist) / 2) * 2;
-            const py = Math.round((center.y + Math.sin(angle) * pDist) / 2) * 2;
-            const size = k % 2 === 0 ? 5 : 4;
-
-            ctx.fillStyle = colors[k % colors.length];
-            ctx.globalAlpha = alpha;
-            ctx.fillRect(px - size / 2, py - size / 2, size, size);
-          }
-        }
-
-        if (dt >= 30 && dt <= 280) {
-          const sp = (dt - 30) / 250;
-          let pRect: RectBox | null = null;
-          if (i === 1) pRect = panelRects.sidebar;
-          else if (i === 2) pRect = panelRects.text;
-          else if (i === 3) pRect = panelRects.media;
-          else if (i === 0) pRect = panelRects.breadcrumb;
-
-          if (pRect && pRect.width > 0) {
-            const sy = pRect.top + sp * pRect.height;
-            const sAlpha = Math.sin(sp * Math.PI) * 0.85;
-
-            ctx.save();
-            ctx.shadowColor = "#4dffb0";
-            ctx.shadowBlur = 12;
-            ctx.fillStyle = `rgba(77, 255, 176, ${sAlpha.toFixed(3)})`;
-            ctx.fillRect(pRect.left, sy - 1, pRect.width, 2.5);
-            ctx.fillStyle = `rgba(255, 255, 255, ${(sAlpha * 0.7).toFixed(3)})`;
-            ctx.fillRect(pRect.left, sy, pRect.width, 1);
-            ctx.restore();
-          }
-        }
-
-        if (i === 3 && dt >= 30 && dt <= 110 && panelRects.media) {
-          const mp = panelRects.media;
-          const my = mp.top + mp.height * 0.45;
-          const bAlpha = 1 - (dt - 30) / 80;
-
-          ctx.save();
-          ctx.shadowColor = "#eafff4";
-          ctx.shadowBlur = 18;
-          ctx.fillStyle = `rgba(234, 255, 244, ${(bAlpha * 0.95).toFixed(3)})`;
-          ctx.fillRect(mp.left + 10, my - 1.5, mp.width - 20, 3);
-          ctx.restore();
-        }
-      }
-    }
-  } else {
-    for (let i = 0; i < 4; i++) {
-      const arr = reverseEmerges[i];
-      const center = toCenters[i];
-      if (!center) continue;
-
-      if (elapsed >= arr && elapsed <= arr + 200) {
-        const dt = elapsed - arr;
-        const fp = dt / 200;
-        const radius = 4 + fp * 32;
-        const alpha = Math.max(0, 1 - fp);
-
-        ctx.save();
-        ctx.fillStyle = `rgba(77, 255, 176, ${(alpha * 0.65).toFixed(3)})`;
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        for (let k = 0; k < 12; k++) {
-          const angle = (k / 12) * Math.PI * 2 + i * 0.3;
-          const pDist = fp * 34;
-          const px = Math.round((center.x + Math.cos(angle) * pDist) / 2) * 2;
-          const py = Math.round((center.y + Math.sin(angle) * pDist) / 2) * 2;
-          ctx.fillStyle = "#4dffb0";
-          ctx.globalAlpha = alpha;
-          ctx.fillRect(px - 2, py - 2, 4, 4);
-        }
-      }
-    }
-  }
+interface ExpProjectsSnapshot {
+  contentBox: XpBox;
+  robotBoxes: XpBox[];
+  expClone: { node: HTMLElement; box: XpBox } | null;
+  panelClones: Partial<Record<XpPanelKey, { node: HTMLElement; box: XpBox }>>;
 }
+
+const rectOf = (el: Element): XpBox => {
+  const r = el.getBoundingClientRect();
+  return { left: r.left, top: r.top, width: r.width, height: r.height };
+};
 
 /**
  * Maps a job's tech tags in Experience to the 4 agent areas currently in NEURAL_SKILL_MATRIX:
@@ -1125,14 +978,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
   const [expProjectsTransition, setExpProjectsTransition] = useState<ExpProjectsTransition | null>(null);
   const isExpProjectsTransitioningRef = useRef(false);
-  const expProjectsRafRef = useRef<number>(0);
-  const expProjectsCanvasRef = useRef<HTMLCanvasElement>(null);
-  const expProjectsFlyingRefs = useRef<Array<HTMLDivElement | null>>([
-    null,
-    null,
-    null,
-    null,
-  ]);
+  const expProjectsSnapshotRef = useRef<ExpProjectsSnapshot | null>(null);
   const projectsSidebarRef = useRef<HTMLElement>(null);
   const projectsBreadcrumbRef = useRef<HTMLDivElement>(null);
   const projectsTextPanelRef = useRef<HTMLDivElement>(null);
@@ -1140,7 +986,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const projectsStatusBarRef = useRef<HTMLDivElement>(null);
   const projectsScrollSectionRef = useRef<HTMLElement>(null);
   const projectFolderRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const [projectTitleOverride, setProjectTitleOverride] = useState<string | null>(null);
+  const projectTitleRef = useRef<HTMLSpanElement>(null);
   const activeViewRef = useRef<TerminalView>(activeView);
   activeViewRef.current = activeView;
 
@@ -1858,51 +1704,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     };
   }, [aboutExpTransition, getActiveScroller, reduceMotion]);
 
-  const getProjectsPanelCenters = useCallback((): Array<{ x: number; y: number }> => {
-    const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-    const isLg = vw >= 1024;
-
-    const sidebarRect = projectsSidebarRef.current?.getBoundingClientRect();
-    const textRect = projectsTextPanelRef.current?.getBoundingClientRect();
-    const mediaRect = projectsMediaPanelRef.current?.getBoundingClientRect();
-    const breadcrumbRect = projectsBreadcrumbRef.current?.getBoundingClientRect();
-
-    const geminiCenter =
-      breadcrumbRect && breadcrumbRect.width > 0
-        ? {
-            x: breadcrumbRect.left + breadcrumbRect.width / 2,
-            y: breadcrumbRect.top + breadcrumbRect.height / 2,
-          }
-        : { x: isLg ? 320 + (vw - 320) * 0.5 : vw * 0.5, y: isLg ? 60 : 45 };
-
-    const cursorCenter =
-      sidebarRect && sidebarRect.width > 0
-        ? {
-            x: sidebarRect.left + sidebarRect.width / 2,
-            y: sidebarRect.top + Math.min(320, sidebarRect.height * 0.42),
-          }
-        : { x: isLg ? 160 : vw * 0.5, y: isLg ? vh * 0.42 : 120 };
-
-    const claudeCenter =
-      textRect && textRect.width > 0
-        ? {
-            x: textRect.left + textRect.width / 2,
-            y: textRect.top + Math.min(260, textRect.height * 0.38),
-          }
-        : { x: isLg ? 320 + (vw - 320) * 0.28 : vw * 0.5, y: isLg ? vh * 0.42 : 360 };
-
-    const chatgptCenter =
-      mediaRect && mediaRect.width > 0
-        ? {
-            x: mediaRect.left + mediaRect.width / 2,
-            y: mediaRect.top + Math.min(350, mediaRect.height * 0.45),
-          }
-        : { x: isLg ? 320 + (vw - 320) * 0.76 : vw * 0.5, y: isLg ? vh * 0.45 : 620 };
-
-    return [geminiCenter, cursorCenter, claudeCenter, chatgptCenter];
-  }, []);
-
   const startExpProjectsTransition = useCallback(
     (
       direction: "forward" | "reverse",
@@ -1914,11 +1715,28 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       )
         return;
 
-      const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-      const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const contentBox = innerScrollRef.current
+        ? rectOf(innerScrollRef.current)
+        : { left: 0, top: 0, width: vw, height: vh };
+
+      const snapshot: ExpProjectsSnapshot = {
+        contentBox,
+        robotBoxes: [],
+        expClone: null,
+        panelClones: {},
+      };
 
       if (direction === "forward") {
-        const fromRects =
+        const expEl = sourceMode === "experience" ? expSectionRef.current : null;
+        if (expEl) {
+          snapshot.expClone = {
+            node: expEl.cloneNode(true) as HTMLElement,
+            box: rectOf(expEl),
+          };
+        }
+        snapshot.robotBoxes =
           sourceMode === "experience"
             ? readRobotRects(expRobotRefs, getFallbackExpRect)
             : [
@@ -1927,445 +1745,87 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                 { left: vw * 0.35, top: vh + 110, width: 72, height: 72 },
                 { left: vw + 110, top: vh * 0.55, width: 72, height: 72 },
               ];
-
-        const toCenters = getProjectsPanelCenters();
-
-        isExpProjectsTransitioningRef.current = true;
-        setTerminalMode("shell");
-        setIsExpanded(true);
-        setExpProjectsTransition({
-          direction: "forward",
-          sourceMode,
-          fromRects,
-          toCenters,
-        });
       } else {
-        const toCenters = getProjectsPanelCenters();
-        const destRects = readRobotRects(expRobotRefs, getFallbackExpRect);
-
-        isExpProjectsTransitioningRef.current = true;
-        setTerminalMode("shell");
-        setIsExpanded(true);
-        setExpProjectsTransition({
-          direction: "reverse",
-          sourceMode: "experience",
-          fromRects: destRects,
-          toCenters,
+        const live: Array<[XpPanelKey, HTMLElement | null]> = [
+          ["sidebar", projectsSidebarRef.current],
+          ["text", projectsTextPanelRef.current],
+          ["media", projectsMediaPanelRef.current],
+          ["breadcrumb", projectsBreadcrumbRef.current],
+        ];
+        live.forEach(([k, el]) => {
+          if (el) {
+            snapshot.panelClones[k] = {
+              node: el.cloneNode(true) as HTMLElement,
+              box: rectOf(el),
+            };
+          }
         });
       }
+
+      expProjectsSnapshotRef.current = snapshot;
+      isExpProjectsTransitioningRef.current = true;
+      setTerminalMode("shell");
+      setIsExpanded(true);
+      // The destination view mounts immediately, underneath the snapshot.
+      setActiveView(direction === "forward" ? "projects" : "experience");
+      setExpProjectsTransition({ direction, sourceMode });
     },
-    [getFallbackExpRect, getProjectsPanelCenters, readRobotRects],
+    [getFallbackExpRect, readRobotRects],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!expProjectsTransition) return;
+    const snap = expProjectsSnapshotRef.current;
+    if (!snap) return;
+    const { direction } = expProjectsTransition;
+    const forward = direction === "forward";
 
-    const { direction, sourceMode, fromRects, toCenters } =
-      expProjectsTransition;
-    const duration = reduceMotion
-      ? EXP_PROJECTS_REDUCED_MS
-      : EXP_PROJECTS_DURATION_MS;
+    if (forward) {
+      if (overlayScrollRef.current) overlayScrollRef.current.scrollTop = 0;
+      if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
+      if (projectsScrollSectionRef.current)
+        projectsScrollSectionRef.current.scrollTop = 0;
+    } else {
+      // Return to where the user left Experience: the end of the timeline.
+      const scroller = getActiveScroller();
+      if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    }
 
-    const arriveTimes = [1000, 580, 720, 860];
-    const startTimes = [440, 80, 200, 320];
-    const reverseEmerges = [140, 500, 380, 260];
-    const reverseLands = [950, 1420, 1260, 1100];
-
-    let cancelled = false;
-    let switchedView = false;
-    const startTime = performance.now();
-    const liveCenters = toCenters.map((c) => ({ ...c }));
-
-    const step = (now: number) => {
-      if (cancelled) return;
-      const elapsed = now - startTime;
-      const raw = clamp01(elapsed / duration);
-
-      const panelRects = {
-        sidebar: projectsSidebarRef.current
-          ? {
-              left: projectsSidebarRef.current.getBoundingClientRect().left,
-              top: projectsSidebarRef.current.getBoundingClientRect().top,
-              width: projectsSidebarRef.current.getBoundingClientRect().width,
-              height: projectsSidebarRef.current.getBoundingClientRect().height,
-            }
-          : null,
-        text: projectsTextPanelRef.current
-          ? {
-              left: projectsTextPanelRef.current.getBoundingClientRect().left,
-              top: projectsTextPanelRef.current.getBoundingClientRect().top,
-              width: projectsTextPanelRef.current.getBoundingClientRect().width,
-              height: projectsTextPanelRef.current.getBoundingClientRect().height,
-            }
-          : null,
-        media: projectsMediaPanelRef.current
-          ? {
-              left: projectsMediaPanelRef.current.getBoundingClientRect().left,
-              top: projectsMediaPanelRef.current.getBoundingClientRect().top,
-              width: projectsMediaPanelRef.current.getBoundingClientRect().width,
-              height: projectsMediaPanelRef.current.getBoundingClientRect().height,
-            }
-          : null,
-        breadcrumb: projectsBreadcrumbRef.current
-          ? {
-              left: projectsBreadcrumbRef.current.getBoundingClientRect().left,
-              top: projectsBreadcrumbRef.current.getBoundingClientRect().top,
-              width: projectsBreadcrumbRef.current.getBoundingClientRect().width,
-              height: projectsBreadcrumbRef.current.getBoundingClientRect().height,
-            }
-          : null,
-      };
-
-      if (panelRects.breadcrumb) {
-        liveCenters[0].x =
-          panelRects.breadcrumb.left + panelRects.breadcrumb.width / 2;
-        liveCenters[0].y =
-          panelRects.breadcrumb.top + panelRects.breadcrumb.height / 2;
-      }
-      if (panelRects.sidebar) {
-        liveCenters[1].x =
-          panelRects.sidebar.left + panelRects.sidebar.width / 2;
-        liveCenters[1].y =
-          panelRects.sidebar.top +
-          Math.min(320, panelRects.sidebar.height * 0.42);
-      }
-      if (panelRects.text) {
-        liveCenters[2].x =
-          panelRects.text.left + panelRects.text.width / 2;
-        liveCenters[2].y =
-          panelRects.text.top +
-          Math.min(260, panelRects.text.height * 0.38);
-      }
-      if (panelRects.media) {
-        liveCenters[3].x =
-          panelRects.media.left + panelRects.media.width / 2;
-        liveCenters[3].y =
-          panelRects.media.top +
-          Math.min(350, panelRects.media.height * 0.45);
-      }
-
-      if (reduceMotion) {
-        if (!switchedView && raw >= 0.5) {
-          switchedView = true;
-          setActiveView(direction === "forward" ? "projects" : "experience");
-        }
-        if (expSectionRef.current) {
-          expSectionRef.current.style.opacity =
-            direction === "forward"
-              ? String(Math.max(0, 1 - raw * 2))
-              : String(Math.max(0, (raw - 0.5) * 2));
-        }
-        if (raw < 1) {
-          expProjectsRafRef.current = window.requestAnimationFrame(step);
-          return;
-        }
-        if (expSectionRef.current) expSectionRef.current.style.opacity = "";
+    const cancel = runExpProjectsTransition({
+      direction,
+      reduceMotion,
+      sprites: agentCards.map((a) => a.sprite),
+      panels: {
+        sidebar: projectsSidebarRef.current,
+        text: projectsTextPanelRef.current,
+        media: projectsMediaPanelRef.current,
+        breadcrumb: projectsBreadcrumbRef.current,
+        status: projectsStatusBarRef.current,
+      },
+      contentBox: innerScrollRef.current
+        ? rectOf(innerScrollRef.current)
+        : snap.contentBox,
+      robotBoxes: forward
+        ? () => snap.robotBoxes
+        : () => readRobotRects(expRobotRefs, getFallbackExpRect),
+      snapshot: {
+        contentBox: snap.contentBox,
+        expClone: snap.expClone,
+        panelClones: snap.panelClones,
+      },
+      liveExpSection: forward ? null : expSectionRef.current,
+      titleEl: forward ? projectTitleRef.current : null,
+      titleLength: activeProject.displayName.length,
+      onDone: () => {
         isExpProjectsTransitioningRef.current = false;
         lastTransitionEndRef.current = performance.now();
+        expProjectsSnapshotRef.current = null;
         setExpProjectsTransition(null);
-        return;
-      }
-
-      if (expProjectsCanvasRef.current) {
-        renderExpProjectsCanvas(
-          expProjectsCanvasRef.current,
-          { ...expProjectsTransition, toCenters: liveCenters },
-          elapsed,
-          reduceMotion,
-          panelRects,
-        );
-      }
-
-      if (direction === "forward") {
-        if (sourceMode === "experience" && expSectionRef.current) {
-          const fadeOut = Math.max(0, 1 - elapsed / 420);
-          expSectionRef.current.style.opacity = fadeOut.toFixed(3);
-        }
-
-        if (!switchedView && elapsed >= 420) {
-          switchedView = true;
-          setActiveView("projects");
-          window.requestAnimationFrame(() => {
-            if (overlayScrollRef.current)
-              overlayScrollRef.current.scrollTop = 0;
-            if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
-            if (projectsScrollSectionRef.current)
-              projectsScrollSectionRef.current.scrollTop = 0;
-          });
-        }
-
-        for (let i = 0; i < 4; i++) {
-          const robotEl = expProjectsFlyingRefs.current[i];
-          if (!robotEl) continue;
-
-          const startT = startTimes[i];
-          const arr = arriveTimes[i];
-          const a = fromRects[i];
-          const b = liveCenters[i];
-
-          if (elapsed < startT) {
-            robotEl.style.width = `${a.width}px`;
-            robotEl.style.height = `${a.height}px`;
-            robotEl.style.transform = `translate3d(${a.left}px, ${a.top}px, 0)`;
-            robotEl.style.opacity = sourceMode === "direct" ? "0" : "1";
-          } else if (elapsed < arr - 80) {
-            const u = (elapsed - startT) / (arr - startT);
-            const e = easeInOutSine(u);
-
-            const ax = a.left + a.width / 2;
-            const ay = a.top + a.height / 2;
-            const bx = b.x;
-            const by = b.y;
-            const cx = (ax + bx) / 2;
-            const cy = Math.min(ay, by) - 75;
-
-            const inv = 1 - e;
-            const x = inv * inv * ax + 2 * inv * e * cx + e * e * bx;
-            const y = inv * inv * ay + 2 * inv * e * cy + e * e * by;
-            const vx = 2 * inv * (cx - ax) + 2 * e * (bx - cx);
-            const tilt =
-              Math.max(-10, Math.min(10, vx * 0.012)) * Math.sin(Math.PI * u);
-            const scale = 1 + 0.08 * Math.sin(Math.PI * u);
-
-            robotEl.style.width = "72px";
-            robotEl.style.height = "72px";
-            robotEl.style.transform = `translate3d(${(x - 36).toFixed(1)}px, ${(y - 36).toFixed(1)}px, 0) scale(${scale.toFixed(3)}) rotate(${tilt.toFixed(2)}deg)`;
-            robotEl.style.opacity = "1";
-          } else if (elapsed < arr) {
-            const shrinkP = (elapsed - (arr - 80)) / 80;
-            const scale = 1.0 - 0.4 * shrinkP;
-            const alpha = 1.0 - shrinkP;
-
-            robotEl.style.width = "72px";
-            robotEl.style.height = "72px";
-            robotEl.style.transform = `translate3d(${(b.x - 36).toFixed(1)}px, ${(b.y - 36).toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
-            robotEl.style.opacity = alpha.toFixed(3);
-          } else {
-            robotEl.style.opacity = "0";
-          }
-        }
-
-        if (switchedView) {
-          if (projectsSidebarRef.current) {
-            if (elapsed < 580) {
-              projectsSidebarRef.current.style.opacity = "0";
-            } else {
-              const p = clamp01((elapsed - 580) / 300);
-              projectsSidebarRef.current.style.opacity = p.toFixed(3);
-              projectsSidebarRef.current.style.clipPath =
-                p < 1 ? `circle(${p * 150}% at 50% 40%)` : "";
-            }
-          }
-
-          projectFolderRefs.current.forEach((folder, k) => {
-            if (!folder) return;
-            const fStart = 620 + k * 40;
-            if (elapsed < fStart) {
-              folder.style.opacity = "0";
-              folder.style.transform = "translate3d(-10px, 0, 0)";
-            } else {
-              const fp = clamp01((elapsed - fStart) / 140);
-              folder.style.opacity = fp.toFixed(3);
-              folder.style.transform =
-                fp < 1 ? `translate3d(${(1 - fp) * -10}px, 0, 0)` : "";
-            }
-          });
-
-          if (projectsTextPanelRef.current) {
-            if (elapsed < 720) {
-              projectsTextPanelRef.current.style.opacity = "0";
-            } else {
-              const p = clamp01((elapsed - 720) / 300);
-              projectsTextPanelRef.current.style.opacity = p.toFixed(3);
-              projectsTextPanelRef.current.style.clipPath =
-                p < 1 ? `circle(${p * 150}% at 35% 30%)` : "";
-            }
-          }
-
-          if (elapsed >= 760 && elapsed <= 1400) {
-            const title = activeProject.displayName;
-            const count = Math.min(
-              title.length,
-              Math.max(1, Math.floor((elapsed - 760) / 25)),
-            );
-            setProjectTitleOverride(title.slice(0, count));
-          } else if (elapsed > 1400) {
-            setProjectTitleOverride(null);
-          }
-
-          if (projectsMediaPanelRef.current) {
-            if (elapsed < 860) {
-              projectsMediaPanelRef.current.style.opacity = "0";
-            } else {
-              const p = clamp01((elapsed - 860) / 280);
-              const sy =
-                p < 0.15 ? 0.02 : easeOutCubic((p - 0.15) / 0.85);
-              const bright = p < 0.2 ? 1.8 : 1 + (1 - p) * 0.8;
-              projectsMediaPanelRef.current.style.opacity = "1";
-              projectsMediaPanelRef.current.style.transform =
-                p < 1 ? `scaleY(${Math.max(0.015, sy).toFixed(3)})` : "";
-              projectsMediaPanelRef.current.style.filter =
-                p < 1 ? `brightness(${bright.toFixed(2)})` : "";
-            }
-          }
-
-          if (projectsBreadcrumbRef.current && projectsStatusBarRef.current) {
-            if (elapsed < 1000) {
-              projectsBreadcrumbRef.current.style.transform =
-                "translate3d(0, -100%, 0)";
-              projectsStatusBarRef.current.style.transform =
-                "translate3d(0, 100%, 0)";
-            } else {
-              const bp = easeOutCubic(clamp01((elapsed - 1000) / 280));
-              projectsBreadcrumbRef.current.style.transform =
-                bp < 1 ? `translate3d(0, ${-(1 - bp) * 100}%, 0)` : "";
-              projectsStatusBarRef.current.style.transform =
-                bp < 1 ? `translate3d(0, ${(1 - bp) * 100}%, 0)` : "";
-            }
-          }
-        }
-      } else {
-        if (projectsBreadcrumbRef.current && projectsStatusBarRef.current) {
-          const bp = clamp01(elapsed / 240);
-          projectsBreadcrumbRef.current.style.transform = `translate3d(0, ${-bp * 100}%, 0)`;
-          projectsStatusBarRef.current.style.transform = `translate3d(0, ${bp * 100}%, 0)`;
-        }
-        if (projectsMediaPanelRef.current) {
-          const mp = clamp01((elapsed - 80) / 200);
-          if (mp > 0) {
-            const sy = Math.max(0.015, 1 - mp);
-            projectsMediaPanelRef.current.style.transform = `scaleY(${sy.toFixed(3)})`;
-            projectsMediaPanelRef.current.style.opacity = String(1 - mp);
-          }
-        }
-        if (projectsSidebarRef.current) {
-          const sp = clamp01((elapsed - 180) / 260);
-          if (sp > 0) {
-            projectsSidebarRef.current.style.clipPath = `circle(${(1 - sp) * 150}% at 50% 40%)`;
-            projectsSidebarRef.current.style.opacity = String(1 - sp);
-          }
-        }
-        if (projectsTextPanelRef.current) {
-          const tp = clamp01((elapsed - 180) / 260);
-          if (tp > 0) {
-            projectsTextPanelRef.current.style.clipPath = `circle(${(1 - tp) * 150}% at 35% 30%)`;
-            projectsTextPanelRef.current.style.opacity = String(1 - tp);
-          }
-        }
-
-        if (!switchedView && elapsed >= 560) {
-          switchedView = true;
-          setActiveView("experience");
-        }
-
-        if (switchedView && expSectionRef.current) {
-          const fadeIn = clamp01((elapsed - 560) / 500);
-          expSectionRef.current.style.opacity = fadeIn.toFixed(3);
-        }
-
-        for (let i = 0; i < 4; i++) {
-          const robotEl = expProjectsFlyingRefs.current[i];
-          if (!robotEl) continue;
-
-          const emergeT = reverseEmerges[i];
-          const landT = reverseLands[i];
-          const a = liveCenters[i];
-          const b = fromRects[i];
-
-          if (elapsed < emergeT) {
-            robotEl.style.opacity = "0";
-          } else if (elapsed < emergeT + 80) {
-            const ep = (elapsed - emergeT) / 80;
-            const scale = 0.6 + 0.4 * ep;
-            robotEl.style.width = "72px";
-            robotEl.style.height = "72px";
-            robotEl.style.transform = `translate3d(${(a.x - 36).toFixed(1)}px, ${(a.y - 36).toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
-            robotEl.style.opacity = ep.toFixed(3);
-          } else if (elapsed < landT) {
-            const u =
-              (elapsed - (emergeT + 80)) / (landT - (emergeT + 80));
-            const e = easeInOutSine(u);
-
-            const ax = a.x;
-            const ay = a.y;
-            const bx = b.left + b.width / 2;
-            const by = b.top + b.height / 2;
-            const cx = (ax + bx) / 2;
-            const cy = Math.min(ay, by) - 75;
-
-            const inv = 1 - e;
-            const x = inv * inv * ax + 2 * inv * e * cx + e * e * bx;
-            const y = inv * inv * ay + 2 * inv * e * cy + e * e * by;
-            const vx = 2 * inv * (cx - ax) + 2 * e * (bx - cx);
-            const tilt =
-              Math.max(-10, Math.min(10, vx * 0.012)) * Math.sin(Math.PI * u);
-
-            robotEl.style.width = "72px";
-            robotEl.style.height = "72px";
-            robotEl.style.transform = `translate3d(${(x - 36).toFixed(1)}px, ${(y - 36).toFixed(1)}px, 0) rotate(${tilt.toFixed(2)}deg)`;
-            robotEl.style.opacity = "1";
-          } else {
-            robotEl.style.opacity = "0";
-          }
-        }
-      }
-
-      if (raw < 1) {
-        expProjectsRafRef.current = window.requestAnimationFrame(step);
-        return;
-      }
-
-      if (projectsSidebarRef.current) {
-        projectsSidebarRef.current.style.opacity = "";
-        projectsSidebarRef.current.style.clipPath = "";
-      }
-      projectFolderRefs.current.forEach((folder) => {
-        if (folder) {
-          folder.style.opacity = "";
-          folder.style.transform = "";
-        }
-      });
-      if (projectsTextPanelRef.current) {
-        projectsTextPanelRef.current.style.opacity = "";
-        projectsTextPanelRef.current.style.clipPath = "";
-      }
-      setProjectTitleOverride(null);
-      if (projectsMediaPanelRef.current) {
-        projectsMediaPanelRef.current.style.opacity = "";
-        projectsMediaPanelRef.current.style.transform = "";
-        projectsMediaPanelRef.current.style.filter = "";
-      }
-      if (projectsBreadcrumbRef.current) {
-        projectsBreadcrumbRef.current.style.transform = "";
-      }
-      if (projectsStatusBarRef.current) {
-        projectsStatusBarRef.current.style.transform = "";
-      }
-      if (expSectionRef.current) {
-        expSectionRef.current.style.opacity = "";
-      }
-      if (expProjectsCanvasRef.current) {
-        const ctx = expProjectsCanvasRef.current.getContext("2d");
-        ctx?.clearRect(
-          0,
-          0,
-          expProjectsCanvasRef.current.width,
-          expProjectsCanvasRef.current.height,
-        );
-      }
-
-      isExpProjectsTransitioningRef.current = false;
-      lastTransitionEndRef.current = performance.now();
-      setExpProjectsTransition(null);
-    };
-
-    step(startTime);
-
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(expProjectsRafRef.current);
-    };
-  }, [expProjectsTransition, reduceMotion, activeProject.displayName]);
+      },
+    });
+    return cancel;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expProjectsTransition]);
 
   const handleCommand = (cmd: string) => {
     if (isAboutExpTransitioningRef.current) return;
@@ -4177,9 +3637,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                         <span className="text-emerald-500 mr-2 opacity-40 not-italic">
                                           &gt;
                                         </span>
-                                        {projectTitleOverride !== null
-                                          ? projectTitleOverride
-                                          : activeProject.displayName}
+                                        <span ref={projectTitleRef}>
+                                          {activeProject.displayName}
+                                        </span>
                                         <motion.span
                                           animate={{ opacity: [1, 0] }}
                                           transition={{
@@ -5077,45 +4537,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               </div>
             )}
 
-            {/* Timed Experience <-> Projects canvas and flying robots layer */}
-            {expProjectsTransition && (
-              <div className="fixed inset-0 z-[210] pointer-events-none overflow-hidden">
-                <canvas
-                  ref={expProjectsCanvasRef}
-                  className="fixed inset-0 h-screen w-screen pointer-events-none z-[215]"
-                  style={{ imageRendering: "pixelated" }}
-                />
-                {agentCards.map((agent, idx) => {
-                  const initialBox = expProjectsTransition.fromRects[idx];
-                  return (
-                    <div
-                      key={`exp-proj-flying-${agent.id}`}
-                      ref={(el) => {
-                        expProjectsFlyingRefs.current[idx] = el;
-                      }}
-                      className="fixed left-0 top-0 pointer-events-none will-change-transform z-[214]"
-                      style={{
-                        width: `${initialBox?.width ?? 72}px`,
-                        height: `${initialBox?.height ?? 72}px`,
-                        transform: `translate3d(${initialBox?.left ?? 0}px, ${initialBox?.top ?? 0}px, 0)`,
-                        transformOrigin: "center center",
-                      }}
-                    >
-                      <img
-                        src={agent.sprite}
-                        alt={agent.area}
-                        className="h-full w-full object-contain"
-                        style={{
-                          imageRendering: "pixelated",
-                          filter: "drop-shadow(0 6px 12px rgba(0, 0, 0, 0.7))",
-                        }}
-                        draggable={false}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </>,
           document.body,
         )}
