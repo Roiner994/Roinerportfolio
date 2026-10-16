@@ -781,7 +781,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   } = data;
   const isMobile = useIsMobile();
   const reduceMotion = useReducedMotion() ?? false;
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const aboutStatusText =
     aboutData.status === "OPEN_FOR_NEW_PROJECTS"
       ? t("STATUS_OPEN_TO_NEW_PROJECTS")
@@ -2245,41 +2244,33 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             <div className="h-px flex-1 bg-zinc-800" />
                           </div>
 
-                          {/* 4 Agent Cards Row (2x2 on mobile, 4-col on desktop) */}
+                          {/* 4 Cards Row (2x2 on mobile, 4-col on desktop) */}
                           {(() => {
                             const agentCards = [
                               {
-                                id: "cursor",
-                                tag: "> cursor-agent",
-                                name: "Cursor",
+                                id: "frontend",
                                 area: "Frontend",
-                                sprite: "/hero/agents/cursor.png",
+                                sprite: "/hero/agents/gemini.png",
                                 skills: aboutData.skills.frontend,
                               },
                               {
-                                id: "claude",
-                                tag: "> claude-agent",
-                                name: "Claude",
-                                area: language === "es" ? "IA y agentes" : "AI & Agents",
+                                id: "backend",
+                                area: "Backend",
+                                sprite: "/hero/agents/cursor.png",
+                                skills: aboutData.skills.backend.filter((s) => s !== "AWS"),
+                              },
+                              {
+                                id: "ai",
+                                area: language === "es" ? "IA y Agentes" : "AI & Agents",
                                 sprite: "/hero/agents/claude.png",
                                 skills: aboutData.skills.tools_ia.filter((s) =>
                                   ["AI Agents", "LLMs", "MCPs", "n8n"].includes(s),
                                 ),
                               },
                               {
-                                id: "chatgpt",
-                                tag: "> chatgpt-agent",
-                                name: "ChatGPT",
-                                area: language === "es" ? "Backend y datos" : "Backend & Data",
+                                id: "devops",
+                                area: language === "es" ? "DevOps y Herramientas" : "DevOps & Tools",
                                 sprite: "/hero/agents/chatgpt.png",
-                                skills: aboutData.skills.backend.filter((s) => s !== "AWS"),
-                              },
-                              {
-                                id: "gemini",
-                                tag: "> gemini-agent",
-                                name: "Gemini",
-                                area: language === "es" ? "DevOps y herramientas" : "DevOps & Tools",
-                                sprite: "/hero/agents/gemini.png",
                                 skills: [
                                   ...aboutData.skills.tools_ia.filter((s) =>
                                     ["Git", "Docker"].includes(s),
@@ -2290,150 +2281,53 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             ];
 
                             return (
-                              <div className="relative pt-12 sm:pt-14">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                                  {agentCards.map((agent, idx) => {
-                                    const isHovered = activeAgentId === agent.id;
-                                    return (
-                                      <div
-                                        key={agent.id}
-                                        tabIndex={0}
-                                        role="button"
-                                        aria-label={`${agent.name} - ${agent.area}`}
-                                        aria-expanded={isHovered}
-                                        onMouseEnter={() => setActiveAgentId(agent.id)}
-                                        onMouseLeave={() =>
-                                          setActiveAgentId((cur) => (cur === agent.id ? null : cur))
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                                {agentCards.map((agent, idx) => (
+                                  <div
+                                    key={agent.id}
+                                    className="group relative flex flex-col items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3 sm:p-4 text-center font-mono cursor-pointer transition-all duration-300 hover:border-emerald-500/40 hover:bg-zinc-900/60 shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]"
+                                  >
+                                    {/* Floating robot sprite */}
+                                    <div className="relative flex h-16 sm:h-20 w-full items-center justify-center">
+                                      <motion.img
+                                        src={agent.sprite}
+                                        alt={agent.area}
+                                        animate={reduceMotion ? {} : { y: [0, -3.5, 0] }}
+                                        transition={
+                                          reduceMotion
+                                            ? {}
+                                            : {
+                                                duration: 2.2,
+                                                repeat: Infinity,
+                                                ease: "easeInOut",
+                                                delay: idx * 0.45,
+                                              }
                                         }
-                                        onFocus={() => setActiveAgentId(agent.id)}
-                                        onBlur={() =>
-                                          setActiveAgentId((cur) => (cur === agent.id ? null : cur))
-                                        }
-                                        onClick={() =>
-                                          setActiveAgentId((cur) =>
-                                            cur === agent.id ? null : agent.id,
-                                          )
-                                        }
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter" || e.key === " ") {
-                                            e.preventDefault();
-                                            setActiveAgentId((cur) =>
-                                              cur === agent.id ? null : agent.id,
-                                            );
-                                          }
-                                        }}
-                                        className={`group relative flex flex-col items-center justify-between rounded-xl border p-3 sm:p-4 text-center font-mono cursor-pointer transition-all duration-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 ${
-                                          isHovered
-                                            ? "border-emerald-500/60 bg-zinc-900/90 shadow-[0_0_20px_rgba(16,185,129,0.18)] z-30"
-                                            : "border-zinc-800/80 bg-zinc-950/60 hover:border-emerald-500/35 hover:bg-zinc-900/50 z-10"
-                                        }`}
-                                      >
-                                        {/* Pixel speech bubble on hover/focus/tap */}
-                                        <AnimatePresence>
-                                          {isHovered && (
-                                            <motion.div
-                                              initial={{ opacity: 0, y: 6, scale: 0.95 }}
-                                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                                              exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                                              transition={{ duration: 0.15 }}
-                                              className={`hero-bubble-anchor absolute bottom-[calc(100%+10px)] pointer-events-none z-50 w-56 sm:w-64 ${
-                                                idx % 2 === 0
-                                                  ? "left-0 sm:left-1/2 sm:-translate-x-1/2"
-                                                  : "right-0 sm:left-1/2 sm:-translate-x-1/2"
-                                              } ${
-                                                idx === 0
-                                                  ? "sm:left-0 sm:translate-x-0"
-                                                  : idx === 3
-                                                  ? "sm:right-0 sm:left-auto sm:translate-x-0"
-                                                  : ""
-                                              }`}
-                                              data-tail="down"
-                                              style={{
-                                                "--tail-x":
-                                                  idx === 0
-                                                    ? isMobile
-                                                      ? "30%"
-                                                      : "25%"
-                                                    : idx === 3
-                                                    ? isMobile
-                                                      ? "70%"
-                                                      : "75%"
-                                                    : idx % 2 === 0
-                                                    ? "30%"
-                                                    : isMobile
-                                                    ? "70%"
-                                                    : "50%",
-                                              } as React.CSSProperties}
-                                            >
-                                              <div className="hero-bubble !w-full !max-w-none text-left shadow-[0_0_24px_rgba(0,187,127,0.3)]">
-                                                <div className="flex items-center justify-between border-b border-[#00bb7f]/25 pb-1 mb-1.5 text-[10px] text-zinc-400 font-mono">
-                                                  <span className="text-emerald-400 font-bold">
-                                                    {agent.tag}
-                                                  </span>
-                                                  <span className="text-zinc-500 font-mono">
-                                                    {agent.skills.length}{" "}
-                                                    {language === "es" ? "skills" : "skills"}
-                                                  </span>
-                                                </div>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {agent.skills.map((skill) => (
-                                                    <span
-                                                      key={skill}
-                                                      className="px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/25 text-[10px] text-emerald-300 font-mono"
-                                                    >
-                                                      {skill}
-                                                    </span>
-                                                  ))}
-                                                </div>
-                                                <span className="hero-bubble-tail" />
-                                              </div>
-                                            </motion.div>
-                                          )}
-                                        </AnimatePresence>
+                                        className="h-14 w-auto sm:h-16 max-w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-1.5"
+                                        style={{ imageRendering: "pixelated" }}
+                                        draggable={false}
+                                      />
+                                    </div>
 
-                                        {/* Floating robot sprite */}
-                                        <div className="relative flex h-20 sm:h-24 w-full items-center justify-center">
-                                          <motion.img
-                                            src={agent.sprite}
-                                            alt={agent.name}
-                                            animate={
-                                              reduceMotion
-                                                ? {}
-                                                : isHovered
-                                                ? { y: -6 }
-                                                : { y: [0, -3.5, 0] }
-                                            }
-                                            transition={
-                                              reduceMotion
-                                                ? {}
-                                                : isHovered
-                                                ? { duration: 0.2, ease: "easeOut" }
-                                                : {
-                                                    duration: 2.2,
-                                                    repeat: Infinity,
-                                                    ease: "easeInOut",
-                                                    delay: idx * 0.45,
-                                                  }
-                                            }
-                                            className="h-16 w-auto sm:h-20 max-w-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-transform duration-200 cursor-pointer"
-                                            style={{ imageRendering: "pixelated" }}
-                                            draggable={false}
-                                          />
-                                        </div>
+                                    {/* Area Title & Directly Visible Skills */}
+                                    <div className="w-full flex-1 flex flex-col justify-start pt-2.5 border-t border-zinc-800/60 space-y-2">
+                                      <h4 className="text-xs sm:text-[13px] font-mono font-bold text-emerald-400 tracking-wide uppercase">
+                                        {agent.area}
+                                      </h4>
 
-                                        {/* Agent tag & Area */}
-                                        <div className="w-full space-y-0.5 pt-2 border-t border-zinc-800/60">
-                                          <p className="text-[10px] sm:text-[11px] font-mono text-emerald-400 truncate">
-                                            {agent.tag}
-                                          </p>
-                                          <p className="text-[11px] sm:text-[12px] font-mono font-medium text-zinc-200 truncate">
-                                            {agent.area}
-                                          </p>
-                                        </div>
+                                      <div className="flex flex-wrap justify-center gap-1 pt-0.5">
+                                        {agent.skills.map((skill) => (
+                                          <span
+                                            key={skill}
+                                            className="px-1.5 py-0.5 bg-black/40 border border-zinc-800/80 text-[10px] text-zinc-300 font-mono rounded group-hover:border-emerald-500/30 group-hover:text-zinc-100 transition-colors"
+                                          >
+                                            {skill}
+                                          </span>
+                                        ))}
                                       </div>
-                                    );
-                                  })}
-                                </div>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             );
                           })()}
