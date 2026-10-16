@@ -6,17 +6,43 @@ import { useEffect, useRef, type RefObject } from 'react';
  * All geometry is expressed in the 1280x720 video frame (hero.mp4 / hero.webm).
  * Values were measured by template-matching the cutout taken from
  * hero-final-nobeard.png (1670x941) against the video frames: the PNG maps to
- * the video at ~0.75 scale. The robot bobs between y=109..122 in the loop, so
- * the video is frozen at FREEZE_TIME (robot top at y=112) before the swap.
+ * the video at ~0.75 scale. The robot bobs between y=108..122 in the loop.
+ * The video keeps playing during the transition: only the Cursor robot is
+ * swapped for the static cutout, placed where the video robot is right now
+ * (ROBOT_Y lookup) and eased to the canonical ROBOT box before it dissolves.
  */
 export const VIDEO_W = 1280;
 export const VIDEO_H = 720;
+/** @deprecated the video no longer freezes; kept for reference. */
 export const FREEZE_TIME = 5.0;
+/** Video frame rate of hero.mp4 / hero.webm. */
+const VIDEO_FPS = 24;
+/**
+ * Cutout top-left y (video px) per video frame (24 fps, 239 frames), measured
+ * by masked template matching of robot-cursor.png against every frame of
+ * hero.mp4. x stays at ~1103 (+-0.25 px) for the whole loop.
+ */
+const ROBOT_Y = [119.9,120.2,120.7,121.1,121.4,121.5,121.4,121.1,120.3,119.9,119.7,119.4,119.0,118.6,118.0,117.3,116.8,116.0,115.2,114.5,113.8,113.3,112.7,112.1,112.0,111.9,112.4,113.6,115.0,116.7,118.5,120.3,121.8,121.6,121.2,120.9,120.4,119.8,119.1,118.6,117.9,117.2,116.3,115.5,114.8,114.0,113.3,112.6,112.0,111.5,110.9,110.3,109.8,109.4,108.9,108.7,108.4,108.3,108.3,108.3,108.4,108.8,109.2,109.7,110.5,111.1,111.9,112.7,113.6,114.3,115.0,115.7,116.5,117.2,117.9,118.5,119.0,119.6,120.1,120.7,121.1,121.3,121.3,121.3,121.2,121.0,120.9,120.8,120.6,120.2,119.8,119.3,118.8,118.0,117.4,116.7,116.0,115.4,114.7,113.8,113.1,112.4,111.7,111.1,110.7,110.2,109.7,109.3,108.9,108.6,108.3,108.2,108.3,108.3,108.5,108.8,109.2,109.5,110.1,110.9,110.1,109.5,109.2,108.8,108.5,108.3,108.3,108.2,108.3,108.6,108.9,109.3,109.7,110.2,110.7,111.1,111.7,112.4,113.1,113.9,114.7,115.4,116.0,116.7,117.4,118.0,118.8,119.3,119.8,120.2,120.6,120.8,120.9,121.0,121.2,121.3,121.3,121.3,121.1,120.7,120.1,119.6,119.0,118.5,117.9,117.2,116.5,115.7,115.0,114.3,113.6,112.7,111.9,111.1,110.5,109.7,109.2,108.8,108.4,108.3,108.3,108.3,108.4,108.7,108.9,109.4,109.8,110.3,110.9,111.4,112.0,112.6,113.3,114.0,114.8,115.5,116.3,117.2,117.9,118.6,119.1,119.8,120.4,120.9,121.2,121.6,121.8,120.3,118.5,116.7,115.0,113.6,112.4,111.8,111.9,112.1,112.7,113.3,113.8,114.5,115.2,116.0,116.8,117.3,118.0,118.6,119.0,119.4,119.7,119.9,120.3,121.1,121.4,121.5,121.4,121.1,120.7,120.2,119.9];
+/** Where the video robot's cutout box sits (y, video px) at time t seconds. */
+export const robotYAt = (t: number) => {
+  const n = ROBOT_Y.length;
+  if (!Number.isFinite(t) || t < 0) return ROBOT_Y[0];
+  const f = (t * VIDEO_FPS) % n;
+  const i = Math.floor(f);
+  const a = ROBOT_Y[i];
+  const b = ROBOT_Y[Math.min(n - 1, i + 1)];
+  return a + (b - a) * (f - i);
+};
 
 /** Robot cutout (public/hero/robot-cursor.png, 142x212 source px). */
 export const ROBOT = { x: 1103, y: 110.5, w: 106.5, h: 159, srcW: 142, srcH: 212 };
-/** Background patch (public/hero/robot-patch.png) that hides the video robot. */
-export const PATCH = { x: 1095.5, y: 103, w: 121.5, h: 171 };
+/**
+ * Background clean plate (public/hero/robot-patch.png, 123x189 at 1:1 video
+ * px, feathered alpha) that hides the moving video robot over its whole bob
+ * envelope (incl. thruster flame) while the video keeps playing underneath.
+ * Built from the temporal median of uncovered pixels across all frames.
+ */
+export const PATCH = { x: 1095, y: 100, w: 123, h: 189 };
 /** Inner CRT screen (the green terminal glass). */
 /** Claude (orange) robot: head point the hint bubble's tail aims at. */
 export const CLAUDE_HEAD = { x: 742, y: 104 };
@@ -100,7 +126,6 @@ export function useHeroCrtTransition(
     const r = refs;
     let particles: Particle[] = [];
     let raf = 0;
-    let frozen = false;
     let base = { vx: 0, vy: 0, vw: 0, vh: 0, W: 0, H: 0, cover: false, posY: 0.5, posX: 1 };
 
     // ---- particles from the cutout --------------------------------------
@@ -277,16 +302,11 @@ export function useHeroCrtTransition(
       const { reduceMotion, canPlay } = optsRef.current;
       const p = clamp01(optsRef.current.getProgress());
 
-      // freeze the loop so the robot sits exactly under the cutout
-      if (!reduceMotion) {
-        if (p > 0.005 && !frozen) {
-          frozen = true;
-          video.pause();
-          try { video.currentTime = FREEZE_TIME; } catch { /* not ready */ }
-        } else if (p <= 0.005 && frozen) {
-          frozen = false;
-          if (canPlay()) video.play()?.catch(() => {});
-        }
+      // The loop keeps playing through the transition (only the Cursor robot
+      // is swapped for the cutout). Safety net: back on the hero, make sure
+      // the loop is running.
+      if (!reduceMotion && p <= 0.005 && video.paused && canPlay() && video.readyState >= 2) {
+        video.play()?.catch(() => {});
       }
 
       const setOpacity = (el: HTMLElement | null, o: number) => {
@@ -339,6 +359,13 @@ export function useHeroCrtTransition(
       const d = range(p, 0.12, 0.45);
       setOpacity(r.patch.current, swapped ? 1 : 0);
       setOpacity(r.robot.current, swapped && d <= 0 ? 1 : 0);
+      // cutout starts exactly where the (still playing) video robot is, then
+      // eases to the canonical box the particles originate from
+      if (r.robot.current && swapped && d <= 0) {
+        const live = robotYAt(video.currentTime);
+        const y = live + (ROBOT.y - live) * easeInOut(range(p, 0.02, 0.11));
+        r.robot.current.style.top = pct(y, VIDEO_H);
+      }
 
       // 4) dolly into the CRT screen
       const z = easeInOut(range(p, 0.42, 0.86));
