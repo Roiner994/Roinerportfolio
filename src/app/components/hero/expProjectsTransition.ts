@@ -40,6 +40,11 @@ export const EXP_PROJECTS_TIMELINE = {
   morphMs: 240,
   avatarFlashMs: 120,
   /** Robot palette [base, alt] used for the collapse square / panel fill. */
+  /**
+   * Unfold fill for every panel: the portfolio's terminal accent green
+   * (Tailwind v4 emerald-500 / emerald-400, as hex for canvas).
+   */
+  panelFill: ["#00bc7d", "#00d492"] as [string, string],
   colors: [
     ["#3b5bdb", "#5c7cfa"], // gemini
     ["#f4f4f5", "#27272a"], // cursor
@@ -273,7 +278,8 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
   document.body.appendChild(fx);
 
   // Pixel-textured fill per robot (2x2 checker of base/alt in 4px cells).
-  const patterns: Array<CanvasPattern | string> = T.colors.map(([base, alt]) => {
+  const patterns: Array<CanvasPattern | string> = T.colors.map(() => {
+    const [base, alt] = T.panelFill;
     const pc = document.createElement("canvas");
     pc.width = 8;
     pc.height = 8;
