@@ -50,10 +50,10 @@ export const EXP_PROJECTS_TIMELINE = {
    * "unfold": robot -> coloured square -> window unfolds (variant A).
    * "reassemble": robot breaks into its own pixels which rebuild the panel (variant B).
    */
-  revealStyle: "reassemble" as "unfold" | "reassemble",
+  revealStyle: "unfold" as "unfold" | "reassemble",
   assembleStaggerMs: 220,
   assembleTravelMs: 240,
-  crossfadeMs: 130,
+  crossfadeMs: 160,
   maxParticles: 800,
   spriteGrid: 14,
   squarePx: 14,
@@ -426,7 +426,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
 
   // ---------- "reassemble" (variant B) ----------
   const reassemble = T.revealStyle === "reassemble";
-  type Sample = { u: number; v: number; color: string; r: number; g: number; b: number };
+  type Sample = { u: number; v: number; color: string };
   const spriteSamples: Sample[][] = [];
   const sampleSprite = (i: number): Sample[] => {
     if (spriteSamples[i]) return spriteSamples[i];
@@ -450,7 +450,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
               const r = data[(y * G + x) * 4];
               const g = data[(y * G + x) * 4 + 1];
               const b = data[(y * G + x) * 4 + 2];
-              out.push({ u: (x + 0.5) / G, v: (y + 0.5) / G, color: `rgb(${r},${g},${b})`, r, g, b });
+              out.push({ u: (x + 0.5) / G, v: (y + 0.5) / G, color: `rgb(${r},${g},${b})` });
             }
           }
         }
@@ -461,69 +461,46 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     if (out.length === 0) {
       const [c0, c1] = T.colors[i];
       for (let k = 0; k < 64; k++)
-        out.push({ u: ((k % 8) + 0.5) / 8, v: (Math.floor(k / 8) + 0.5) / 8, color: k % 2 ? c0 : c1, r: 120, g: 200, b: 160 });
+        out.push({ u: ((k % 8) + 0.5) / 8, v: (Math.floor(k / 8) + 0.5) / 8, color: k % 2 ? c0 : c1 });
     }
     spriteSamples[i] = out;
     return out;
   };
 
   type Particle = { sx: number; sy: number; tx: number; ty: number; delay: number; color: string };
-  type Grid = { cell: number; srcSize: number; tone: string; parts: Particle[] };
-  const grids: Partial<Record<PanelKey, Grid>> = {};
-  /** Single tone derived from the sprite: mean colour, pushed to full saturation. */
-  const toneOf = (samples: Sample[]) => {
-    let r = 0, g = 0, b = 0;
-    samples.forEach((p) => ((r += p.r), (g += p.g), (b += p.b)));
-    const n = samples.length || 1;
-    r /= n; g /= n; b /= n;
-    const k = 1.6; // boost saturation around the mean
-    const avg = (r + g + b) / 3;
-    const f = (c: number) => Math.max(0, Math.min(255, Math.round(avg + (c - avg) * k)));
-    return `rgb(${f(r)},${f(g)},${f(b)})`;
-  };
-  const buildGrid = (k: PanelKey, owner: number, l: Landing): Grid | null => {
+  const grids: Partial<Record<PanelKey, { cell: number; srcSize: number; parts: Particle[] }>> = {};
+  const buildGrid = (k: PanelKey, owner: number, l: Landing) => {
     const vb = visibleBox(k);
     if (!vb) return null;
+    const isPrimary = robotPanels[owner][0] === k;
     const samples = sampleSprite(owner);
-    const cell = Math.max(7, Math.ceil(Math.sqrt((vb.width * vb.height) / T.maxParticles)));
+    const cell = Math.max(6, Math.ceil(Math.sqrt((vb.width * vb.height) / T.maxParticles)));
     const cols = Math.ceil(vb.width / cell);
     const rows = Math.ceil(vb.height / cell);
-    // Source = the robot sprite as it was at arrival (full flight size).
-    const robotSize = 72 * T.flightScale;
+    // Source = the robot as it was at arrival (or the streak head for a secondary bar).
+    const robotSize = isPrimary ? 72 * T.flightScale : 22;
     const parts: Particle[] = [];
     let maxD = 1;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const tx = vb.left + c * cell;
         const ty = vb.top + r * cell;
-        const d = Math.hypot(tx + cell / 2 - l.x, ty + cell / 2 - l.y);
+        const d = Math.hypot(tx - l.x, ty - l.y);
         if (d > maxD) maxD = d;
-        // coherent mapping: the cell's relative position picks the nearest sprite
-        // pixel, so the robot "scales up" into the panel instead of scrambling.
-        const u = (c + 0.5) / cols;
-        const v = (r + 0.5) / rows;
-        let best = samples[0];
-        let bd = Infinity;
-        for (const smp of samples) {
-          const dd = (smp.u - u) * (smp.u - u) + (smp.v - v) * (smp.v - v);
-          if (dd < bd) {
-            bd = dd;
-            best = smp;
-          }
-        }
+        const smp = samples[(r * cols + c) % samples.length];
         parts.push({
-          sx: l.x - robotSize / 2 + best.u * robotSize,
-          sy: l.y - robotSize / 2 + best.v * robotSize,
+          sx: l.x - robotSize / 2 + smp.u * robotSize,
+          sy: l.y - robotSize / 2 + smp.v * robotSize,
           tx,
           ty,
-          delay: d,
-          color: best.color,
+          delay: d, // normalised below
+          color: smp.color,
         });
       }
     }
-    // ordered wave from the landing point outwards (slight ease so the edge arrives in a burst)
-    parts.forEach((pt) => (pt.delay = Math.pow(pt.delay / maxD, 0.85) * T.assembleStaggerMs));
-    const g: Grid = { cell, srcSize: robotSize / T.spriteGrid, tone: toneOf(samples), parts };
+    // ordered stagger: a wave from the landing point outwards
+    parts.forEach((pt) => (pt.delay = (pt.delay / maxD) * T.assembleStaggerMs));
+    const g = { cell, srcSize: robotSize / T.spriteGrid, parts };
     grids[k] = g;
     return g;
   };
@@ -546,28 +523,15 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
     // panel stays hidden while the grid builds, then crossfades in under it
     el.style.clipPath = t < settle ? "inset(50%)" : "";
     const fade = t < settle ? 1 : 1 - (t - settle) / T.crossfadeMs;
-    // In flight: the sprite's real pixel colour. Landing: blend to one tone.
-    // Settled: clean grid (1px gaps) that fades while the real panel sharpens in.
+    ctx.globalAlpha = fade;
     for (let n = 0; n < g.parts.length; n++) {
       const pt = g.parts[n];
       const p = clamp01((t - pt.delay) / T.assembleTravelMs);
       const e = easeOutCubic(p);
-      const size = lerp(g.srcSize, g.cell - 1, e);
-      const x = lerp(pt.sx, pt.tx, e);
-      const y = lerp(pt.sy, pt.ty, e);
-      const toneK = clamp01((p - 0.55) / 0.45);
-      if (toneK < 1) {
-        ctx.globalAlpha = fade * (1 - toneK);
-        ctx.fillStyle = pt.color;
-        ctx.fillRect(x, y, size, size);
-      }
-      if (toneK > 0) {
-        ctx.globalAlpha = fade * toneK * 0.9;
-        ctx.fillStyle = g.tone;
-        ctx.fillRect(x, y, size, size);
-      }
+      const size = lerp(g.srcSize, g.cell, e);
+      ctx.fillStyle = pt.color;
+      ctx.fillRect(lerp(pt.sx, pt.tx, e), lerp(pt.sy, pt.ty, e), size, size);
     }
-    ctx.globalAlpha = fade;
     // faint frame once the grid has landed, so it reads as a window
     if (t >= settle) {
       const vb = visibleBox(k);
