@@ -2288,7 +2288,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     className="group relative flex flex-col items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3 sm:p-4 text-center font-mono cursor-pointer transition-all duration-300 hover:border-emerald-500/40 hover:bg-zinc-900/60 shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]"
                                   >
                                     {/* Floating robot sprite */}
-                                    <div className="relative flex h-16 sm:h-20 w-full items-center justify-center">
+                                    <div className="relative flex h-[72px] sm:h-[88px] w-full items-center justify-center">
                                       <motion.img
                                         src={agent.sprite}
                                         alt={agent.area}
@@ -2303,7 +2303,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                                 delay: idx * 0.45,
                                               }
                                         }
-                                        className="h-14 w-auto sm:h-16 max-w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-1.5"
+                                        className="h-[62px] w-auto sm:h-[71px] max-w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-1.5"
                                         style={{ imageRendering: "pixelated" }}
                                         draggable={false}
                                       />
@@ -2362,7 +2362,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             <img
                               src="/hero/agents/claude.png"
                               alt="Claude"
-                              className="h-12 w-auto object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] cursor-pointer"
+                              className="h-[53px] w-auto object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] cursor-pointer"
                               style={{ imageRendering: "pixelated" }}
                               draggable={false}
                             />
