@@ -2819,8 +2819,14 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         return;
       }
 
+      // Layout-space measurement: the first measure often lands while the
+      // panel's layout animation / the About->Experience transition still has
+      // a transform on an ancestor, which shrank the rects (the pulse then
+      // only swept the top ~60% of the rail). Correct by the transform scale.
       const railRect = rail.getBoundingClientRect();
-      setExperienceRailHeight(railRect.height);
+      const railHeight = rail.offsetHeight;
+      const scale = railRect.height > 0 ? railHeight / railRect.height : 1;
+      setExperienceRailHeight(railHeight);
 
       const targets = experienceNodeRefs.current.map((node) => {
         if (!node) {
@@ -2828,7 +2834,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         }
 
         const nodeRect = node.getBoundingClientRect();
-        return nodeRect.top - railRect.top + nodeRect.height / 2;
+        return (nodeRect.top - railRect.top + nodeRect.height / 2) * scale;
       });
 
       setExperienceNodeTargets(targets);
