@@ -2689,7 +2689,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         isProjContactTransitioningRef.current ||
         isContactAiTransitioningRef.current
       ) {
-        e.preventDefault();
+        // Only cancel when the browser allows it (a touch that already
+        // started a native scroll is not cancelable; the overlay's
+        // touch-action/overflow lock in mobile.css stops that one).
+        if (e.cancelable) e.preventDefault();
         return;
       }
       if (touchFired) return;
@@ -3147,7 +3150,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       onClick={handleTerminalClick}
       className={`
           ${isExpanded ? "" : "backdrop-blur-xl"} border overflow-hidden cursor-text flex flex-col w-full min-w-0
-          ${usesFullscreenExpandedLayout ? "h-screen" : isExpanded ? "min-h-screen" : "h-full"}
+          ${usesFullscreenExpandedLayout ? "h-screen max-md:h-dvh" : isExpanded ? "min-h-screen max-md:min-h-dvh" : "h-full"}
           ${variant === "floating" && !isExpanded ? "shadow-2xl shadow-emerald-500/10" : ""}
           ${variant === "centered" && !isExpanded ? "max-w-4xl mx-auto" : ""}
           ${isExpanded ? "border-none rounded-none" : "border-zinc-800 rounded-2xl"}
@@ -3168,9 +3171,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       />
 
       {/* Terminal header */}
-      <div className="relative flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-black/40 px-3 py-3 sm:flex-nowrap sm:px-5">
+      <div data-terminal-header="" className="relative flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-black/40 px-3 py-3 max-md:flex-nowrap max-md:gap-2 max-md:py-0 max-md:pr-1 sm:flex-nowrap sm:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex gap-2 group/controls">
+          <div className="flex gap-2 group/controls max-md:pointer-events-none" data-traffic-lights="">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -3210,7 +3213,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           </div>
           <div className="flex min-w-0 items-center gap-2 text-zinc-400">
             <Terminal className="h-4 w-4 shrink-0" />
-            <span className="truncate text-[11px] font-mono tracking-tight sm:text-xs">
+            <span className="truncate text-[13px] font-mono tracking-tight sm:text-xs">
               {activeView === "terminal"
                 ? isAiMode
                   ? "roiner@workspace:~/ai"
@@ -3219,16 +3222,17 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
             </span>
           </div>
         </div>
-        <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-4">
+        <div className="flex w-full items-center justify-end gap-2 max-md:w-auto max-md:gap-0 sm:w-auto sm:gap-4">
           <button
             onClick={(e) => {
               e.stopPropagation();
               toggleLanguage();
             }}
-            className="flex items-center gap-2 px-2 py-1 rounded border border-zinc-800 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all group/lang"
+            aria-label={language === "es" ? "Switch to English" : "Cambiar a español"}
+            className="flex items-center gap-2 px-2 py-1 rounded border border-zinc-800 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all group/lang max-md:my-1 max-md:h-11 max-md:min-w-11 max-md:justify-center max-md:px-3"
           >
             <Languages className="w-3.5 h-3.5 text-zinc-500 group-hover/lang:text-emerald-400" />
-            <span className="text-[10px] font-mono font-bold text-zinc-400 group-hover/lang:text-emerald-300">
+            <span className="text-[10px] font-mono font-bold text-zinc-400 group-hover/lang:text-emerald-300 max-md:text-[13px]">
               {language.toUpperCase()}
             </span>
           </button>
@@ -3245,9 +3249,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                 e.stopPropagation();
                 closeExpanded();
               }}
-              className="text-zinc-500 hover:text-white transition-colors p-1"
+              aria-label={language === "es" ? "Cerrar" : "Close"}
+              className="text-zinc-500 hover:text-white transition-colors p-1 max-md:flex max-md:h-11 max-md:w-11 max-md:items-center max-md:justify-center"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 max-md:h-5 max-md:w-5" />
             </button>
           )}
         </div>
@@ -4579,7 +4584,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               ref={overlayScrollRef}
               data-section-overlay=""
               data-view={activeView}
-              className={`fixed inset-0 z-[140] h-screen w-screen ${
+              data-transitioning={
+                aboutExpTransition || expProjectsTransition || projContactTransition
+                  ? ""
+                  : undefined
+              }
+              className={`fixed inset-0 z-[140] h-screen w-screen max-md:h-dvh max-md:w-full ${
                 activeView === "experience" ? "bg-black" : "bg-zinc-950"
               } ${usesProjectSplitScroll ? "overflow-hidden" : "overflow-y-auto"}`}
             >

@@ -450,7 +450,7 @@ export function AiTerminalView({
                 // Native caret (emerald): the visible text is always exactly the
                 // input value, the caret follows arrows / mid-text edits, and
                 // the placeholder starts right after the caret.
-                className="w-full bg-transparent font-mono text-zinc-100 caret-[#00d492] outline-none placeholder:text-zinc-600 disabled:opacity-60"
+                className="w-full bg-transparent font-mono text-zinc-100 caret-[#00d492] outline-none placeholder:text-zinc-600 disabled:opacity-60 max-md:text-[16px]"
               />
               {/* Zero-width anchor at the caret's start position (the input is
                   empty when AI mode opens): the CRT transition's dot lands here. */}

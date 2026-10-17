@@ -496,11 +496,13 @@ export function HeroVideo() {
     >
      <div
       ref={stickyRef}
+      data-section-open={sectionOpen ? "" : undefined}
       className="sticky top-0 h-svh min-h-[560px] w-full overflow-hidden bg-[#030213]"
      >
       {/* Stage: scaled/translated on scroll to dolly into the CRT */}
       <div
         ref={stageRef}
+        data-hero-stage=""
         className="pointer-events-none absolute inset-0 origin-top-left will-change-transform"
       >
       {/* Video wrapper with responsive vertical margin and max height */}
@@ -786,7 +788,7 @@ export function HeroVideo() {
                   autoCorrect="off"
                   spellCheck={false}
                   enterKeyHint="go"
-                  className="min-w-0 flex-1 bg-transparent font-mono text-[14px] sm:text-[12px] text-zinc-100 caret-[#00BB7F] outline-none placeholder:text-zinc-600"
+                  className="min-w-0 flex-1 bg-transparent font-mono text-[16px] sm:text-[12px] text-zinc-100 caret-[#00BB7F] outline-none placeholder:text-zinc-600"
                 />
               </form>
             </div>

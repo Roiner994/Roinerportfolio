@@ -1,0 +1,30 @@
+/* ==========================================================================
+   Mobile / touch layer. Everything here is gated behind a small-screen
+   (max-width: 767px) or touch (pointer: coarse) media query so desktop
+   rendering is unchanged.
+   ========================================================================== */
+
+/* --- Step 1: global base ------------------------------------------------ */
+
+@media (pointer: coarse) {
+  /* Section overlay: keep momentum/overscroll inside it (no pull-to-refresh,
+     no scroll chaining to the page). */
+  [data-section-overlay] {
+    overscroll-behavior: contain;
+  }
+  /* While a timed section transition plays, freeze touch scrolling with CSS
+     instead of cancelling touchmove (which is not always cancelable). */
+  [data-section-overlay][data-transitioning],
+  [data-section-overlay][data-transitioning] .overflow-y-auto {
+    overflow: hidden !important;
+    touch-action: none;
+  }
+}
+
+@media (max-width: 767px) {
+  /* The hero stage (video + canvas, scaled by the CRT dolly) stays fully
+     covered while a section is open: drop it from rendering to free GPU. */
+  [data-section-open] [data-hero-stage] {
+    visibility: hidden;
+  }
+}
