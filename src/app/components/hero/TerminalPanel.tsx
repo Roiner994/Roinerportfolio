@@ -57,6 +57,7 @@ import {
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { getProjectMedia } from "@/lib/projectMedia";
 import { useIsMobile } from "@/app/components/ui/use-mobile";
+import { AiTerminalView } from "./AiTerminalView";
 
 const TypewriterText = ({
   text,
@@ -251,16 +252,17 @@ const AVATAR_POSES: AvatarPose[] = [
   "ball",
 ];
 
-const AVATAR_CHIP_COMMANDS = [
+// Slash commands listed by "/" and help in the ask-roiner AI terminal. The
+// avatar-pose commands (coffee, deploy...) now just reply with text.
+const AI_SLASH_COMMANDS = [
   "help",
+  "clear",
   "coffee",
   "deploy",
   "bug",
   "dance",
   "gym",
-  "sleep",
-  "wake",
-  "clear",
+  "exit",
 ] as const;
 
 const AVATAR_COMMAND_CONFIG: Record<
@@ -1438,9 +1440,22 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     ]);
   };
 
+  const aiSlashCommands = AI_SLASH_COMMANDS.map((name) => ({
+    name,
+    desc:
+      name === "exit"
+        ? language === "es"
+          ? "salir del modo IA"
+          : "exit AI mode"
+        : AVATAR_COMMAND_CONFIG[name]?.descKey
+          ? t(AVATAR_COMMAND_CONFIG[name].descKey as string)
+          : "",
+  }));
+
   const handleAiCommand = async (rawValue: string) => {
     const trimmed = rawValue.trim();
-    const normalized = normalizePrompt(rawValue);
+    // "/help", "/clear"... are the same as the bare commands.
+    const normalized = normalizePrompt(rawValue).replace(/^\/(?=\S)/, "");
 
     if (!trimmed || isAiThinking) {
       return;
@@ -1474,14 +1489,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       };
 
       if (normalized === "help" || normalized === "info") {
-        const cmdLines = Object.entries(AVATAR_COMMAND_CONFIG)
-          .filter(([, c]) => !c.hidden)
-          .map(
-            ([k, c]) =>
-              `  ${k.padEnd(8)} ${c.descKey ? t(c.descKey) : ""}`,
-          )
+        const cmdLines = aiSlashCommands
+          .map((c) => `/${c.name.padEnd(8)} ${c.desc}`)
           .join("\n");
-        const helpContent = `${t("AVATAR_AVAILABLE_COMMANDS")}\n${cmdLines}\n\n${t("AVATAR_HELP_GREETING")}\n${t("AI_HELP")}`;
+        const helpContent = `${t("AVATAR_AVAILABLE_COMMANDS")}\n${cmdLines}\n\n${t("AI_HELP")}`;
         setChatHistory((current) => [
           ...current,
           userCmdMessage,
@@ -2858,6 +2869,62 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     };
   }, []);
 
+  // Thin GOTO bar shared by the expanded sections and the AI terminal.
+  const renderStatusBar = (inAi: boolean) => (
+              <div
+                ref={inAi ? undefined : projectsStatusBarRef}
+                data-goto-bar={inAi ? "ai" : "expanded"}
+                className="border-t border-zinc-800/50 bg-black/60 px-4 py-3 font-mono text-[10px] sm:px-6"
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div className="flex gap-4 text-zinc-500 text-[9px] sm:text-[10px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-emerald-500/50">L</span>{" "}
+                        {inAi ? chatHistory.length : activeView === "about" ? "1" : "124"}
+                      </div>
+                      <div className="flex items-center gap-1.5 uppercase tracking-widest">
+                        UTF-8
+                      </div>
+                    </div>
+
+                    {/* Quick Navigation Commands */}
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-800 pt-3 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0 lg:pl-6">
+                      <span className="text-zinc-600 shrink-0">
+                        {t("GOTO")}
+                      </span>
+                      {commands.map((cmd) => (
+                        <button
+                          key={cmd}
+                          onClick={() => {
+                            // Re-clicking AI would reset the conversation.
+                            if (inAi && cmd === "ai") return;
+                            handleCommand(cmd);
+                          }}
+                          className={`
+                              px-2 py-0.5 rounded transition-colors shrink-0
+                              ${(inAi ? cmd === "ai" : activeView === cmd) ? "text-emerald-400 bg-emerald-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}
+                            `}
+                        >
+                          {cmd.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={inAi ? exitAiMode : closeExpanded}
+                    className="flex items-center gap-2 self-start px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 transition-all rounded group lg:self-auto"
+                  >
+                    <span className="group-hover:-translate-x-1 transition-transform">
+                      ←
+                    </span>
+                    RETURN_TO_SHELL
+                  </button>
+                </div>
+              </div>
+  );
+
   const panel = (
     <motion.div
       layout
@@ -2990,7 +3057,33 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         }`}
       >
         <AnimatePresence mode="wait">
-          {activeView === "terminal" ? (
+          {activeView === "terminal" && isAiMode ? (
+            <motion.div
+              key="ai-terminal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex h-full min-h-0 min-w-0 flex-col"
+            >
+              <AiTerminalView
+                lang={language === "es" ? "es" : "en"}
+                messages={chatHistory}
+                isThinking={isAiThinking}
+                inputValue={inputValue}
+                setInputValue={setInputValue}
+                onSubmit={(value) => void handleAiCommand(value)}
+                onExit={exitAiMode}
+                inputRef={inputRef}
+                scrollRef={chatScrollRef}
+                suggestedQuestions={SUGGESTED_QUESTIONS}
+                slashCommands={aiSlashCommands}
+                placeholder={t("PLACEHOLDER_AI")}
+                Typewriter={TypewriterText}
+                onTypingTick={scrollToBottom}
+                footer={renderStatusBar(true)}
+              />
+            </motion.div>
+          ) : activeView === "terminal" ? (
             <motion.div
               key="terminal"
               initial={{ opacity: 0 }}
@@ -3069,286 +3162,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                 </div>
               </div>
 
-              {isAiMode ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-4 min-w-0">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center justify-between border-b border-emerald-500/10 pb-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-500/60">
-                        <span className="h-1 w-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                        {t("AI_NEURAL_LINK")}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        exitAiMode();
-                      }}
-                      className="group flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/80 backdrop-blur-sm px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-400 transition-all hover:border-emerald-500/40 hover:bg-emerald-950/20 hover:text-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] active:scale-95"
-                    >
-                      <X
-                        size={12}
-                        className="text-zinc-500 transition-colors group-hover:text-emerald-400"
-                      />
-                      {t("EXIT_AI_LINK")}
-                    </button>
-                  </motion.div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)] gap-4 sm:gap-6 flex-1 min-h-0 items-stretch">
-                    {/* Pixel-Art Avatar Stage inside AI Mode */}
-                    <div
-                      id="stage"
-                      className="pixel-avatar-stage h-[180px] md:h-auto md:min-h-[320px] rounded-xl border border-emerald-500/15 bg-emerald-500/[0.02] px-4 pt-7 pb-4 select-none overflow-hidden"
-                    >
-                      <div className="absolute top-3 left-3.5 right-3.5 flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-emerald-500/60 pointer-events-none">
-                        <span className="flex items-center gap-1.5">
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              avatarPose === "sleep"
-                                ? "bg-amber-400/70"
-                                : "bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.7)]"
-                            }`}
-                          />
-                          {avatarPose}
-                        </span>
-                      </div>
-
-                      {rocketBursts.map((burst) => (
-                        <div
-                          key={burst.id}
-                          className="pointer-events-none absolute inset-0 z-10"
-                        >
-                          <div
-                            className="pixel-avatar-fx"
-                            style={{ left: "58%", bottom: "36%" }}
-                          >
-                            🚀
-                          </div>
-                          {burst.sparks.map((spark, idx) => (
-                            <div
-                              key={idx}
-                              className="pixel-avatar-px"
-                              style={
-                                {
-                                  left: "56%",
-                                  bottom: "40%",
-                                  "--dx": `${spark.dx}px`,
-                                  "--dy": `${spark.dy}px`,
-                                } as React.CSSProperties
-                              }
-                            />
-                          ))}
-                        </div>
-                      ))}
-
-                      <img
-                        id="av"
-                        src={`/avatar/${avatarPose}.png`}
-                        alt="Pixel-art chibi avatar of Roiner Hernandez"
-                        className={`pixel-avatar-img ${avatarAnim} max-w-[130px] md:max-w-[215px] lg:max-w-[260px]`}
-                      />
-                    </div>
-
-                    {/* AI Console + Prompt + Touchable Command Chips */}
-                    <div className="flex min-h-0 flex-1 flex-col min-w-0 rounded-xl border border-zinc-800/80 bg-black/40 overflow-hidden">
-                      <div
-                        id="out"
-                        ref={chatScrollRef}
-                        aria-live="polite"
-                        className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4 sm:p-5"
-                      >
-                        {chatHistory.map((message, index) => (
-                          <motion.div
-                            key={message.id}
-                            initial={{ opacity: 0, x: -4 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{
-                              delay:
-                                index === chatHistory.length - 1 ? 0.04 : 0,
-                            }}
-                            className="flex flex-col gap-1.5"
-                          >
-                            <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-widest opacity-40">
-                              <span
-                                className={
-                                  message.role === "user"
-                                    ? "text-zinc-100"
-                                    : "text-emerald-500"
-                                }
-                              >
-                                {message.role === "user"
-                                  ? "guest@workspace"
-                                  : "ai@neural-link"}
-                              </span>
-                              <span className="text-zinc-500">
-                                ::{" "}
-                                {new Date().toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                            <div
-                              className={`
-                                text-sm leading-relaxed font-mono whitespace-pre-wrap break-words
-                                ${
-                                  message.role === "user"
-                                    ? "text-zinc-200"
-                                    : message.role === "system"
-                                      ? "text-emerald-300/85"
-                                      : "text-emerald-400/90"
-                                }
-                              `}
-                            >
-                              {message.role === "user" && (
-                                <span className="mr-2 text-zinc-600">$</span>
-                              )}
-                              {message.role === "assistant" &&
-                              index === chatHistory.length - 1 ? (
-                                <TypewriterText
-                                  text={message.content}
-                                  onTick={scrollToBottom}
-                                />
-                              ) : (
-                                message.content
-                              )}
-                            </div>
-                          </motion.div>
-                        ))}
-
-                        {isAiMode &&
-                          chatHistory.length === 1 &&
-                          !isAiThinking && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.6 }}
-                              className="mt-1 space-y-3 px-1"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="h-px w-6 bg-emerald-500/20" />
-                                <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-500/60 font-bold">
-                                  {t("SUGGESTED_QUESTIONS_LABEL")}
-                                </span>
-                              </div>
-                              <div className="flex flex-col gap-1.5">
-                                {SUGGESTED_QUESTIONS.map((q, idx) => (
-                                  <button
-                                    key={idx}
-                                    onClick={() => handleAiCommand(q)}
-                                    className="flex items-center gap-4 text-left group w-full max-w-3xl px-2 py-1.5 hover:bg-emerald-500/[0.03] border-l border-transparent hover:border-emerald-500/30 transition-all"
-                                  >
-                                    <div className="font-mono text-[9px] text-emerald-500/30 group-hover:text-emerald-500 uppercase tracking-widest shrink-0 transition-colors">
-                                      [ EXEC ]
-                                    </div>
-                                    <div className="font-mono text-sm text-zinc-500 group-hover:text-emerald-400/90 transition-all duration-300 leading-tight group-hover:translate-x-1">
-                                      {q}
-                                    </div>
-                                    <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <span className="text-emerald-500 font-mono animate-pulse">
-                                        _
-                                      </span>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            </motion.div>
-                          )}
-
-                        {isAiThinking && (
-                          <motion.div
-                            initial={{ opacity: 0, x: -4 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="flex flex-col gap-1.5"
-                          >
-                            <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-widest opacity-40">
-                              <span className="text-emerald-500">
-                                ai@neural-link
-                              </span>
-                              <span className="text-zinc-500">
-                                :: {t("AI_THINKING")}
-                              </span>
-                            </div>
-                            <div className="text-sm leading-relaxed font-mono text-emerald-400/90">
-                              <TypewriterText
-                                text={t("AI_CONSULTING_CONTEXT")}
-                                onTick={scrollToBottom}
-                              />
-                            </div>
-                          </motion.div>
-                        )}
-                      </div>
-
-                      {/* Interactive Terminal Input for AI Mode */}
-                      <div
-                        onClick={() =>
-                          inputRef.current?.focus({ preventScroll: true })
-                        }
-                        className="flex items-center gap-3 px-4 py-3 border-t border-zinc-800/70 bg-black/50 cursor-text min-w-0"
-                      >
-                        <div className="flex items-center shrink-0 text-xs sm:text-sm font-mono font-bold text-emerald-400 select-none">
-                          <span>roiner@workspace:~/ai$</span>
-                        </div>
-
-                        <div className="relative flex-1 flex items-center min-w-0">
-                          <input
-                            id="inp"
-                            ref={inputRef}
-                            type="text"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            spellCheck={false}
-                            autoComplete="off"
-                            autoCapitalize="off"
-                            disabled={isAiThinking}
-                            placeholder={t("PLACEHOLDER_AI")}
-                            className="w-full bg-transparent border-none outline-none p-0 font-mono text-xs sm:text-sm text-white caret-transparent placeholder:text-white/20 disabled:opacity-60 min-w-0"
-                            autoFocus
-                          />
-                          <motion.div
-                            animate={{
-                              opacity: [1, 0, 1],
-                            }}
-                            transition={{
-                              duration: 1,
-                              repeat: Infinity,
-                              ease: "steps(2)",
-                            }}
-                            style={{ left: `${inputValue.length}ch` }}
-                            className="absolute w-2 h-4 bg-emerald-400 ml-0 pointer-events-none shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Touchable Command Chips in AI Mode */}
-                      <div
-                        id="chips"
-                        className="flex flex-wrap gap-1.5 sm:gap-2 px-4 py-2.5 border-t border-zinc-800/80 bg-zinc-950/90"
-                      >
-                        {AVATAR_CHIP_COMMANDS.map((chipCmd) => (
-                          <button
-                            key={chipCmd}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleAiCommand(chipCmd);
-                            }}
-                            className="min-h-[36px] px-2.5 py-1 rounded-md border border-emerald-500/35 bg-emerald-500/[0.06] font-mono text-xs text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/60 focus-visible:bg-emerald-500/20 focus-visible:outline-none active:scale-95 transition-all cursor-pointer"
-                          >
-                            {chipCmd}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
+              {!isAiMode && (
                 <>
                   <div className="space-y-4 min-w-0">
                     <motion.div
@@ -4420,53 +4234,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               </div>
 
               {/* Terminal Status Bar for Expanded View */}
-              <div
-                ref={projectsStatusBarRef}
-                className="border-t border-zinc-800/50 bg-black/60 px-4 py-3 font-mono text-[10px] sm:px-6"
-              >
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <div className="flex gap-4 text-zinc-500 text-[9px] sm:text-[10px]">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-emerald-500/50">L</span>{" "}
-                        {activeView === "about" ? "1" : "124"}
-                      </div>
-                      <div className="flex items-center gap-1.5 uppercase tracking-widest">
-                        UTF-8
-                      </div>
-                    </div>
-
-                    {/* Quick Navigation Commands */}
-                    <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-800 pt-3 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0 lg:pl-6">
-                      <span className="text-zinc-600 shrink-0">
-                        {t("GOTO")}
-                      </span>
-                      {commands.map((cmd) => (
-                        <button
-                          key={cmd}
-                          onClick={() => handleCommand(cmd)}
-                          className={`
-                              px-2 py-0.5 rounded transition-colors shrink-0
-                              ${activeView === cmd ? "text-emerald-400 bg-emerald-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}
-                            `}
-                        >
-                          {cmd.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={closeExpanded}
-                    className="flex items-center gap-2 self-start px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 transition-all rounded group lg:self-auto"
-                  >
-                    <span className="group-hover:-translate-x-1 transition-transform">
-                      ←
-                    </span>
-                    RETURN_TO_SHELL
-                  </button>
-                </div>
-              </div>
+              {renderStatusBar(false)}
             </motion.div>
           )}
         </AnimatePresence>
