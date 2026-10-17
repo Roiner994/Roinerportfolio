@@ -4,6 +4,8 @@ export type ExperienceEntry = {
   period: string;
   location: string;
   description: string;
+  /** Optional short bullets shown under the description. */
+  highlights?: string[];
   tech: string[];
 };
 
@@ -119,9 +121,23 @@ export type ProjectEntry = {
 
 const experienceDataEs: ExperienceEntry[] = [
   {
+    company: "Plunkton",
+    role: "Full Stack & AI Developer",
+    period: "Junio 2026 - Presente",
+    location: "Remoto",
+    description:
+      "Desarrollo full stack e IA de Plunkton, una plataforma de ventas con IA para concesionarios de autos en producción.",
+    highlights: [
+      "Asistente de ventas con IA que atiende leads por WhatsApp, Instagram y chat web y puntúa la intención de compra.",
+      "CRM multi-tenant con resúmenes de leads por IA, cola de prioridad y derivación al vendedor indicado.",
+      "Integraciones con Meta Cloud API/Twilio, Instagram y sincronización bidireccional con Pilot CRM.",
+    ],
+    tech: ["Django", "Vue 3", "Celery", "LiteLLM", "n8n", "PostgreSQL"],
+  },
+  {
     company: "ucrop.it",
     role: "Full Stack Developer",
-    period: "2021 - Present",
+    period: "2021 - Mayo 2026",
     location: "Argentina",
     description:
       "Arquitectura y desarrollo Full Stack para la plataforma líder en trazabilidad agrícola y sostenibilidad. Implementación de sistemas de inteligencia verificada para análisis de carteras de productores desde riesgos regionales hasta el nivel de parcela individual. Liderazgo técnico en la evolución del producto utilizando React y TypeScript.",
@@ -158,9 +174,23 @@ const experienceDataEs: ExperienceEntry[] = [
 
 const experienceDataEn: ExperienceEntry[] = [
   {
+    company: "Plunkton",
+    role: "Full Stack & AI Developer",
+    period: "June 2026 - Present",
+    location: "Remote",
+    description:
+      "Full stack and AI development of Plunkton, an AI sales platform for car dealerships running in production.",
+    highlights: [
+      "AI sales assistant that answers leads on WhatsApp, Instagram, and web chat and scores purchase intent.",
+      "Multi-tenant CRM with AI lead summaries, a priority queue, and handoff to the right salesperson.",
+      "Integrations with Meta Cloud API/Twilio, Instagram, and two-way Pilot CRM sync.",
+    ],
+    tech: ["Django", "Vue 3", "Celery", "LiteLLM", "n8n", "PostgreSQL"],
+  },
+  {
     company: "ucrop.it",
     role: "Full Stack Developer",
-    period: "2021 - Present",
+    period: "2021 - May 2026",
     location: "Argentina",
     description:
       "Full Stack architecture and development for the leading agricultural traceability and sustainability platform. Implementation of verified intelligence systems for producer portfolio analysis from regional risks to plot level. Technical leadership in product evolution using React and TypeScript.",
@@ -502,8 +532,8 @@ const projectEntriesEs: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "En línea",
-      kind: "live",
+      label: "En producción",
+      kind: "production",
     },
   },
   {
@@ -897,8 +927,8 @@ const projectEntriesEn: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "Live",
-      kind: "live",
+      label: "In production",
+      kind: "production",
     },
   },
   {
@@ -1247,7 +1277,7 @@ export function buildPortfolioKnowledgeContext(language: "es" | "en" = "es") {
     `${t.skillsBackend}: ${about.skills.backend.join(", ")}`,
     `${t.skillsIA}: ${about.skills.tools_ia.join(", ")}`,
     `${t.lang}: ${cv.languages.map((l) => `${l.label} (${l.level})`).join(", ")}`,
-    `${t.exp}: ${experience.map((item) => `${item.company} | ${item.role} | ${item.period} | ${item.location} | ${item.description} | Tech: ${item.tech.join(", ")}`).join("\n")}`,
+    `${t.exp}: ${experience.map((item) => `${item.company} | ${item.role} | ${item.period} | ${item.location} | ${item.description}${item.highlights?.length ? ` ${item.highlights.join(" / ")}` : ""} | Tech: ${item.tech.join(", ")}`).join("\n")}`,
     `${t.projects}: ${projects.map((project) => `${project.displayName} | ${project.subtitle} | ${project.category} | ${project.role} | ${project.description} | Highlights: ${project.highlights.join(" / ")} | Tech: ${project.tech.join(", ")}`).join("\n")}`,
     `${t.addProjects}: ${about.projects.map((project) => `${project.name} | ${project.description} | Tech: ${project.tech.join(", ")}`).join("\n")}`,
   ].join("\n");

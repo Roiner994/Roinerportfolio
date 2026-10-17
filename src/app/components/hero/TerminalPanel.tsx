@@ -3533,6 +3533,21 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl font-mono opacity-80">
                                       {exp.description}
                                     </p>
+                                    {exp.highlights && exp.highlights.length > 0 && (
+                                      <ul className="max-w-2xl space-y-1.5">
+                                        {exp.highlights.map((item) => (
+                                          <li
+                                            key={item}
+                                            className="flex gap-2 font-mono text-[13px] leading-relaxed text-zinc-400 opacity-80"
+                                          >
+                                            <span className="text-emerald-500/60">
+                                              &gt;
+                                            </span>
+                                            <span>{item}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    )}
                                     <div className="flex flex-wrap gap-x-3 gap-y-2 pt-2">
                                       {exp.tech.map((techItem, ti) => (
                                         <span
