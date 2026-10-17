@@ -35,6 +35,7 @@ import {
   Activity,
   ArrowUpRight,
   FileText,
+  Home,
 } from "lucide-react";
 import {
   motion,
@@ -1057,6 +1058,15 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const capturedAboutScrollTopRef = useRef<number>(0);
   const hasVisitedAboutRef = useRef(false);
   const lastTransitionEndRef = useRef<number>(0);
+  // Touch: reaching the bottom of About/Experience first "arms" the next
+  // section (a visible card); a second pull (or a tap) runs the transition.
+  const [nextArmed, setNextArmed] = useState(false);
+  const nextArmedRef = useRef(false);
+  const setArmed = useCallback((v: boolean) => {
+    if (nextArmedRef.current === v) return;
+    nextArmedRef.current = v;
+    setNextArmed(v);
+  }, []);
 
   const [expProjectsTransition, setExpProjectsTransition] = useState<ExpProjectsTransition | null>(null);
   const isExpProjectsTransitioningRef = useRef(false);
@@ -2528,7 +2538,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           target.hasAttribute?.("data-section-overlay"))
       ) {
         lastScrollTime = performance.now();
-        if (!isAtBottom()) bottomWheelAccum = 0;
+        if (!isAtBottom()) {
+          bottomWheelAccum = 0;
+          setArmed(false);
+        }
         if (!isAtTop()) topWheelAccum = 0;
       }
     };
@@ -2701,6 +2714,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       const dy = (e.touches[0]?.clientY ?? 0) - touchStartY;
       if (activeViewRef.current === "about" && dy < -42 && isAtBottom()) {
         touchFired = true;
+        if (!nextArmedRef.current) {
+          setArmed(true);
+          return;
+        }
+        setArmed(false);
         startAboutExpTransition("forward");
       } else if (
         activeViewRef.current === "experience" &&
@@ -2715,6 +2733,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         isAtBottom()
       ) {
         touchFired = true;
+        if (!nextArmedRef.current) {
+          setArmed(true);
+          return;
+        }
+        setArmed(false);
         startExpProjectsTransition("forward", "experience");
       }
     };
@@ -2746,7 +2769,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     startAboutExpTransition,
     startExpProjectsTransition,
     startProjContactTransition,
+    setArmed,
   ]);
+
+  // Disarm the touch "next" card whenever the view changes.
+  useEffect(() => {
+    setArmed(false);
+  }, [activeView, setArmed]);
 
   const handleTerminalClick = () => {
     if (activeView === "terminal") {
@@ -3079,7 +3108,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               <div
                 ref={inAi ? undefined : projectsStatusBarRef}
                 data-goto-bar={inAi ? "ai" : "expanded"}
-                className="border-t border-zinc-800/50 bg-black/60 px-4 py-3 font-mono text-[10px] sm:px-6"
+                className="border-t border-zinc-800/50 bg-black/60 px-4 py-3 font-mono text-[10px] max-md:hidden sm:px-6"
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -3150,7 +3179,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       onClick={handleTerminalClick}
       className={`
           ${isExpanded ? "" : "backdrop-blur-xl"} border overflow-hidden cursor-text flex flex-col w-full min-w-0
-          ${usesFullscreenExpandedLayout ? "h-screen max-md:h-dvh" : isExpanded ? "min-h-screen max-md:min-h-dvh" : "h-full"}
+          ${usesFullscreenExpandedLayout ? "h-screen max-md:h-full" : isExpanded ? "min-h-screen max-md:min-h-full" : "h-full"}
           ${variant === "floating" && !isExpanded ? "shadow-2xl shadow-emerald-500/10" : ""}
           ${variant === "centered" && !isExpanded ? "max-w-4xl mx-auto" : ""}
           ${isExpanded ? "border-none rounded-none" : "border-zinc-800 rounded-2xl"}
@@ -4422,12 +4451,53 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             : "w-full"
                         }
                       >
+                      {(activeView === "about" ||
+                        activeView === "experience") && (
+                        <button
+                          type="button"
+                          data-mobile-next=""
+                          data-armed={nextArmed ? "" : undefined}
+                          onClick={handleNext}
+                          className={`mb-10 mt-6 flex min-h-[64px] w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left font-mono transition-colors md:hidden ${
+                            nextArmed
+                              ? "border-emerald-400/70 bg-emerald-500/10"
+                              : "border-zinc-800 bg-zinc-900/40"
+                          }`}
+                        >
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-[12px] uppercase tracking-widest text-zinc-500">
+                              {language === "es" ? "Siguiente" : "Next"}
+                            </span>
+                            <span className="truncate text-[16px] text-zinc-100">
+                              <span className="text-emerald-500">$</span> cd{" "}
+                              {activeView === "about" ? "experience" : "projects"}
+                            </span>
+                          </span>
+                          <span
+                            className={`shrink-0 text-right text-[13px] ${
+                              nextArmed ? "text-emerald-300" : "text-emerald-500/80"
+                            }`}
+                          >
+                            {nextArmed
+                              ? language === "es"
+                                ? "desliza otra vez ↓"
+                                : "swipe again ↓"
+                              : language === "es"
+                                ? "toca o desliza ↓"
+                                : "tap or swipe ↓"}
+                          </span>
+                        </button>
+                      )}
                       <motion.div
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
                         viewport={{ once: false, amount: 0.1 }}
                         onClick={handleNext}
                         className={`cursor-pointer group/prompt inline-block w-full relative z-10 ${
+                          activeView === "about" || activeView === "experience"
+                            ? "max-md:hidden"
+                            : ""
+                        } ${
                           activeView === "contact"
                             ? "mt-0 mb-0 self-start"
                             : "mt-8 mb-12"
@@ -4589,12 +4659,54 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                   ? ""
                   : undefined
               }
-              className={`fixed inset-0 z-[140] h-screen w-screen max-md:h-dvh max-md:w-full ${
+              className={`fixed inset-0 z-[140] h-screen w-screen ${
                 activeView === "experience" ? "bg-black" : "bg-zinc-950"
               } ${usesProjectSplitScroll ? "overflow-hidden" : "overflow-y-auto"}`}
             >
               {panel}
             </div>
+
+            {/* Mobile bottom tab bar (replaces the GOTO bar below md) */}
+            <nav
+              data-mobile-tabbar=""
+              aria-label={language === "es" ? "Secciones" : "Sections"}
+              className="fixed inset-x-0 bottom-0 z-[158] flex items-stretch border-t border-zinc-800 bg-zinc-950 pb-[env(safe-area-inset-bottom)] md:hidden"
+            >
+              {commands.map((cmd) => {
+                const active = isAiMode ? cmd === "ai" : activeView === cmd;
+                return (
+                  <button
+                    key={cmd}
+                    type="button"
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => {
+                      if (isAiMode && cmd === "ai") return;
+                      if (!isAiMode && activeView === cmd) return;
+                      handleCommand(cmd);
+                    }}
+                    className={`flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1.5 font-mono text-[12px] ${
+                      active ? "text-emerald-400" : "text-zinc-400"
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`h-0.5 w-6 rounded-full ${active ? "bg-emerald-400" : "bg-transparent"}`}
+                    />
+                    <span className="max-w-full truncate px-0.5">
+                      {cmd === "experience" ? "exp" : cmd}
+                    </span>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                aria-label={language === "es" ? "Volver al inicio" : "Back to start"}
+                onClick={isAiMode ? exitAiMode : closeExpanded}
+                className="flex h-14 w-12 shrink-0 items-center justify-center border-l border-zinc-800 text-zinc-400"
+              >
+                <Home className="h-5 w-5" />
+              </button>
+            </nav>
 
             {/* Fixed Experience Robot Fleet (2 left, 2 right on desktop; top bar on mobile) */}
             {(activeView === "about" || activeView === "experience") && (

@@ -28,3 +28,17 @@
     visibility: hidden;
   }
 }
+
+/* --- Step 2: bottom tab bar ---------------------------------------------- */
+
+@media (max-width: 767px) {
+  :root {
+    --m-tabbar-h: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+  /* The section overlay ends above the fixed tab bar (dvh-safe: no 100vh). */
+  [data-section-overlay] {
+    bottom: var(--m-tabbar-h) !important;
+    height: auto !important;
+    width: auto !important;
+  }
+}
