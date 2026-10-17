@@ -32,6 +32,7 @@ import {
   Smartphone,
   Activity,
   ArrowUpRight,
+  FileText,
 } from "lucide-react";
 import {
   motion,
@@ -98,7 +99,9 @@ const TypewriterText = ({
   );
 };
 
-export const commands = ["about", "experience", "projects", "contact", "cv", "ai"];
+// `cv` is no longer a section: it is an alias that opens Contact and
+// highlights the CV block (see handleCommand).
+export const commands = ["about", "experience", "projects", "contact", "ai"];
 
 type AgentId = "frontend" | "backend" | "ai" | "devops";
 
@@ -421,12 +424,11 @@ type ShellLogItem =
   | { id: string; type: "auto-sleep" }
   | { id: string; type: "not-found"; cmd: string };
 
-const viewOrder: ("about" | "experience" | "projects" | "contact" | "cv")[] = [
+const viewOrder: ("about" | "experience" | "projects" | "contact")[] = [
   "about",
   "experience",
   "projects",
   "contact",
-  "cv",
 ];
 
 type TerminalView =
@@ -434,8 +436,7 @@ type TerminalView =
   | "about"
   | "experience"
   | "projects"
-  | "contact"
-  | "cv";
+  | "contact";
 
 type TerminalMode = "shell" | "ai";
 
@@ -532,8 +533,10 @@ function ExperienceNodeMarker({ pulseY, targetY }: ExperienceNodeMarkerProps) {
 
 function AnimatedContactAvatar({
   isExternallyHovered = false,
+  frameRef,
 }: {
   isExternallyHovered?: boolean;
+  frameRef?: React.Ref<HTMLDivElement>;
 }) {
   const [isInternallyHovered, setIsInternallyHovered] = useState(false);
   const handSwapTransition = {
@@ -573,6 +576,8 @@ function AnimatedContactAvatar({
       />
 
       <motion.div
+        ref={frameRef}
+        data-contact-photo=""
         className="relative aspect-square overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#158a67] shadow-2xl"
         animate={{
           borderColor: isHovered
@@ -1096,6 +1101,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const projectsScrollSectionRef = useRef<HTMLElement>(null);
   const projectFolderRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const projectTitleRef = useRef<HTMLSpanElement>(null);
+  const contactPhotoRef = useRef<HTMLDivElement>(null);
+  const contactCvRef = useRef<HTMLDivElement>(null);
+  const contactCvButtonRef = useRef<HTMLAnchorElement>(null);
+  const [cvFocusTick, setCvFocusTick] = useState(0);
+  const [cvHighlight, setCvHighlight] = useState(false);
   const activeViewRef = useRef<TerminalView>(activeView);
   activeViewRef.current = activeView;
 
@@ -1165,7 +1175,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     isExpanded &&
     (activeView === "projects" ||
       activeView === "contact" ||
-      activeView === "cv" ||
       isAiMode);
   const usesTouchNavigationCopy = isMobile || isCompactViewport;
 
@@ -1176,9 +1185,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       ? hasOpenedProject
         ? "laptop"
         : "coffee"
-      : !isAiMode && activeView === "cv"
-        ? "gym"
-        : null;
+      : null;
 
   // Mini avatar hint in Projects: "open a folder", until a folder is opened or ~8s.
   useEffect(() => {
@@ -1200,6 +1207,28 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }
     setProjectsHint(false);
   }, [isExpanded, activeView, isAiMode, expProjectsTransition, hasOpenedProject]);
+
+  // `cv` alias: once Contact is showing (and no transition runs), bring the
+  // CV block into view, focus its main button and pulse its border.
+  useEffect(() => {
+    if (cvFocusTick === 0) return;
+    if (activeView !== "contact" || expProjectsTransition !== null) return;
+    const t0 = window.setTimeout(() => {
+      contactCvRef.current?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "center",
+      });
+      contactCvButtonRef.current?.focus({ preventScroll: true });
+      setCvHighlight(true);
+    }, 380);
+    const t1 = window.setTimeout(() => setCvHighlight(false), 2600);
+    return () => {
+      window.clearTimeout(t0);
+      window.clearTimeout(t1);
+      setCvHighlight(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cvFocusTick, activeView, expProjectsTransition]);
 
   // Preload all pixel-art sprites on mount
   useEffect(() => {
@@ -2041,8 +2070,15 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       return;
     }
 
+    if (cleanCmd === "cv") {
+      // Alias: the CV now lives inside Contact.
+      handleCommand("contact");
+      setCvFocusTick((n) => n + 1);
+      return;
+    }
+
     if (
-      ["experience", "about", "projects", "contact", "cv"].includes(cleanCmd)
+      ["experience", "about", "projects", "contact"].includes(cleanCmd)
     ) {
       if (cleanCmd === "projects") {
         setHasOpenedProject(false);
@@ -2094,7 +2130,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     const currentIndex = viewOrder.indexOf(activeView as any);
     if (currentIndex !== -1 && currentIndex < viewOrder.length - 1) {
       handleCommand(viewOrder[currentIndex + 1]);
-    } else if (activeView === "cv") {
+    } else if (activeView === "contact") {
       handleCommand("ai");
     } else if (activeView !== "terminal") {
       closeExpanded();
@@ -3976,7 +4012,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                     )}
 
                     {activeView === "contact" && (
-                      <div className="w-full space-y-10 pb-8">
+                      <div className="w-full space-y-8 pb-4 [@media(max-height:820px)]:space-y-5">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-xs font-mono">
                             <span className="text-emerald-500">$</span>
@@ -3989,14 +4025,28 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           </div>
                         </div>
 
-                        <div className="grid gap-10 xl:grid-cols-[0.8fr_1.2fr] xl:items-center">
-                          <AnimatedContactAvatar
-                            isExternallyHovered={isContactCardHovered}
-                          />
+                        <div className="grid gap-8 xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.28fr)] xl:items-center xl:gap-12">
+                          {/* Photo frame: square slot for Roiner's image */}
+                          <div
+                            data-contact-reveal="photo"
+                            className="mx-auto w-full max-w-[260px] sm:max-w-[320px] xl:max-w-[400px] [@media(max-height:820px)]:xl:max-w-[340px]"
+                          >
+                            <AnimatedContactAvatar
+                              isExternallyHovered={isContactCardHovered}
+                              frameRef={contactPhotoRef}
+                            />
+                            <div className="mt-3 flex items-center justify-between font-mono text-[10px] text-zinc-600">
+                              <span>
+                                <span className="text-emerald-500/60">~/</span>
+                                roiner.png
+                              </span>
+                              <span>1:1 · {language === "es" ? "en línea" : "online"}</span>
+                            </div>
+                          </div>
 
-                          {/* Right Column: Content & Channels */}
-                          <div className="flex flex-col justify-center space-y-10">
-                            <div className="space-y-6">
+                          {/* Right Column: Content, Channels and CV */}
+                          <div className="flex min-w-0 flex-col justify-center space-y-7 [@media(max-height:820px)]:space-y-4">
+                            <div data-contact-reveal="title" className="space-y-4 [@media(max-height:820px)]:space-y-3">
                               <div className="flex items-center gap-3">
                                 <div className="h-px w-8 bg-emerald-500/30" />
                                 <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-emerald-500/60 font-bold">
@@ -4004,20 +4054,20 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 </span>
                               </div>
 
-                              <h2 className="text-4xl font-bold tracking-tighter text-white md:text-5xl xl:text-6xl leading-none">
+                              <h2 className="text-4xl font-bold tracking-tighter text-white md:text-5xl leading-none [@media(max-height:820px)]:md:text-[2.6rem]">
                                 {t("CONTACT_TITLE")}{" "}
                                 <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8 decoration-2">
                                   {t("CONTACT_TITLE_HIGHLIGHT")}
                                 </span>
                               </h2>
 
-                              <p className="max-w-md text-sm text-zinc-400 font-mono leading-relaxed">
+                              <p className="max-w-xl text-sm text-zinc-400 font-mono leading-relaxed">
                                 {t("CONTACT_SUBTITLE")}
                               </p>
                             </div>
 
                             {/* Terminal Command List */}
-                            <div className="grid gap-3">
+                            <div data-contact-reveal="channels" className="grid gap-3 sm:grid-cols-2">
                               {[
                                 {
                                   label: "WHATSAPP",
@@ -4026,24 +4076,23 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   color: "text-emerald-400",
                                 },
                                 {
-                                  label: "GITHUB",
-                                  value: "github.com/Roiner994",
-                                  action: "https://github.com/Roiner994",
-                                  color: "text-purple-400",
+                                  label: "MAIL",
+                                  value: aboutData.email,
+                                  action: `mailto:${aboutData.email}`,
+                                  color: "text-blue-400",
                                 },
                                 {
                                   label: "LINKEDIN",
-                                  value:
-                                    "linkedin.com/in/roiner-hernandez-a6314894",
+                                  value: "in/roiner-hernandez-a6314894",
                                   action:
                                     "https://www.linkedin.com/in/roiner-hernandez-a6314894/",
                                   color: "text-blue-400",
                                 },
                                 {
-                                  label: "MAIL",
-                                  value: aboutData.email,
-                                  action: `mailto:${aboutData.email}`,
-                                  color: "text-blue-400",
+                                  label: "GITHUB",
+                                  value: "github.com/Roiner994",
+                                  action: "https://github.com/Roiner994",
+                                  color: "text-purple-400",
                                 },
                               ].map((item, i) => (
                                 <motion.a
@@ -4051,236 +4100,102 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   href={item.action}
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  title={item.value}
                                   initial={{ opacity: 0, x: 20 }}
                                   animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: 0.4 + i * 0.1 }}
+                                  transition={{ delay: 0.3 + i * 0.08 }}
                                   onHoverStart={() =>
                                     setIsContactCardHovered(true)
                                   }
                                   onHoverEnd={() =>
                                     setIsContactCardHovered(false)
                                   }
-                                  className="group relative flex items-center gap-4 overflow-hidden rounded-lg border border-zinc-800/50 bg-zinc-900/10 px-4 py-3 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.03]"
+                                  className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-lg border border-zinc-800/50 bg-zinc-900/10 px-4 py-3 [@media(max-height:820px)]:py-2 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.03]"
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3 mb-1">
-                                      <span
-                                        className={`font-mono text-[9px] font-black tracking-widest ${item.color} bg-white/5 px-1.5 py-0.5 rounded`}
-                                      >
-                                        {item.label}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
+                                    <span
+                                      className={`mb-1 inline-block font-mono text-[9px] font-black tracking-widest ${item.color} bg-white/5 px-1.5 py-0.5 rounded`}
+                                    >
+                                      {item.label}
+                                    </span>
+                                    <div className="flex items-center gap-2 min-w-0">
                                       <span className="text-emerald-500/50 font-mono text-xs font-bold">
                                         $
                                       </span>
-                                      <span className="font-mono text-sm text-zinc-300 group-hover:text-white transition-colors truncate">
+                                      <span className="font-mono text-[13px] text-zinc-300 group-hover:text-white transition-colors truncate">
                                         {item.value}
                                       </span>
-                                      <motion.span
-                                        animate={{ opacity: [1, 0] }}
-                                        transition={{
-                                          duration: 0.8,
-                                          repeat: Infinity,
-                                        }}
-                                        className="h-4 w-2 bg-emerald-500/60 hidden group-hover:inline-block"
-                                      />
                                     </div>
                                   </div>
-
-                                  <div className="flex flex-col items-end shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="font-mono text-[8px] text-emerald-500/60 font-bold uppercase">
-                                      {t("EXECUTE")}
-                                    </span>
-                                    <ArrowUpRight className="w-4 h-4 text-emerald-500" />
-                                  </div>
+                                  <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-500 opacity-0 transition-opacity group-hover:opacity-100" />
                                 </motion.a>
                               ))}
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {activeView === "cv" && (
-                      <div className="space-y-12 pb-12">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-xs font-mono">
-                            <span className="text-emerald-500">$</span>
-                            <span className="text-zinc-300">
-                              cat /sys/docs/cv_manifest.json --verbose
-                            </span>
-                          </div>
-                          <div className="text-[10px] font-mono text-zinc-600">
-                            {t("SYSTEM_READING_ASSETS")}
-                            <span className="ml-4 text-emerald-500/50">
-                              CRC: 0x88F2A
-                            </span>
-                          </div>
-                        </div>
 
-                        <div className="grid xl:grid-cols-[1.3fr_0.7fr] gap-8 items-start">
-                          <div className="space-y-8">
-                            {/* Main CV Identity Card */}
-                            <div className="relative group">
-                              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-blue-500/10 rounded-[2rem] blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
-                              <div className="relative p-6 md:p-10 bg-zinc-900/60 border border-zinc-800 rounded-[2rem] space-y-8 backdrop-blur-xl">
-                                {/* Terminal Window Controls (Decorative) */}
-                                <div className="absolute top-6 right-8 flex gap-2">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
-                                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
-                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
+                            {/* CV (merged from the old CV section) */}
+                            <div
+                              id="contact-cv"
+                              ref={contactCvRef}
+                              data-contact-reveal="cv"
+                              data-highlight={cvHighlight ? "on" : undefined}
+                              className="relative space-y-4 rounded-xl border border-zinc-800/70 bg-zinc-900/30 p-5 [@media(max-height:820px)]:space-y-3 [@media(max-height:820px)]:p-4 transition-[border-color,box-shadow] duration-500 data-[highlight=on]:border-emerald-400/70 data-[highlight=on]:shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_36px_-6px_rgba(16,185,129,0.5)]"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 font-mono text-xs">
+                                  <span className="text-emerald-500">$</span>
+                                  <span className="text-zinc-300">cat ./cv.pdf</span>
                                 </div>
-
-                                <div className="flex flex-col md:flex-row md:items-center gap-6">
-                                  <div className="relative">
-                                    <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                                      <Briefcase className="w-10 h-10 text-emerald-400" />
-                                    </div>
-                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-[3px] border-zinc-950 flex items-center justify-center">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase leading-none">
-                                      {t("CURRICULUM_VITAE")}
-                                    </h2>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                      <span className="text-emerald-500 font-mono text-[10px] font-bold uppercase tracking-[0.3em]">
-                                        {t("PROFESSIONAL_PROFILE")}
-                                      </span>
-                                      <div className="h-px w-8 bg-zinc-800" />
-                                      <span className="text-zinc-500 font-mono text-[9px] uppercase">
-                                        SECURE_ID: RH-{new Date().getFullYear()}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Language Proficiency Section */}
-                                <div className="space-y-4 pt-2">
-                                  <div className="flex items-center gap-3">
-                                    <ProjectSectionLabel>
-                                      {t("LANGUAGE_PROTOCOLS")}
-                                    </ProjectSectionLabel>
-                                    <div className="h-px flex-1 bg-zinc-800/40" />
-                                  </div>
-                                  <div className="flex flex-wrap gap-3">
-                                    {cvData.languages.map((lang, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center gap-3 px-4 py-2 bg-black/40 border border-zinc-800 rounded-xl hover:border-emerald-500/30 transition-colors group/lang"
-                                      >
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/30 group-hover/lang:bg-emerald-500 transition-colors" />
-                                        <span className="font-mono text-xs text-zinc-300">
-                                          {lang.label}
-                                        </span>
-                                        <span className="text-zinc-700 font-mono text-[10px]">
-                                          ::
-                                        </span>
-                                        <span className="font-mono text-[10px] font-bold text-emerald-500/60 group-hover/lang:text-emerald-500 transition-colors uppercase tracking-widest">
-                                          {lang.level}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Professional Summaries */}
-                                <div className="grid md:grid-cols-2 gap-6 pt-4">
-                                  <div className="relative group/card flex flex-col">
-                                    <div className="absolute -top-3 -left-2 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded font-mono text-[9px] font-black text-emerald-500/80 z-10 shadow-lg">
-                                      DATA_DUMP [ES]
-                                    </div>
-                                    <div className="flex-1 p-6 bg-black/40 border border-zinc-800/60 rounded-2xl group-hover/card:border-emerald-500/20 transition-all duration-500 relative overflow-hidden">
-                                      <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                                        <Languages className="w-12 h-12 text-white" />
-                                      </div>
-                                      <p className="text-[13px] text-zinc-400 leading-relaxed font-mono relative z-10">
-                                        {cvData.summaryEs}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  <div className="relative group/card flex flex-col">
-                                    <div className="absolute -top-3 -left-2 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded font-mono text-[9px] font-black text-emerald-500/80 z-10 shadow-lg">
-                                      DATA_DUMP [EN]
-                                    </div>
-                                    <div className="flex-1 p-6 bg-black/40 border border-zinc-800/60 rounded-2xl group-hover/card:border-emerald-500/20 transition-all duration-500 relative overflow-hidden">
-                                      <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                                        <Languages className="w-12 h-12 text-white" />
-                                      </div>
-                                      <p className="text-[13px] text-zinc-400 leading-relaxed font-mono relative z-10">
-                                        {cvData.summaryEn}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
+                                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-500/60">
+                                  {t("CURRICULUM_VITAE")}
+                                </span>
                               </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-8">
-                            <div className="space-y-6">
-                              {/* Download panel */}
-                              <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-6 relative overflow-hidden group/actions">
-                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.05),transparent_40%)]" />
-
-                                <div className="space-y-3 relative">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
-                                      <span className="font-mono text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">
-                                        {t("ASSET_TERMINAL")}
-                                      </span>
-                                    </div>
-                                    <span className="font-mono text-[10px] text-zinc-700 font-bold">
-                                      v1.0.4
+                              <p className="font-mono text-[12.5px] leading-relaxed text-zinc-400">
+                                {language === "es"
+                                  ? cvData.summaryEs
+                                  : cvData.summaryEn}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {cvData.languages.map((lang) => (
+                                  <span
+                                    key={lang.label}
+                                    className="flex items-center gap-2 rounded-md border border-zinc-800 bg-black/40 px-2.5 py-1 font-mono text-[11px] text-zinc-300"
+                                  >
+                                    {lang.label}
+                                    <span className="text-zinc-700">::</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500/70">
+                                      {lang.level}
                                     </span>
-                                  </div>
-                                  <p className="text-[12px] text-zinc-600 font-mono italic">
-                                    {t("SELECT_MANIFEST")}
-                                  </p>
-                                </div>
-
-                                <div className="space-y-4 relative">
-                                  {cvData.downloads.map((file, i) => (
-                                    <a
-                                      key={file.href}
-                                      href={file.href}
-                                      download
-                                      className="group/dl block relative"
-                                    >
-                                      <div className="flex items-center justify-between px-5 py-3 bg-black/40 border border-zinc-800 rounded-xl group-hover/dl:border-emerald-500/50 group-hover/dl:bg-emerald-500/[0.02] transition-all duration-300">
-                                        <div className="flex items-center gap-4">
-                                          <Download className="w-4 h-4 text-zinc-600 group-hover/dl:text-emerald-500 transition-colors" />
-                                          <span className="font-mono text-xs font-bold text-zinc-400 group-hover/dl:text-emerald-500 uppercase tracking-widest">
-                                            {file.label}
-                                          </span>
-                                        </div>
-                                        <ArrowUpRight className="w-4 h-4 text-zinc-800 group-hover/dl:text-emerald-500 transition-all" />
-                                      </div>
-                                    </a>
-                                  ))}
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4 pt-2 relative">
-                                  <div className="px-4 py-2 bg-black/40 border border-zinc-800 rounded-lg flex items-center justify-between group/meta transition-colors hover:border-zinc-700">
-                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
-                                      {t("FORMAT")}
-                                    </span>
-                                    <span className="text-[10px] text-zinc-400 font-bold font-mono">
-                                      PDF/A-1
-                                    </span>
-                                  </div>
-                                  <div className="px-4 py-2 bg-black/40 border border-zinc-800 rounded-lg flex items-center justify-between group/meta transition-colors hover:border-zinc-700">
-                                    <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
-                                      {t("ACCESS")}
-                                    </span>
-                                    <span className="text-[10px] text-zinc-400 font-bold font-mono">
-                                      PUBLIC
-                                    </span>
-                                  </div>
-                                </div>
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="flex flex-wrap gap-2.5">
+                                <a
+                                  ref={contactCvButtonRef}
+                                  href={
+                                    language === "es"
+                                      ? "/Roiner-Hernandez-cv-es.pdf"
+                                      : "/Roiner-Hernandez-cv-en.pdf"
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group/cv flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-emerald-300 transition-colors hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  {language === "es" ? "Ver CV" : "View CV"}
+                                  <ArrowUpRight className="h-3.5 w-3.5 opacity-60 transition-opacity group-hover/cv:opacity-100" />
+                                </a>
+                                {cvData.downloads.map((file) => (
+                                  <a
+                                    key={file.href}
+                                    href={file.href}
+                                    download
+                                    title={file.detail}
+                                    className="group/dl flex items-center gap-2 rounded-lg border border-zinc-800 bg-black/40 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:border-emerald-500/50 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                                  >
+                                    <Download className="h-4 w-4 text-zinc-600 transition-colors group-hover/dl:text-emerald-500" />
+                                    {file.label}
+                                  </a>
+                                ))}
                               </div>
                             </div>
                           </div>
@@ -4294,7 +4209,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         viewport={{ once: false, amount: 0.1 }}
                         onClick={handleNext}
                         className={`cursor-pointer group/prompt inline-block w-full relative z-10 ${
-                          activeView === "contact" || activeView === "cv"
+                          activeView === "contact"
                             ? "mt-8 mb-6 self-start"
                             : "mt-8 mb-12"
                         }`}
@@ -4305,7 +4220,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           </span>
                           <span>
                             {usesTouchNavigationCopy ? (
-                              activeView === "cv" ? (
+                              activeView === "contact" ? (
                                 t("AI_TOUCH_HINT")
                               ) : (
                                 t("TOUCH_NEXT_SECTION")
@@ -4317,7 +4232,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   ENTER
                                 </span>{" "}
                                 {t("PARA")}{" "}
-                                {activeView === "cv"
+                                {activeView === "contact"
                                   ? t("AI_OPEN_HINT")
                                   : viewOrder.indexOf(activeView as any) !==
                                         -1 &&

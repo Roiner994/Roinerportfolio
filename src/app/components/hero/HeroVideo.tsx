@@ -348,7 +348,8 @@ export function HeroVideo() {
         return;
       }
 
-      const isSection = commands.includes(cmd);
+      // `cv` is an alias for Contact (it opens Contact and highlights the CV).
+      const isSection = commands.includes(cmd) || cmd === 'cv';
       const agent = SECTION_AGENTS[cmd] || FREEFORM_AGENT;
 
       // Sections (not AI mode) travel through the robot -> CRT transition.
