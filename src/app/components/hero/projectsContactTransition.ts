@@ -4,12 +4,13 @@
  * Imperative, same engine style as expProjectsTransition (no React state per
  * frame). Forward: Contact is already mounted underneath with every block
  * hidden; a clone of the Projects UI sits on top. The camera zooms toward
- * Roiner's small avatar in the Explorer while Projects dims and blurs; the
- * avatar grows in place with the camera, hops, and jumps straight into the
- * Contact photo square (no stop at the screen centre), landing exactly on the
- * square's final on-screen rect. The square switches on like a CRT there
- * (line -> vertical expand, flash + scanlines), the sprite crossfades into the
- * photo and the rest of Contact reveals outward from the square.
+ * the Contact photo square while Projects dims and blurs; during that same
+ * push-in Roiner's avatar drifts from the Explorer onto the square (position
+ * and size eased with the zoom, ending exactly on the square's final
+ * on-screen rect), does a short hop in place and lands. Only then does the
+ * square switch on like a CRT (line -> vertical expand, flash + scanlines),
+ * the sprite crossfades into the photo and the rest of Contact reveals
+ * outward from the square.
  * Reverse plays the same timeline backwards on a clone of Contact while the
  * live Projects view zooms back out underneath.
  */
@@ -22,30 +23,34 @@ export interface Box {
 }
 
 export const PROJECTS_CONTACT_TIMELINE = {
-  /** Camera zoom toward the avatar; Projects dims + blurs. */
-  zoomMs: 640,
+  /**
+   * Camera push-in toward the photo square; Projects dims + blurs. During the
+   * same window the avatar drifts from the Explorer to the square, position
+   * and size eased together with the zoom (no separate jump).
+   */
+  zoomMs: 1000,
   zoomScale: 1.7,
   zoomBlurPx: 7,
-  /** Projects fully gone by this time. */
-  projectsOutMs: 1000,
-  squash1: [640, 700] as [number, number],
-  hop: [700, 880] as [number, number],
-  hopPx: 26,
-  squash2: [880, 940] as [number, number],
-  jump: [940, 1320] as [number, number],
-  jumpArcPx: 90,
-  /** CRT switch-on inside the square. */
-  crtLine: [1320, 1380] as [number, number],
-  crtExpand: [1380, 1500] as [number, number],
-  crtFlashOut: [1380, 1620] as [number, number],
-  scanlinesOut: [1420, 1800] as [number, number],
+  /** Projects fades out over this window. */
+  projectsOut: [560, 1000] as [number, number],
+  /** Short hop in place on the square, then landing. */
+  squash1: [1000, 1050] as [number, number],
+  hop: [1050, 1220] as [number, number],
+  /** Hop height as a fraction of the landed avatar height (min 14px). */
+  hopFrac: 0.07,
+  squash2: [1220, 1290] as [number, number],
+  /** CRT switch-on inside the square, after the landing. */
+  crtLine: [1290, 1350] as [number, number],
+  crtExpand: [1350, 1470] as [number, number],
+  crtFlashOut: [1350, 1590] as [number, number],
+  scanlinesOut: [1390, 1770] as [number, number],
   /** Sprite -> photo crossfade. */
-  spriteFade: [1480, 1680] as [number, number],
+  spriteFade: [1450, 1650] as [number, number],
   /** The rest of Contact, staggered by distance from the square. */
-  revealStart: 1500,
-  revealStaggerMs: 70,
-  revealMs: 300,
-  durationMs: 1900,
+  revealStart: 1400,
+  revealStaggerMs: 55,
+  revealMs: 270,
+  durationMs: 1950,
   reducedMs: 360,
 };
 
@@ -122,7 +127,7 @@ export function runProjectsContactTransition(
   const T = PROJECTS_CONTACT_TIMELINE;
   const forward = opts.direction === "forward";
   const reduce = opts.reduceMotion;
-  const duration = reduce ? T.reducedMs : T.durationMs;
+  let duration = reduce ? T.reducedMs : T.durationMs;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
@@ -225,6 +230,9 @@ export function runProjectsContactTransition(
     })
     .sort((a, b) => a.dist - b.dist)
     .map((r, i) => ({ ...r, delay: T.revealStart + i * T.revealStaggerMs }));
+  // Never cut the last reveal short (it would pop on cleanup).
+  if (!reduce && reveals.length)
+    duration = Math.max(duration, reveals[reveals.length - 1].delay + T.revealMs);
 
   // ---------- CRT overlays on the square ----------
   const crt = makeLayer(frameBox, 165);
@@ -282,8 +290,8 @@ export function runProjectsContactTransition(
     layers.push(sprite);
   }
 
-  // Avatar keyframes: mini rect -> (grows in place with the camera zoom) ->
-  // straight into the photo square, scaled to fit it.
+  // Avatar keyframes: mini rect -> drifts (with the camera push-in) onto the
+  // photo square, scaled to fit it -> short hop in place -> lands.
   const a0 = opts.avatar?.box ?? {
     left: vw / 2 - 36,
     top: vh - 160,
@@ -292,12 +300,13 @@ export function runProjectsContactTransition(
   };
   const aspect = a0.width / Math.max(1, a0.height);
   const h0 = a0.height;
-  // The camera zooms around the avatar's centre, so the avatar grows in place.
-  const zoomOrigin = { x: a0.left + a0.width / 2, y: a0.top + a0.height / 2 };
-  const h1 = h0 * T.zoomScale;
-  // bottom-centre anchors
-  const p0 = { x: zoomOrigin.x, y: a0.top + a0.height };
-  const p1 = { x: zoomOrigin.x, y: zoomOrigin.y + h1 / 2 };
+  // bottom-centre anchor
+  const p0 = { x: a0.left + a0.width / 2, y: a0.top + a0.height };
+  // The camera pushes in toward the square (its settled centre).
+  const zoomOrigin = {
+    x: frameBox.left + frameBox.width / 2,
+    y: frameBox.top + frameBox.height / 2,
+  };
   // Landing: the largest avatar that fits inside the square, bottom-centred.
   let h2 = 0;
   let p2 = { x: 0, y: 0 };
@@ -334,11 +343,11 @@ export function runProjectsContactTransition(
       return;
     }
 
-    if (forward && frame && t <= T.jump[1]) remeasure();
+    if (forward && frame && t <= T.squash2[1]) remeasure();
 
     // Projects: zoom toward the avatar, dim, blur, then fade away.
     const z = easeInOutCubic(seg(t, [0, T.zoomMs]));
-    const out = seg(t, [T.zoomMs - 120, T.projectsOutMs]);
+    const out = seg(t, T.projectsOut);
     projectsEl.style.transformOrigin = `${originX}px ${originY}px`;
     projectsEl.style.transform = `scale(${lerp(1, T.zoomScale, z)})`;
     projectsEl.style.filter = `blur(${(T.zoomBlurPx * z).toFixed(2)}px) brightness(${lerp(1, 0.7, z).toFixed(3)})`;
@@ -351,34 +360,29 @@ export function runProjectsContactTransition(
     let sx = 1;
     let sy = 1;
     if (t <= T.zoomMs) {
-      // Locked to the zoomed avatar in the Projects clone.
-      h = lerp(h0, h1, z);
-      x = p0.x;
-      y = zoomOrigin.y + h / 2;
-    } else if (t < T.jump[0]) {
-      x = p1.x;
-      y = p1.y;
-      h = h1;
+      // Drift: position and size eased together with the camera zoom.
+      x = lerp(p0.x, p2.x, z);
+      y = lerp(p0.y, p2.y, z);
+      h = lerp(h0, h2, z);
+    } else {
+      // On the square: squash, short hop in place, squash on landing.
+      x = p2.x;
+      y = p2.y;
+      h = h2;
       const q1 = seg(t, T.squash1);
       const q2 = seg(t, T.squash2);
       const squash =
         t < T.hop[0]
-          ? Math.sin(Math.PI * q1) * 0.12
+          ? Math.sin(Math.PI * q1) * 0.08
           : t >= T.squash2[0]
-            ? Math.sin(Math.PI * q2) * 0.14
+            ? Math.sin(Math.PI * q2) * 0.1
             : 0;
       sy = 1 - squash;
       sx = 1 + squash * 0.7;
-      y -= Math.sin(Math.PI * seg(t, T.hop)) * T.hopPx;
-    } else {
-      const k = seg(t, T.jump);
-      const e = easeInOutSine(k);
-      x = lerp(p1.x, p2.x, e);
-      y = lerp(p1.y, p2.y, e) - Math.sin(Math.PI * k) * T.jumpArcPx;
-      h = lerp(h1, h2, easeOutCubic(k));
-      // stretch on take-off, settle on landing
-      sy = 1 + Math.sin(Math.PI * k) * 0.06;
-      sx = 1 - Math.sin(Math.PI * k) * 0.04;
+      const k = seg(t, T.hop);
+      y -= Math.sin(Math.PI * k) * Math.max(14, h2 * T.hopFrac);
+      sy *= 1 + Math.sin(Math.PI * k) * 0.04;
+      sx *= 1 - Math.sin(Math.PI * k) * 0.03;
     }
     const w = h * aspect;
     sprite.style.width = `${w}px`;
