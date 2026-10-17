@@ -39,11 +39,7 @@ import {
 import {
   motion,
   AnimatePresence,
-  animate,
-  useMotionValue,
-  useTransform,
   useReducedMotion,
-  type MotionValue,
 } from "motion/react";
 import {
   aboutData,
@@ -490,48 +486,39 @@ export interface TerminalPanelHandle {
 }
 
 interface ExperienceNodeMarkerProps {
-  pulseY: MotionValue<number>;
-  targetY: number;
+  glowRef: (el: HTMLDivElement | null) => void;
 }
 
-function ExperienceNodeMarker({ pulseY, targetY }: ExperienceNodeMarkerProps) {
-  const activation = useTransform(pulseY, (value) => {
-    const distance = Math.abs(value - targetY);
-    return Math.max(0, 1 - distance / 54);
-  });
-
-  const borderColor = useTransform(
-    activation,
-    [0, 1],
-    ["rgba(63,63,70,0.9)", "rgba(16,185,129,0.95)"],
-  );
-  const backgroundColor = useTransform(
-    activation,
-    [0, 1],
-    ["rgba(9,9,11,1)", "rgba(16,185,129,0.18)"],
-  );
-  const boxShadow = useTransform(
-    activation,
-    [0, 0.65, 1],
-    [
-      "0 0 0 rgba(16,185,129,0)",
-      "0 0 12px rgba(16,185,129,0.45), 0 0 18px rgba(16,185,129,0.18)",
-      "0 0 18px rgba(16,185,129,0.8), 0 0 28px rgba(16,185,129,0.35)",
-    ],
-  );
-  const coreOpacity = useTransform(activation, [0, 1], [0.45, 1]);
-  const coreScale = useTransform(activation, [0, 1], [1, 1.25]);
-
+/**
+ * Timeline node. The base square is static; the "lit" state is a separate
+ * layer whose opacity is driven by a compositor (WAAPI) animation in sync
+ * with the rail pulse, so nothing repaints while the pulse travels.
+ */
+function ExperienceNodeMarker({ glowRef }: ExperienceNodeMarkerProps) {
   return (
-    <motion.div
-      className="relative z-10 flex h-4 w-4 items-center justify-center border border-zinc-700 bg-zinc-950"
-      style={{ borderColor, backgroundColor, boxShadow }}
+    <div
+      className="relative z-10 flex h-4 w-4 items-center justify-center border"
+      style={{
+        borderColor: "rgba(63,63,70,0.9)",
+        backgroundColor: "rgba(9,9,11,1)",
+      }}
     >
-      <motion.div
-        className="h-1.5 w-1.5 bg-emerald-500/60"
-        style={{ opacity: coreOpacity, scale: coreScale }}
-      />
-    </motion.div>
+      <div className="h-1.5 w-1.5 bg-emerald-500/60" style={{ opacity: 0.45 }} />
+      <div
+        ref={glowRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute -inset-px flex items-center justify-center border will-change-[opacity]"
+        style={{
+          opacity: 0,
+          borderColor: "rgba(16,185,129,0.95)",
+          backgroundColor: "rgba(16,185,129,0.18)",
+          boxShadow:
+            "0 0 18px rgba(16,185,129,0.8), 0 0 28px rgba(16,185,129,0.35)",
+        }}
+      >
+        <div className="h-1.5 w-1.5 scale-125 bg-emerald-500/60" />
+      </div>
+    </div>
   );
 }
 
@@ -1012,7 +999,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const experienceRailRef = useRef<HTMLDivElement>(null);
   const experienceNodeRefs = useRef<Array<HTMLDivElement | null>>([]);
   const experienceItemRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const experiencePulseY = useMotionValue(-24);
+  const experiencePulseRef = useRef<HTMLDivElement>(null);
+  const experienceGlowRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const overlayScrollRef = useRef<HTMLDivElement>(null);
   const innerScrollRef = useRef<HTMLDivElement>(null);
@@ -2875,20 +2863,61 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       return;
     }
 
-    const controls = animate(
-      experiencePulseY,
-      [-24, experienceRailHeight + 24],
-      {
-        duration: 4.8,
-        repeat: Infinity,
-        ease: "linear",
-      },
-    );
+    // Rail pulse + node glow as compositor animations (transform / opacity).
+    // Same timing as before: linear sweep from -24px to height+24px in 4.8s;
+    // each node lights up within 54px of the pulse.
+    const pulse = experiencePulseRef.current;
+    if (!pulse || typeof pulse.animate !== "function") {
+      return;
+    }
+    const DURATION = 4800;
+    const from = -24;
+    const to = experienceRailHeight + 24;
+    const span = to - from;
+    const timing: KeyframeAnimationOptions = {
+      duration: DURATION,
+      iterations: Infinity,
+      easing: "linear",
+    };
+    const anims: Animation[] = [
+      pulse.animate(
+        [
+          { transform: `translateY(${from}px)` },
+          { transform: `translateY(${to}px)` },
+        ],
+        timing,
+      ),
+    ];
+    experienceGlowRefs.current.forEach((el, i) => {
+      if (!el) return;
+      const target = experienceNodeTargets[i] ?? 0;
+      const activation = (u: number) =>
+        Math.max(0, 1 - Math.abs(from + u * span - target) / 54);
+      const c = (target - from) / span;
+      const w = 54 / span;
+      const offsets = Array.from(
+        new Set(
+          [0, c - w, c, c + w, 1].map((u) => Math.min(1, Math.max(0, u))),
+        ),
+      ).sort((a, b) => a - b);
+      anims.push(
+        el.animate(
+          offsets.map((offset) => ({ offset, opacity: activation(offset) })),
+          timing,
+        ),
+      );
+    });
+    const t0 = document.timeline.currentTime;
+    if (typeof t0 === "number") {
+      anims.forEach((a) => {
+        a.startTime = t0;
+      });
+    }
 
     return () => {
-      controls.stop();
+      anims.forEach((a) => a.cancel());
     };
-  }, [activeView, experienceRailHeight, experiencePulseY]);
+  }, [activeView, experienceRailHeight, experienceNodeTargets]);
 
   useEffect(() => {
     if (activeView !== "about") {
@@ -3008,7 +3037,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       }}
       onClick={handleTerminalClick}
       className={`
-          backdrop-blur-xl border overflow-hidden cursor-text flex flex-col w-full min-w-0
+          ${isExpanded ? "" : "backdrop-blur-xl"} border overflow-hidden cursor-text flex flex-col w-full min-w-0
           ${usesFullscreenExpandedLayout ? "h-screen" : isExpanded ? "min-h-screen" : "h-full"}
           ${variant === "floating" && !isExpanded ? "shadow-2xl shadow-emerald-500/10" : ""}
           ${variant === "centered" && !isExpanded ? "max-w-4xl mx-auto" : ""}
@@ -3026,7 +3055,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     >
       {/* Ambient glow */}
       <div
-        className={`absolute -inset-[1px] bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-emerald-500/10 blur opacity-30 pointer-events-none ${isExpanded ? "" : "rounded-2xl"}`}
+        className={`absolute -inset-[1px] bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-emerald-500/10 opacity-30 pointer-events-none ${isExpanded ? "" : "blur rounded-2xl"}`}
       />
 
       {/* Terminal header */}
@@ -3609,10 +3638,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                               className="relative h-full w-px overflow-visible"
                             >
                               <div className="absolute inset-0 bg-gradient-to-b from-zinc-800 via-emerald-500/10 to-zinc-800" />
-                              <motion.div
+                              <div
+                                ref={experiencePulseRef}
                                 aria-hidden="true"
-                                className="absolute top-0 left-1/2 h-16 w-1.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-emerald-300/0 via-emerald-400 to-emerald-300/0 shadow-[0_0_18px_rgba(16,185,129,0.9)] blur-[0.5px]"
-                                style={{ y: experiencePulseY }}
+                                className="absolute top-0 left-1/2 h-16 w-1.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-emerald-300/0 via-emerald-400 to-emerald-300/0 shadow-[0_0_18px_rgba(16,185,129,0.9)] will-change-transform"
+                                style={{ transform: "translateY(-24px)" }}
                               />
                             </div>
                           </div>
@@ -3642,8 +3672,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     className="absolute left-0 top-1.5 w-6 -translate-x-[40px] md:-translate-x-[56px] flex justify-center"
                                   >
                                     <ExperienceNodeMarker
-                                      pulseY={experiencePulseY}
-                                      targetY={experienceNodeTargets[i] ?? 0}
+                                      glowRef={(el) => {
+                                        experienceGlowRefs.current[i] = el;
+                                      }}
                                     />
                                   </div>
 
