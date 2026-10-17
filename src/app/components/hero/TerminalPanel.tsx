@@ -113,6 +113,18 @@ interface RectBox {
 
 const ABOUT_EXP_DURATION_MS = 1500;
 const ABOUT_EXP_REDUCED_MS = 450;
+/** About and Experience stay mounted together once one is open (the inactive
+ *  one hidden), so the timed transition never mounts ~1k nodes mid-animation. */
+const HIDDEN_SECTION_STYLE: React.CSSProperties = {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  top: 0,
+  height: 0,
+  overflow: "hidden",
+  visibility: "hidden",
+  pointerEvents: "none",
+};
 
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
@@ -994,6 +1006,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // Active Experience job: kept out of React state so scrolling never
   // re-renders the whole panel; toggled as a data attribute on the job nodes.
   const activeExperienceIndexRef = useRef(0);
+  const [keepAboutExpMounted, setKeepAboutExpMounted] = useState(false);
   const appliedExperienceIndexRef = useRef(-1);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1766,6 +1779,36 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     [aboutData.bio.length, getActiveScroller, getFallbackExpRect, readRobotRects],
   );
 
+  // Pre-mount the sibling section (About <-> Experience) while idle, so the
+  // transition only flips visibility instead of mounting mid-animation.
+  useEffect(() => {
+    const inPair =
+      isExpanded && (activeView === "about" || activeView === "experience");
+    if (!inPair) {
+      setKeepAboutExpMounted(false);
+      return;
+    }
+    if (keepAboutExpMounted || aboutExpTransition) return;
+    let idle = 0;
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const timer = window.setTimeout(() => {
+      if (w.requestIdleCallback) {
+        idle = w.requestIdleCallback(() => setKeepAboutExpMounted(true), {
+          timeout: 700,
+        });
+      } else {
+        setKeepAboutExpMounted(true);
+      }
+    }, 500);
+    return () => {
+      window.clearTimeout(timer);
+      if (idle) w.cancelIdleCallback?.(idle);
+    };
+  }, [isExpanded, activeView, keepAboutExpMounted, aboutExpTransition]);
+
   // Drive the timed About <-> Experience transition:
   // 1) outgoing section fades/slides out while the 4 robots lift off,
   // 2) view switches at ~42%, 3) incoming section fades in as robots land.
@@ -1786,6 +1829,18 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     let cancelled = false;
     let switched = false;
     let scrollRestored = direction === "forward";
+    // Destination rects are read twice (once the incoming view is shown, and
+    // at 90%), not every frame; the robots converge toward the cached rects.
+    let measuredDest = false;
+    let measuredLate = false;
+    const readDest = () =>
+      [0, 1, 2, 3].map((i) => {
+        const r = destRefs.current[i]?.getBoundingClientRect();
+        return r && r.width > 0
+          ? { left: r.left, top: r.top, width: r.width, height: r.height }
+          : null;
+      });
+    let destRects: Array<RectBox | null> = [];
     const startTime = performance.now();
 
     const getOutgoing = () =>
@@ -1851,17 +1906,27 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         styleSection(getOutgoing(), 1 - s, -14 * s * dirSign);
       } else {
         const incoming = getIncoming();
-        if (incoming && !scrollRestored) {
+        // The sibling may already be mounted (hidden); wait for the commit
+        // that actually shows it.
+        const shown =
+          !!incoming && !incoming.hasAttribute("data-section-hidden");
+        if (shown && !scrollRestored) {
           scrollRestored = true;
           restoreAboutScroll();
         }
         const a = smoothstep(SWITCH_AT + 0.04, 0.96, raw);
         styleSection(incoming, a, 16 * (1 - a) * dirSign);
 
-        // Converge toward the live destination rects once they exist.
+        if (shown && (!measuredDest || (raw >= 0.9 && !measuredLate))) {
+          if (measuredDest) measuredLate = true;
+          measuredDest = true;
+          destRects = readDest();
+        }
+
+        // Converge toward the measured destination rects.
         for (let i = 0; i < 4; i++) {
-          const r = destRefs.current[i]?.getBoundingClientRect();
-          if (r && r.width > 0) {
+          const r = destRects[i];
+          if (r) {
             const k = raw >= 0.9 ? 1 : 0.22;
             target[i].left += (r.left - target[i].left) * k;
             target[i].top += (r.top - target[i].top) * k;
@@ -1892,6 +1957,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         const y = inv * inv * ay + 2 * inv * e * cy + e * e * by;
         const w = a.width + (b.width - a.width) * e;
         const h = a.height + (b.height - a.height) * e;
+        // The element keeps its initial box; size changes are a scale.
+        const w0 = fromRects[i]?.width ?? 71;
+        const h0 = fromRects[i]?.height ?? 71;
 
         const vx = 2 * inv * (cx - ax) + 2 * e * (bx - cx);
         const activity = Math.sin(Math.PI * u);
@@ -1899,9 +1967,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           ? 0
           : Math.max(-9, Math.min(9, vx * 0.012)) * activity;
 
-        robotEl.style.width = `${w.toFixed(1)}px`;
-        robotEl.style.height = `${h.toFixed(1)}px`;
-        robotEl.style.transform = `translate3d(${(x - w / 2).toFixed(1)}px, ${(y - h / 2).toFixed(1)}px, 0) rotate(${tilt.toFixed(2)}deg)`;
+        robotEl.style.transform = `translate3d(${(x - w0 / 2).toFixed(1)}px, ${(y - h0 / 2).toFixed(1)}px, 0) rotate(${tilt.toFixed(2)}deg) scale(${(w / w0).toFixed(4)}, ${(h / h0).toFixed(4)})`;
       }
 
       if (raw < 1) {
@@ -3061,6 +3127,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               </div>
   );
 
+  const keepAboutExpPair =
+    keepAboutExpMounted &&
+    isExpanded &&
+    (activeView === "about" || activeView === "experience");
+
   const panel = (
     <motion.div
       layout
@@ -3436,14 +3507,28 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         : "flex-1 min-h-0"
                     }
                   >
-                    {activeView === "about" && (
+                    {(activeView === "about" ||
+                      (keepAboutExpPair && activeView === "experience")) && (
                       <div
                         ref={aboutSectionRef}
                         className="space-y-12 pb-12"
-                        style={{
-                          opacity:
-                            aboutExpTransition?.direction === "reverse" ? 0 : 1,
-                        }}
+                        data-section-hidden={
+                          activeView !== "about" ? "" : undefined
+                        }
+                        aria-hidden={activeView !== "about" || undefined}
+                        {...(activeView !== "about"
+                          ? ({ inert: "" } as Record<string, string>)
+                          : {})}
+                        style={
+                          activeView !== "about"
+                            ? HIDDEN_SECTION_STYLE
+                            : {
+                                opacity:
+                                  aboutExpTransition?.direction === "reverse"
+                                    ? 0
+                                    : 1,
+                              }
+                        }
                       >
                         {/* Profile Header Section */}
                         <div className="grid md:grid-cols-12 gap-12 items-start">
@@ -3638,14 +3723,28 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                       </div>
                     )}
 
-                    {activeView === "experience" && (
+                    {(activeView === "experience" ||
+                      (keepAboutExpPair && activeView === "about")) && (
                       <div
                         ref={expSectionRef}
                         className="space-y-12 pt-14 md:pt-0"
-                        style={{
-                          opacity:
-                            aboutExpTransition?.direction === "forward" ? 0 : 1,
-                        }}
+                        data-section-hidden={
+                          activeView !== "experience" ? "" : undefined
+                        }
+                        aria-hidden={activeView !== "experience" || undefined}
+                        {...(activeView !== "experience"
+                          ? ({ inert: "" } as Record<string, string>)
+                          : {})}
+                        style={
+                          activeView !== "experience"
+                            ? HIDDEN_SECTION_STYLE
+                            : {
+                                opacity:
+                                  aboutExpTransition?.direction === "forward"
+                                    ? 0
+                                    : 1,
+                              }
+                        }
                       >
                         {/* Terminal Command Simulation */}
                         <div className="space-y-1">
