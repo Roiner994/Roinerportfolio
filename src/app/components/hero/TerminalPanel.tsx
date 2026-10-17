@@ -3235,6 +3235,40 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               </div>
   );
 
+  // Mobile Experience: robots are an in-flow filter row (no fixed bar).
+  const [expFilter, setExpFilter] = useState<AgentId | null>(null);
+  useEffect(() => {
+    if (activeView !== "experience") setExpFilter(null);
+  }, [activeView]);
+  const expFilterMatches = useMemo(
+    () =>
+      expFilter
+        ? experienceData.map((exp) =>
+            getMatchingAgentsForTech(exp.tech).has(expFilter),
+          )
+        : null,
+    [expFilter, experienceData],
+  );
+  const handleMobileExpFilter = (agentId: AgentId) => {
+    if (isAboutExpTransitioningRef.current) return;
+    if (expFilter === agentId) {
+      setExpFilter(null);
+      return;
+    }
+    setExpFilter(agentId);
+    const first = experienceData.findIndex((exp) =>
+      getMatchingAgentsForTech(exp.tech).has(agentId),
+    );
+    if (first < 0) return;
+    applyActiveExperienceIndex(first);
+    experienceItemRefs.current[first]?.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  };
+  const expRobotsSettled =
+    aboutExpTransition === null && expProjectsTransition === null;
+
   const keepAboutExpPair =
     keepAboutExpMounted &&
     isExpanded &&
@@ -3910,7 +3944,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                       (keepAboutExpPair && activeView === "about")) && (
                       <div
                         ref={expSectionRef}
-                        className="space-y-12 pt-14 md:pt-0"
+                        className="space-y-12 pt-2 max-md:space-y-8 md:pt-0"
                         data-section-hidden={
                           activeView !== "experience" ? "" : undefined
                         }
@@ -3931,16 +3965,87 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                       >
                         {/* Terminal Command Simulation */}
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-xs font-mono">
+                          <div className="flex items-center gap-2 text-xs font-mono max-md:text-[14px]">
                             <span className="text-emerald-500">$</span>
                             <span className="text-zinc-300">
                               cat experience.json
                             </span>
                           </div>
-                          <div className="text-[10px] font-mono text-zinc-600">
+                          <div className="text-[10px] font-mono text-zinc-600 max-md:text-[12px] max-md:text-zinc-500">
                             {t("SYSTEM_RETRIEVING_LOGS")}
                           </div>
                         </div>
+
+                        {/* Mobile: the 4 robots as an in-flow filter row (flying robots from About land here) */}
+                        {isMobile && (
+                          <div data-exp-filters="" className="space-y-2">
+                            <div
+                              role="group"
+                              aria-label={
+                                language === "es"
+                                  ? "Filtrar trabajos por área"
+                                  : "Filter jobs by area"
+                              }
+                              className="grid grid-cols-4 gap-2"
+                              style={{
+                                visibility: expRobotsSettled ? "visible" : "hidden",
+                              }}
+                            >
+                              {agentCards.map((agent, idx) => {
+                                const on = expFilter === agent.id;
+                                return (
+                                  <button
+                                    key={agent.id}
+                                    type="button"
+                                    aria-pressed={on}
+                                    aria-label={agent.area}
+                                    onClick={() => handleMobileExpFilter(agent.id)}
+                                    className={`flex min-h-[68px] flex-col items-center justify-center gap-1 rounded-xl border px-1 py-1.5 font-mono text-[12px] transition-colors ${
+                                      on
+                                        ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                                        : "border-zinc-800 bg-zinc-950 text-zinc-400"
+                                    }`}
+                                  >
+                                    <span
+                                      ref={(el) => {
+                                        expRobotRefs.current[idx] = el;
+                                      }}
+                                      className="flex h-9 w-9 items-center justify-center"
+                                    >
+                                      <img
+                                        src={agent.sprite}
+                                        alt=""
+                                        className="h-9 w-9 object-contain"
+                                        style={{ imageRendering: "pixelated" }}
+                                        draggable={false}
+                                      />
+                                    </span>
+                                    <span>
+                                      {agent.id === "frontend"
+                                        ? "FE"
+                                        : agent.id === "backend"
+                                          ? "BE"
+                                          : agent.id === "ai"
+                                            ? language === "es"
+                                              ? "IA"
+                                              : "AI"
+                                            : "OPS"}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <p className="font-mono text-[13px] text-zinc-500" aria-live="polite">
+                              {expFilter
+                                ? language === "es"
+                                  ? `Resaltando ${agentCards.find((a) => a.id === expFilter)?.area} · toca otra vez para quitar`
+                                  : `Highlighting ${agentCards.find((a) => a.id === expFilter)?.area} · tap again to clear`
+                                : language === "es"
+                                  ? "Toca un robot para resaltar sus trabajos"
+                                  : "Tap a robot to highlight its jobs"}
+                            </p>
+                          </div>
+                        )}
 
                         <div className="relative pl-10 md:pl-14">
                           <div className="absolute left-0 top-2 bottom-0 w-6 flex justify-center pointer-events-none">
@@ -3958,7 +4063,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             </div>
                           </div>
 
-                          <div className="space-y-16 relative">
+                          <div className="space-y-16 relative max-md:space-y-14">
                             {experienceData.map((exp, i) => {
                               return (
                                 <motion.div
@@ -3973,7 +4078,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   }
                                   animate={{ opacity: 1, x: 0 }}
                                   transition={{ delay: 0.1 + i * 0.08 }}
-                                  className="group/job relative"
+                                  className="group/job relative max-md:scroll-mt-16"
                                 >
                                   <div
                                     ref={(node) => {
@@ -3988,18 +4093,22 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     />
                                   </div>
 
-                                  <div className="space-y-4">
+                                  <div
+                                    className={`space-y-4${
+                                      isMobile ? " transition-opacity duration-300" : ""
+                                    }${expFilterMatches && !expFilterMatches[i] ? " opacity-40" : ""}`}
+                                  >
                                     <div className="flex flex-col gap-1">
                                       <div className="flex flex-wrap items-center gap-2">
                                         <span
-                                          className="text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors text-emerald-500 bg-emerald-500/5 border-emerald-500/20 group-data-[job-active]/job:text-emerald-300 group-data-[job-active]/job:bg-emerald-500/15 group-data-[job-active]/job:border-emerald-400/40 group-data-[job-active]/job:shadow-[0_0_12px_rgba(77,255,176,0.18)]"
+                                          className="text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors max-md:text-[12px] text-emerald-500 bg-emerald-500/5 border-emerald-500/20 group-data-[job-active]/job:text-emerald-300 group-data-[job-active]/job:bg-emerald-500/15 group-data-[job-active]/job:border-emerald-400/40 group-data-[job-active]/job:shadow-[0_0_12px_rgba(77,255,176,0.18)]"
                                         >
                                           {exp.period}
                                         </span>
-                                        <span className="text-zinc-700 font-mono text-[10px]">
+                                        <span className="text-zinc-700 font-mono text-[10px] max-md:text-[12px]">
                                           ::
                                         </span>
-                                        <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-widest">
+                                        <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-widest max-md:text-[13px] max-md:tracking-wider">
                                           {exp.company}
                                         </span>
                                       </div>
@@ -4007,7 +4116,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                         {exp.role}
                                       </h3>
                                     </div>
-                                    <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl font-mono opacity-80">
+                                    <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl font-mono opacity-80 max-md:text-[15px] max-md:text-zinc-300 max-md:opacity-100">
                                       {exp.description}
                                     </p>
                                     {exp.highlights && exp.highlights.length > 0 && (
@@ -4015,7 +4124,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                         {exp.highlights.map((item) => (
                                           <li
                                             key={item}
-                                            className="flex gap-2 font-mono text-[13px] leading-relaxed text-zinc-400 opacity-80"
+                                            className="flex gap-2 font-mono text-[13px] leading-relaxed text-zinc-400 opacity-80 max-md:text-[14px] max-md:text-zinc-300 max-md:opacity-100"
                                           >
                                             <span className="text-emerald-500/60">
                                               &gt;
@@ -4029,7 +4138,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                       {exp.tech.map((techItem, ti) => (
                                         <span
                                           key={ti}
-                                          className="text-[10px] font-mono flex items-center gap-1 px-1.5 py-0.5 rounded border transition-[color,background-color,border-color,box-shadow] duration-300 text-zinc-500 border-transparent group-data-[job-active]/job:text-emerald-300 group-data-[job-active]/job:border-emerald-500/35 group-data-[job-active]/job:bg-emerald-500/10 group-data-[job-active]/job:shadow-[0_0_10px_rgba(77,255,176,0.14)]"
+                                          className="text-[10px] font-mono flex items-center gap-1 px-1.5 py-0.5 rounded border max-md:text-[12px] transition-[color,background-color,border-color,box-shadow] duration-300 text-zinc-500 border-transparent group-data-[job-active]/job:text-emerald-300 group-data-[job-active]/job:border-emerald-500/35 group-data-[job-active]/job:bg-emerald-500/10 group-data-[job-active]/job:shadow-[0_0_10px_rgba(77,255,176,0.14)]"
                                         >
                                           <span className="text-emerald-500/30 group-data-[job-active]/job:text-emerald-400">
                                             #
@@ -4832,7 +4941,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
             </nav>
 
             {/* Fixed Experience Robot Fleet (2 left, 2 right on desktop; top bar on mobile) */}
-            {(activeView === "about" || activeView === "experience") && (
+            {(activeView === "about" || activeView === "experience") && !isMobile && (
               <div
                 aria-hidden={!showExpRobots}
                 className="fixed inset-0 z-[155] pointer-events-none"
