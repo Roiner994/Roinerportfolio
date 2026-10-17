@@ -31,11 +31,15 @@ export const EXP_PROJECTS_TIMELINE = {
     { panel: "avatar", arrive: 1450 }, // after Claude's viewer unfold (950-1410)
   ] as Array<{ panel: PanelKey | "avatar"; arrive: number }>,
   /**
-   * Fixed slot per robot (gemini, cursor, claude, chatgpt):
-   * Gemini -> Explorer, Cursor -> text, Claude -> viewer, ChatGPT -> avatar.
-   * Each robot stays on its own side, so the paths never cross.
+   * Slot per robot (gemini, cursor, claude, chatgpt). Left robots stay left,
+   * right robots stay right:
+   * Gemini -> Explorer, Cursor -> Roiner's avatar (finale, in the explorer
+   * column), Claude / ChatGPT -> text panel + viewer.
+   * The right pair listed in `geometricPair` is (re)assigned at measure time
+   * so their flight paths don't cross (default: Claude -> text, ChatGPT -> viewer).
    */
-  robotSlot: [0, 1, 2, 3],
+  robotSlot: [0, 3, 1, 2],
+  geometricPair: [2, 3] as [number, number],
   morphLeadMs: 140,
   morphMs: 240,
   avatarFlashMs: 120,
@@ -141,7 +145,7 @@ export interface RunOptions {
   /** Title span to "type" via max-width ch (forward only). */
   titleEl?: HTMLElement | null;
   titleLength?: number;
-  /** Roiner's mini avatar in Projects: Gemini morphs into it. */
+  /** Roiner's mini avatar in Projects: the finale robot (Cursor) morphs into it. */
   avatar?: { src: string; box: Box } | null;
   onDone: () => void;
 }
@@ -331,6 +335,38 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
         : landingFor(sl.panel),
     );
     robotFrom = opts.robotBoxes();
+    // Right pair: keep the default slots unless swapping them avoids a path
+    // crossing (or, with no crossing either way, shortens the total flight).
+    {
+      const [a, b] = T.geometricPair;
+      const fa = robotFrom[a];
+      const fb = robotFrom[b];
+      const ta = slotTargets[T.robotSlot[a]];
+      const tb = slotTargets[T.robotSlot[b]];
+      if (fa && fb && ta && tb) {
+        const ctr = (r: Box) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+        const pa = ctr(fa);
+        const pb = ctr(fb);
+        const cross = (
+          p1: { x: number; y: number }, p2: { x: number; y: number },
+          p3: { x: number; y: number }, p4: { x: number; y: number },
+        ) => {
+          const d = (p: typeof p1, q: typeof p1, r: typeof p1) =>
+            (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+          return (
+            d(p3, p4, p1) * d(p3, p4, p2) < 0 && d(p1, p2, p3) * d(p1, p2, p4) < 0
+          );
+        };
+        const dist = (p: typeof pa, q: typeof pa) => Math.hypot(p.x - q.x, p.y - q.y);
+        const keepCross = cross(pa, ta, pb, tb);
+        const swapCross = cross(pa, tb, pb, ta);
+        const keepLen = dist(pa, ta) + dist(pb, tb);
+        const swapLen = dist(pa, tb) + dist(pb, ta);
+        const swap = keepCross !== swapCross ? keepCross : swapLen < keepLen - 1;
+        robotSlot[a] = swap ? T.robotSlot[b] : T.robotSlot[a];
+        robotSlot[b] = swap ? T.robotSlot[a] : T.robotSlot[b];
+      }
+    }
     avatarIdx = robotSlot.indexOf(T.slots.length - 1);
     arrivals = robotSlot.map((sl) => T.slots[sl].arrive);
     robotPanels = robotSlot.map((sl) => {
@@ -566,7 +602,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
   }
 
   /**
-   * Gemini -> avatar: pixel-dissolve crossfade (robot cells vanish as avatar
+   * Finale robot -> avatar: pixel-dissolve crossfade (robot cells vanish as avatar
    * cells appear) at the avatar's exact rect, then a small edge flash. The
    * canvas keeps drawing the avatar until the real one takes over at the end.
    */
@@ -601,7 +637,7 @@ export function runExpProjectsTransition(opts: RunOptions): () => void {
           }
         }
       }
-      // a few loose pixels in Gemini's colours around the edge
+      // a few loose pixels in the finale robot's colours around the edge
       ctx.fillStyle = T.colors[avatarIdx][0];
       for (let k = 0; k < 10; k++) {
         if (cellHash(k, Math.floor(d * 8)) > 0.6) continue;
