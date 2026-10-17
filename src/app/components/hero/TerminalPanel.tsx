@@ -764,6 +764,7 @@ function ProjectMediaPanel({
   const activeImage = images[selectedImageIndex] ?? images[0];
   const isVideo = activeImage?.type === "video";
   const reduceMotion = useReducedMotion() ?? false;
+  const { language } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [isImageLoading, setIsImageLoading] = useState(true);
@@ -833,7 +834,7 @@ function ProjectMediaPanel({
           className={`relative flex items-center justify-center overflow-hidden ${
             isLandscape
               ? "aspect-[16/10] w-full p-2 sm:p-3"
-              : "h-[min(66vh,640px)] min-h-[360px] p-3 sm:p-5"
+              : "h-[min(58vh,600px)] min-h-[340px] p-3 sm:p-5"
           }`}
         >
           {/* Loading indicator */}
@@ -952,30 +953,41 @@ function ProjectMediaPanel({
                 </button>
               </div>
 
-              {/* Technical Counter Label */}
-              <div className="absolute bottom-4 right-4 z-30 flex items-center gap-3 rounded border border-emerald-500/10 bg-black/80 px-3 py-1.5 backdrop-blur-md font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-300">
-                <span className="text-zinc-500">MEDIA_INDEX:</span>
-                <span className="text-emerald-500 text-sm">
-                  {String(selectedImageIndex + 1).padStart(2, "0")}
-                </span>
-                <span className="text-zinc-700">/</span>
-                <span className="text-zinc-400">
-                  {String(images.length).padStart(2, "0")}
-                </span>
-              </div>
             </>
           )}
         </div>
-        {activeImage.caption && (
-          <p
-            className={`border-t px-4 py-3 font-mono text-[11px] leading-relaxed text-zinc-500 ${
-              isLandscape ? "border-zinc-800 bg-black/40" : "border-zinc-800/50"
-            }`}
-          >
-            {activeImage.caption}
-          </p>
-        )}
       </div>
+
+      {/* Feature caption: what the app does in this slide (also the media counter) */}
+      {activeImage.caption && (
+        <div className="mt-5 px-1 min-h-[96px]" aria-live="polite">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={activeImage.src}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+              transition={{ duration: reduceMotion ? 0.12 : 0.28, ease: [0.23, 1, 0.32, 1] }}
+            >
+              <div className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-emerald-400">
+                <span>
+                  {language === "es" ? "FUNCIÓN" : "FEATURE"}{" "}
+                  {String(selectedImageIndex + 1).padStart(2, "0")}
+                  <span className="text-emerald-700">/</span>
+                  {String(images.length).padStart(2, "0")}
+                </span>
+                <span className="h-px flex-1 bg-gradient-to-r from-emerald-500/30 to-transparent" />
+              </div>
+              <p className="mt-2.5 flex gap-2.5 font-mono text-[18px] font-semibold leading-snug tracking-tight text-zinc-100 xl:text-[20px]">
+                <span className="text-emerald-500" aria-hidden="true">
+                  &gt;
+                </span>
+                <span>{activeImage.caption}</span>
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
