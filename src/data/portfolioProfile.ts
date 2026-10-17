@@ -412,7 +412,7 @@ const projectEntriesEs: ProjectEntry[] = [
       {
         type: "video",
         src: "/projects/plunkton/demo.mp4",
-        caption: "Conversación en vivo: la IA responde y califica un lead",
+        caption: "Conversación real: la IA califica el lead y lo deriva a un vendedor",
       },
       {
         src: "/projects/plunkton/01-leads-produccion.webp",
@@ -814,7 +814,7 @@ const projectEntriesEn: ProjectEntry[] = [
       {
         type: "video",
         src: "/projects/plunkton/demo.mp4",
-        caption: "Live conversation: AI answers and qualifies a lead",
+        caption: "Real conversation: AI qualifies the lead and hands it off to a salesperson",
       },
       {
         src: "/projects/plunkton/01-leads-produccion.webp",
