@@ -1268,6 +1268,19 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     });
   }, []);
 
+  // Preload + decode the Contact photo layers once Projects is open, so the
+  // Projects -> Contact transition doesn't fetch/decode them mid-animation.
+  useEffect(() => {
+    if (activeView !== "projects") return;
+    ["/avatar_base.png", "/avatar_hello.png", "/avatar_peace.png"].forEach(
+      (src) => {
+        const img = new window.Image();
+        img.src = src;
+        void img.decode?.().catch(() => {});
+      },
+    );
+  }, [activeView]);
+
   // Sync section mini avatar pose and pop transition
   useEffect(() => {
     if (!sectionMiniPose) {

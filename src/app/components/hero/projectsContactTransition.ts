@@ -30,7 +30,8 @@ export const PROJECTS_CONTACT_TIMELINE = {
    */
   zoomMs: 1000,
   zoomScale: 1.7,
-  zoomBlurPx: 7,
+  /** Projects opacity at full zoom (dims instead of an animated blur). */
+  zoomDim: 0.42,
   /** Projects fades out over this window. */
   projectsOut: [560, 1000] as [number, number],
   /** Short hop in place on the square, then landing. */
@@ -132,6 +133,16 @@ export function runProjectsContactTransition(
   const vh = window.innerHeight;
 
   const layers: HTMLElement[] = [];
+  // Only touch the DOM when a value actually changes (fewer style
+  // invalidations per frame).
+  const written = new WeakMap<HTMLElement, Record<string, string>>();
+  const put = (el: HTMLElement, prop: string, value: string) => {
+    let rec = written.get(el);
+    if (!rec) written.set(el, (rec = {}));
+    if (rec[prop] === value) return;
+    rec[prop] = value;
+    el.style.setProperty(prop, value);
+  };
   const restore: Array<() => void> = [];
   const styleLive = (el: HTMLElement) => {
     const prev = el.getAttribute("style");
@@ -184,13 +195,14 @@ export function runProjectsContactTransition(
       position: "absolute",
       inset: "0",
       background: "#09090b",
-      willChange: "transform, filter, opacity",
+      willChange: "transform, opacity",
     } as CSSStyleDeclaration);
     layer.appendChild(zoom);
     placeClone(projectsEl, zoom);
     projectsEl = zoom;
   } else {
     styleLive(projectsEl);
+    projectsEl.style.willChange = "transform, opacity";
   }
 
   // ---------- Contact side ----------
@@ -207,6 +219,14 @@ export function runProjectsContactTransition(
   if (forward) {
     if (frame) styleLive(frame);
     revealEls.forEach(styleLive);
+  }
+  // Decode the photo up front so it doesn't decode at the moment it lights up.
+  frame
+    ?.querySelectorAll("img")
+    .forEach((img) => void img.decode?.().catch(() => {}));
+  if (!reduce) {
+    if (frame) frame.style.willChange = "transform, opacity";
+    revealEls.forEach((el) => (el.style.willChange = "transform, opacity"));
   }
 
   let frameBox: Box = frame
@@ -243,7 +263,9 @@ export function runProjectsContactTransition(
     inset: "0",
     background:
       "radial-gradient(ellipse at center, rgba(236,253,245,0.95) 0%, rgba(52,211,153,0.85) 45%, rgba(16,185,129,0.4) 100%)",
+    borderRadius: "1rem",
     opacity: "0",
+    willChange: "transform, opacity",
   } as CSSStyleDeclaration);
   const scan = document.createElement("div");
   Object.assign(scan.style, {
@@ -252,6 +274,7 @@ export function runProjectsContactTransition(
     background:
       "repeating-linear-gradient(to bottom, rgba(0,0,0,0.38) 0px, rgba(0,0,0,0.38) 1px, transparent 1px, transparent 3px)",
     opacity: "0",
+    willChange: "transform, opacity",
   } as CSSStyleDeclaration);
   const line = document.createElement("div");
   Object.assign(line.style, {
@@ -264,6 +287,7 @@ export function runProjectsContactTransition(
     background: "#ecfdf5",
     boxShadow: "0 0 18px 4px rgba(52,211,153,0.9)",
     opacity: "0",
+    willChange: "transform, opacity",
   } as CSSStyleDeclaration);
   crt.append(flash, scan, line);
 
@@ -272,7 +296,10 @@ export function runProjectsContactTransition(
   sprite.setAttribute("data-pc-transition", "");
   sprite.alt = "";
   sprite.setAttribute("aria-hidden", "true");
-  if (opts.avatar) sprite.src = opts.avatar.src;
+  if (opts.avatar) {
+    sprite.src = opts.avatar.src;
+    void sprite.decode?.().catch(() => {});
+  }
   Object.assign(sprite.style, {
     position: "fixed",
     left: "0",
@@ -315,6 +342,10 @@ export function runProjectsContactTransition(
     fcy = frameBox.top + frameBox.height / 2;
     h2 = Math.min(frameBox.height, frameBox.width / Math.max(0.01, aspect));
     p2 = { x: fcx, y: frameBox.top + frameBox.height };
+    // The sprite box is laid out once at its landing size; the flight only
+    // scales it with transform (no width/height animation, crisp at landing).
+    put(sprite, "width", `${h2 * aspect}px`);
+    put(sprite, "height", `${h2}px`);
     Object.assign(crt.style, {
       left: `${frameBox.left}px`,
       top: `${frameBox.top}px`,
@@ -323,12 +354,21 @@ export function runProjectsContactTransition(
     } as CSSStyleDeclaration);
   };
   placeTarget();
-  // Forward: Contact has just mounted (photo card entrance, late layout from
-  // fonts / images), so keep re-measuring the square's settled rect until the
-  // avatar has landed. Reverse plays on a static clone: one measurement.
+  // Forward: Contact has just mounted (late layout from fonts / images), so
+  // re-check the square's settled rect at a few checkpoints before landing
+  // instead of every frame (each check forces a style/layout pass). Reverse
+  // plays on a static clone: one measurement.
+  const checkpoints = forward && frame ? [250, 600, 900] : [];
   const remeasure = () => {
     if (!frame) return;
-    frameBox = finalBox(frame);
+    const b = finalBox(frame);
+    if (
+      Math.abs(b.left - frameBox.left) < 0.5 &&
+      Math.abs(b.top - frameBox.top) < 0.5 &&
+      Math.abs(b.width - frameBox.width) < 0.5
+    )
+      return;
+    frameBox = b;
     placeTarget();
   };
   const originX = zoomOrigin.x - opts.projectsBox.left;
@@ -343,15 +383,19 @@ export function runProjectsContactTransition(
       return;
     }
 
-    if (forward && frame && t <= T.squash2[1]) remeasure();
+    while (checkpoints.length && t >= checkpoints[0]) {
+      checkpoints.shift();
+      remeasure();
+    }
 
-    // Projects: zoom toward the avatar, dim, blur, then fade away.
+    // Projects: camera push-in toward the square, dim, then fade away.
+    // Transform + opacity only (an animated blur on this full-screen layer was
+    // the main GPU cost).
     const z = easeInOutCubic(seg(t, [0, T.zoomMs]));
     const out = seg(t, T.projectsOut);
-    projectsEl.style.transformOrigin = `${originX}px ${originY}px`;
-    projectsEl.style.transform = `scale(${lerp(1, T.zoomScale, z)})`;
-    projectsEl.style.filter = `blur(${(T.zoomBlurPx * z).toFixed(2)}px) brightness(${lerp(1, 0.7, z).toFixed(3)})`;
-    projectsEl.style.opacity = String(lerp(1, 0.5, z) * (1 - out));
+    put(projectsEl, "transform-origin", `${originX}px ${originY}px`);
+    put(projectsEl, "transform", `scale(${lerp(1, T.zoomScale, z).toFixed(4)})`);
+    put(projectsEl, "opacity", (lerp(1, T.zoomDim, z) * (1 - out)).toFixed(3));
 
     // Avatar path.
     let x: number;
@@ -384,44 +428,63 @@ export function runProjectsContactTransition(
       sy *= 1 + Math.sin(Math.PI * k) * 0.04;
       sx *= 1 - Math.sin(Math.PI * k) * 0.03;
     }
-    const w = h * aspect;
-    sprite.style.width = `${w}px`;
-    sprite.style.height = `${h}px`;
-    sprite.style.transform = `translate3d(${x - w / 2}px, ${y - h}px, 0) scale(${sx}, ${sy})`;
-    sprite.style.opacity = String(1 - seg(t, T.spriteFade));
+    const W2 = h2 * aspect;
+    const s = h / Math.max(1, h2);
+    put(
+      sprite,
+      "transform",
+      `translate3d(${(x - W2 / 2).toFixed(2)}px, ${(y - h2).toFixed(2)}px, 0) scale(${(s * sx).toFixed(4)}, ${(s * sy).toFixed(4)})`,
+    );
+    put(sprite, "opacity", (1 - seg(t, T.spriteFade)).toFixed(3));
 
-    // Photo square: hidden until the CRT line, then expands vertically.
+    // Photo square: hidden until the CRT line, then expands vertically from
+    // the centre line (scaleY on a composited layer; the flash, which covers
+    // it at that moment, expands with it).
+    const ex = easeOutCubic(seg(t, T.crtExpand));
+    const ey = Math.max(0.004, ex).toFixed(4);
     if (frame) {
-      const ex = easeOutCubic(seg(t, T.crtExpand));
-      const inset = 50 * (1 - ex);
-      const on = t >= T.crtLine[0];
-      frame.style.opacity = on ? "1" : "0";
-      frame.style.clipPath = `inset(${inset.toFixed(2)}% 0 ${inset.toFixed(2)}% 0 round 1rem)`;
+      put(frame, "opacity", t >= T.crtLine[0] ? "1" : "0");
+      put(frame, "transform", ex >= 1 ? "none" : `scaleY(${ey})`);
     }
     const lineK = seg(t, T.crtLine);
-    line.style.opacity =
-      t < T.crtLine[0] ? "0" : String(t < T.crtExpand[1] ? Math.min(1, lineK * 1.6) * (1 - seg(t, T.crtExpand)) : 0);
-    line.style.transform = `scaleX(${lineK.toFixed(3)})`;
-    flash.style.opacity =
-      t < T.crtExpand[0] ? "0" : String(1 - easeOutCubic(seg(t, T.crtFlashOut)));
-    flash.style.clipPath = frame ? frame.style.clipPath : "";
-    scan.style.opacity =
-      t < T.crtExpand[0] ? "0" : String(0.9 * (1 - seg(t, T.scanlinesOut)));
+    put(
+      line,
+      "opacity",
+      t < T.crtLine[0]
+        ? "0"
+        : (t < T.crtExpand[1]
+            ? Math.min(1, lineK * 1.6) * (1 - seg(t, T.crtExpand))
+            : 0
+          ).toFixed(3),
+    );
+    put(line, "transform", `scaleX(${lineK.toFixed(3)})`);
+    put(
+      flash,
+      "opacity",
+      t < T.crtExpand[0] ? "0" : (1 - easeOutCubic(seg(t, T.crtFlashOut))).toFixed(3),
+    );
+    put(flash, "transform", `scaleY(${ey})`);
+    put(
+      scan,
+      "opacity",
+      t < T.crtExpand[0] ? "0" : (0.9 * (1 - seg(t, T.scanlinesOut))).toFixed(3),
+    );
 
-    // The rest of Contact, outward from the square.
+    // The rest of Contact, outward from the square (opacity + translate only;
+    // animated clip-path wipes repainted every block every frame).
     reveals.forEach((r) => {
       const k = easeOutCubic(seg(t, [r.delay, r.delay + T.revealMs]));
-      r.el.style.opacity = String(k);
-      const hide = (100 * (1 - k)).toFixed(2);
-      if (r.horizontal) {
-        r.el.style.clipPath =
-          r.dx >= 0 ? `inset(0 ${hide}% 0 0)` : `inset(0 0 0 ${hide}%)`;
-        r.el.style.transform = `translateX(${((r.dx >= 0 ? -1 : 1) * 14 * (1 - k)).toFixed(2)}px)`;
-      } else {
-        r.el.style.clipPath =
-          r.dy >= 0 ? `inset(0 0 ${hide}% 0)` : `inset(${hide}% 0 0 0)`;
-        r.el.style.transform = `translateY(${((r.dy >= 0 ? -1 : 1) * 10 * (1 - k)).toFixed(2)}px)`;
-      }
+      put(r.el, "opacity", k.toFixed(3));
+      const off = 1 - k;
+      put(
+        r.el,
+        "transform",
+        off <= 0
+          ? "none"
+          : r.horizontal
+            ? `translate3d(${((r.dx >= 0 ? -1 : 1) * 22 * off).toFixed(2)}px, 0, 0)`
+            : `translate3d(0, ${((r.dy >= 0 ? -1 : 1) * 14 * off).toFixed(2)}px, 0)`,
+      );
     });
   };
 
@@ -429,7 +492,6 @@ export function runProjectsContactTransition(
 
   let raf = 0;
   let done = false;
-  const start = performance.now();
   const cleanup = () => {
     if (done) return;
     done = true;
@@ -437,8 +499,22 @@ export function runProjectsContactTransition(
     layers.forEach((l) => l.remove());
     restore.forEach((fn) => fn());
   };
-  const tick = () => {
-    const elapsed = performance.now() - start;
+  // Timeline clock: driven by rAF timestamps, starting on the second frame so
+  // the one-off cost of mounting / rasterising the new view lands on the
+  // static first frame instead of skipping the opening of the motion. A late
+  // frame advances at most ~2 frames so a hitch never reads as a jump.
+  let elapsed = 0;
+  let last = 0;
+  let warm = 0;
+  const tick = (now: number) => {
+    if (warm < 2) {
+      warm++;
+      last = now;
+      raf = requestAnimationFrame(tick);
+      return;
+    }
+    elapsed += Math.min(now - last, 34);
+    last = now;
     const t = forward ? elapsed : duration - elapsed;
     render(Math.max(0, Math.min(duration, t)));
     if (elapsed >= duration) {
