@@ -4,11 +4,12 @@
  * Imperative, same engine style as expProjectsTransition (no React state per
  * frame). Forward: Contact is already mounted underneath with every block
  * hidden; a clone of the Projects UI sits on top. The camera zooms toward
- * Roiner's small avatar in the Explorer while Projects dims and blurs, the
- * avatar grows toward the screen centre, hops, and jumps into the Contact
- * photo square. The square switches on like a CRT (line -> vertical expand,
- * flash + scanlines), the sprite crossfades into the photo and the rest of
- * Contact reveals outward from the square.
+ * Roiner's small avatar in the Explorer while Projects dims and blurs; the
+ * avatar grows in place with the camera, hops, and jumps straight into the
+ * Contact photo square (no stop at the screen centre), landing exactly on the
+ * square's final on-screen rect. The square switches on like a CRT there
+ * (line -> vertical expand, flash + scanlines), the sprite crossfades into the
+ * photo and the rest of Contact reveals outward from the square.
  * Reverse plays the same timeline backwards on a clone of Contact while the
  * live Projects view zooms back out underneath.
  */
@@ -27,8 +28,6 @@ export const PROJECTS_CONTACT_TIMELINE = {
   zoomBlurPx: 7,
   /** Projects fully gone by this time. */
   projectsOutMs: 1000,
-  /** Avatar size at the screen centre, as a fraction of the photo square. */
-  centreSize: 0.62,
   squash1: [640, 700] as [number, number],
   hop: [700, 880] as [number, number],
   hopPx: 26,
@@ -61,6 +60,38 @@ const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
 const toBox = (el: Element): Box => {
   const r = el.getBoundingClientRect();
   return { left: r.left, top: r.top, width: r.width, height: r.height };
+};
+
+/**
+ * The element's settled layout rect: transforms (motion entrance scale / y,
+ * hover lift, any ancestor entrance transform) and clip-path are stripped for
+ * the measurement and restored synchronously, so nothing is painted.
+ */
+const finalBox = (el: HTMLElement): Box => {
+  const touched: Array<[HTMLElement, string, string, string, string]> = [];
+  for (let n: HTMLElement | null = el; n && n !== document.body; n = n.parentElement) {
+    const cs = getComputedStyle(n);
+    const transformed =
+      cs.transform !== "none" ||
+      (cs.scale && cs.scale !== "none") ||
+      (cs.translate && cs.translate !== "none") ||
+      (cs.rotate && cs.rotate !== "none");
+    if (!transformed && n !== el) continue;
+    const st = n.style;
+    touched.push([n, st.transform, st.scale, st.translate, st.rotate]);
+    st.transform = "none";
+    st.scale = "none";
+    st.translate = "none";
+    st.rotate = "none";
+  }
+  const box = toBox(el);
+  touched.forEach(([n, tf, sc, tr, ro]) => {
+    n.style.transform = tf;
+    n.style.scale = sc;
+    n.style.translate = tr;
+    n.style.rotate = ro;
+  });
+  return box;
 };
 
 export interface RunProjectsContactOptions {
@@ -174,7 +205,7 @@ export function runProjectsContactTransition(
   }
 
   let frameBox: Box = frame
-    ? toBox(frame)
+    ? finalBox(frame)
     : { left: vw / 2 - 150, top: vh / 2 - 150, width: 300, height: 300 };
   let fcx = frameBox.left + frameBox.width / 2;
   let fcy = frameBox.top + frameBox.height / 2;
@@ -251,7 +282,8 @@ export function runProjectsContactTransition(
     layers.push(sprite);
   }
 
-  // Avatar keyframes: mini rect -> screen centre -> square.
+  // Avatar keyframes: mini rect -> (grows in place with the camera zoom) ->
+  // straight into the photo square, scaled to fit it.
   const a0 = opts.avatar?.box ?? {
     left: vw / 2 - 36,
     top: vh - 160,
@@ -260,25 +292,19 @@ export function runProjectsContactTransition(
   };
   const aspect = a0.width / Math.max(1, a0.height);
   const h0 = a0.height;
-  const h1 = frameBox.height * T.centreSize;
-  let h2 = frameBox.height * 0.94;
+  // The camera zooms around the avatar's centre, so the avatar grows in place.
+  const zoomOrigin = { x: a0.left + a0.width / 2, y: a0.top + a0.height / 2 };
+  const h1 = h0 * T.zoomScale;
   // bottom-centre anchors
-  const p0 = { x: a0.left + a0.width / 2, y: a0.top + a0.height };
-  const p1 = { x: vw / 2, y: vh / 2 + h1 / 2 };
-  let p2 = { x: fcx, y: frameBox.top + frameBox.height };
-  // Forward: Contact has just mounted and its photo card is still running its
-  // own entrance scale; measure the square again before the avatar jumps.
-  let remeasured = !forward || !frame;
-  const remeasure = () => {
-    remeasured = true;
-    if (!frame) return;
-    const prevClip = frame.style.clipPath;
-    frame.style.clipPath = "";
-    frameBox = toBox(frame);
-    frame.style.clipPath = prevClip;
+  const p0 = { x: zoomOrigin.x, y: a0.top + a0.height };
+  const p1 = { x: zoomOrigin.x, y: zoomOrigin.y + h1 / 2 };
+  // Landing: the largest avatar that fits inside the square, bottom-centred.
+  let h2 = 0;
+  let p2 = { x: 0, y: 0 };
+  const placeTarget = () => {
     fcx = frameBox.left + frameBox.width / 2;
     fcy = frameBox.top + frameBox.height / 2;
-    h2 = frameBox.height * 0.94;
+    h2 = Math.min(frameBox.height, frameBox.width / Math.max(0.01, aspect));
     p2 = { x: fcx, y: frameBox.top + frameBox.height };
     Object.assign(crt.style, {
       left: `${frameBox.left}px`,
@@ -287,8 +313,17 @@ export function runProjectsContactTransition(
       height: `${frameBox.height}px`,
     } as CSSStyleDeclaration);
   };
-  const originX = p0.x - opts.projectsBox.left;
-  const originY = p0.y - a0.height / 2 - opts.projectsBox.top;
+  placeTarget();
+  // Forward: Contact has just mounted (photo card entrance, late layout from
+  // fonts / images), so keep re-measuring the square's settled rect until the
+  // avatar has landed. Reverse plays on a static clone: one measurement.
+  const remeasure = () => {
+    if (!frame) return;
+    frameBox = finalBox(frame);
+    placeTarget();
+  };
+  const originX = zoomOrigin.x - opts.projectsBox.left;
+  const originY = zoomOrigin.y - opts.projectsBox.top;
 
   const render = (t: number) => {
     if (reduce) {
@@ -299,7 +334,7 @@ export function runProjectsContactTransition(
       return;
     }
 
-    if (!remeasured && t >= T.hop[0]) remeasure();
+    if (forward && frame && t <= T.jump[1]) remeasure();
 
     // Projects: zoom toward the avatar, dim, blur, then fade away.
     const z = easeInOutCubic(seg(t, [0, T.zoomMs]));
@@ -316,10 +351,10 @@ export function runProjectsContactTransition(
     let sx = 1;
     let sy = 1;
     if (t <= T.zoomMs) {
-      const k = easeInOutCubic(seg(t, [0, T.zoomMs]));
-      x = lerp(p0.x, p1.x, k);
-      y = lerp(p0.y, p1.y, k);
-      h = lerp(h0, h1, k);
+      // Locked to the zoomed avatar in the Projects clone.
+      h = lerp(h0, h1, z);
+      x = p0.x;
+      y = zoomOrigin.y + h / 2;
     } else if (t < T.jump[0]) {
       x = p1.x;
       y = p1.y;
