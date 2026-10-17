@@ -543,3 +543,15 @@ body:has([data-section-overlay][data-view="projects"]) .crt-vignette {
 @media (prefers-reduced-motion: reduce) {
   .hero-type-cursor { animation: none; }
 }
+
+/* Experience / About robot float: compositor-only (transform keyframes),
+   same curve as the former motion loop (y: [0, -N, 0], easeInOut). */
+@keyframes robot-float-5 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes robot-float-3-5 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3.5px); } }
+@keyframes robot-float-2-5 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
+.robot-float-5 { animation: robot-float-5 2.4s ease-in-out infinite both; will-change: transform; }
+.robot-float-3-5 { animation: robot-float-3-5 2.2s ease-in-out infinite both; will-change: transform; }
+.robot-float-2-5 { animation: robot-float-2-5 2.2s ease-in-out infinite both; will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  .robot-float-5, .robot-float-3-5, .robot-float-2-5 { animation: none; }
+}

@@ -3562,31 +3562,22 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     }}
                                     className="relative flex h-[62px] w-[62px] sm:h-[71px] sm:w-[71px] items-center justify-center cursor-pointer"
                                   >
-                                    <motion.img
-                                      src={agent.sprite}
-                                      alt={agent.area}
-                                      animate={
-                                        reduceMotion ? {} : { y: [0, -3.5, 0] }
-                                      }
-                                      transition={
-                                        reduceMotion
-                                          ? {}
-                                          : {
-                                              duration: 2.2,
-                                              repeat: Infinity,
-                                              ease: "easeInOut",
-                                              delay: idx * 0.45,
-                                            }
-                                      }
-                                      className="h-[62px] w-auto sm:h-[71px] max-w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-1.5 cursor-pointer"
-                                      style={{
-                                        imageRendering: "pixelated",
-                                        visibility: aboutExpTransition
-                                          ? "hidden"
-                                          : "visible",
-                                      }}
-                                      draggable={false}
-                                    />
+                                    {/* hover lift + shadow on a static wrapper; the float is a CSS (compositor) animation on the img */}
+                                    <div className="flex h-full w-full items-center justify-center drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-1.5">
+                                      <img
+                                        src={agent.sprite}
+                                        alt={agent.area}
+                                        className="robot-float-3-5 h-[62px] w-auto sm:h-[71px] max-w-full object-contain cursor-pointer"
+                                        style={{
+                                          imageRendering: "pixelated",
+                                          animationDelay: `${idx * 0.45}s`,
+                                          visibility: aboutExpTransition
+                                            ? "hidden"
+                                            : "visible",
+                                        }}
+                                        draggable={false}
+                                      />
+                                    </div>
                                   </div>
                                 </div>
 
@@ -4509,27 +4500,23 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           }}
                           className="relative flex h-[44px] w-[44px] items-center justify-center cursor-pointer"
                         >
-                          <motion.img
-                            src={agent.sprite}
-                            alt={agent.area}
-                            animate={reduceMotion ? {} : { y: [0, -2.5, 0] }}
-                            transition={
-                              reduceMotion
-                                ? {}
-                                : {
-                                    duration: 2.2,
-                                    repeat: Infinity,
-                                    ease: "easeInOut",
-                                    delay: idx * 0.45,
-                                  }
-                            }
-                            className="h-[44px] w-[44px] object-contain cursor-pointer"
+                          <div
+                            className="flex h-full w-full items-center justify-center"
                             style={{
-                              imageRendering: "pixelated",
                               filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6))",
                             }}
-                            draggable={false}
-                          />
+                          >
+                            <img
+                              src={agent.sprite}
+                              alt={agent.area}
+                              className="robot-float-2-5 h-[44px] w-[44px] object-contain cursor-pointer"
+                              style={{
+                                imageRendering: "pixelated",
+                                animationDelay: `${idx * 0.45}s`,
+                              }}
+                              draggable={false}
+                            />
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -4553,27 +4540,24 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         }}
                         className="relative flex h-[72px] w-[72px] items-center justify-center cursor-pointer"
                       >
-                        <motion.img
-                          src={agent.sprite}
-                          alt={agent.area}
-                          animate={reduceMotion ? {} : { y: [0, -5, 0] }}
-                          transition={
-                            reduceMotion
-                              ? {}
-                              : {
-                                  duration: 2.4,
-                                  repeat: Infinity,
-                                  ease: "easeInOut",
-                                  delay: idx * 0.5,
-                                }
-                          }
-                          className="h-[72px] w-[72px] object-contain cursor-pointer transition-transform duration-200 group-hover:scale-110"
+                        {/* hover scale + shadow on a static wrapper; the float is a CSS (compositor) animation on the img */}
+                        <div
+                          className="flex h-full w-full items-center justify-center transition-transform duration-200 group-hover:scale-110"
                           style={{
-                            imageRendering: "pixelated",
                             filter: "drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6))",
                           }}
-                          draggable={false}
-                        />
+                        >
+                          <img
+                            src={agent.sprite}
+                            alt={agent.area}
+                            className="robot-float-5 h-[72px] w-[72px] object-contain cursor-pointer"
+                            style={{
+                              imageRendering: "pixelated",
+                              animationDelay: `${idx * 0.5}s`,
+                            }}
+                            draggable={false}
+                          />
+                        </div>
                       </div>
                     </div>
                   ))
