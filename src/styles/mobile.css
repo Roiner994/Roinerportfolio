@@ -53,3 +53,15 @@
     display: none;
   }
 }
+
+/* Step 6 · Hero: larger speech-bubble text on phones */
+@media (max-width: 767px) {
+  .hero-bubble {
+    font-size: 13px;
+    max-width: 176px;
+    padding: 6px 9px 7px;
+  }
+  .hero-bubble-text.text-\[10px\] {
+    font-size: 12px;
+  }
+}

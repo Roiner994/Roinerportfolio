@@ -10,6 +10,20 @@ import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { useLanguage } from '../../../lib/i18n/LanguageContext';
 import { commands, TerminalPanel, type TerminalPanelHandle } from './TerminalPanel';
 import { HeroNameTreatment } from './HeroNameTreatment';
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
+}
 import {
   PATCH,
   ROBOT,
@@ -56,6 +70,8 @@ const LOG_COLORS: Record<LogKind, string> = {
 export function HeroVideo() {
   const { t, language, toggleLanguage } = useLanguage();
   const reduceMotion = useReducedMotion() ?? false;
+  const isNarrow = useMediaQuery('(max-width: 767px)');
+  const isCoarse = useMediaQuery('(pointer: coarse)');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
@@ -406,8 +422,26 @@ export function HeroVideo() {
   // Hint "said" by the Claude robot in a pixel speech bubble.
   // Plain ASCII-ish text (no emoji / fallback glyphs) so typing is even;
   // a CSS/SVG pixel arrow appears once typing finishes.
-  const HINT_TEXT = language === 'es' ? 'intenta presionar About' : 'try pressing About';
-  const hintEnter = language === 'es' ? 'o presiona ENTER' : 'or press ENTER';
+  // Touch copy: phones (<768px) have no hero terminal, just the CTA; other
+  // touch screens keep the buttons but have no ENTER key.
+  const HINT_TEXT = isNarrow
+    ? language === 'es'
+      ? 'desliza para entrar'
+      : 'swipe up to enter'
+    : language === 'es'
+      ? 'intenta presionar About'
+      : 'try pressing About';
+  const hintEnter = isNarrow
+    ? language === 'es'
+      ? 'o toca cd about'
+      : 'or tap cd about'
+    : isCoarse
+      ? language === 'es'
+        ? 'o desliza hacia arriba'
+        : 'or swipe up'
+      : language === 'es'
+        ? 'o presiona ENTER'
+        : 'or press ENTER';
   const hintL1 = Array.from(HINT_TEXT);
   // only line 1 is typed; line 2 fades in complete afterwards
   const hintTotal = hintL1.length;
@@ -636,7 +670,7 @@ export function HeroVideo() {
       >
         <motion.p
           variants={item}
-          className="font-terminal text-xs tracking-wide text-[#00BB7F] sm:text-sm"
+          className="font-terminal text-xs tracking-wide text-[#00BB7F] max-md:text-[13px] sm:text-sm"
         >
           ~/roiner <span className="text-zinc-500">—</span> orchestrator
         </motion.p>
@@ -647,7 +681,7 @@ export function HeroVideo() {
 
           <div className="flex items-center gap-3 pt-0.5">
             <div className="hidden h-px w-10 bg-gradient-to-r from-emerald-500/50 to-transparent sm:block" />
-            <p className="font-mono text-xs sm:text-sm font-light text-zinc-300 tracking-wider">
+            <p className="font-mono text-xs sm:text-sm font-light text-zinc-300 tracking-wider max-md:text-[14px]">
               {t('HERO_TITLE')}
             </p>
             <div className="h-px flex-1 bg-gradient-to-l from-emerald-500/50 to-transparent" />
@@ -655,7 +689,28 @@ export function HeroVideo() {
         </motion.div>
 
         {/* Compact interactive terminal with Digital Guide banner (Foto 4) */}
-        <motion.div variants={item} className="mt-1 w-full max-w-[28rem] xl:max-w-[31rem]">
+        {/* Mobile: one terminal-style CTA instead of the hero terminal */}
+        <motion.div variants={item} className="mt-1 w-full md:hidden">
+          <button
+            type="button"
+            data-hero-cta=""
+            disabled={isDispatching}
+            onClick={() => dispatch('about')}
+            className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-[#00BB7F]/50 bg-[#030213]/90 px-4 py-2.5 text-left font-mono disabled:opacity-60"
+          >
+            <span className="text-[16px] text-zinc-100">
+              <span className="text-[#00BB7F]">$</span> cd about{' '}
+              <span aria-hidden="true" className="hero-block-caret text-[#00BB7F]">
+                ▋
+              </span>
+            </span>
+            <span className="text-[13px] text-zinc-400">
+              {language === 'es' ? 'desliza o toca' : 'swipe or tap'}
+            </span>
+          </button>
+        </motion.div>
+
+        <motion.div variants={item} className="mt-1 w-full max-w-[28rem] max-md:hidden xl:max-w-[31rem]">
           <div
             onClick={() => inputRef.current?.focus({ preventScroll: true })}
             className="cursor-text overflow-hidden rounded-xl border border-[#00BB7F]/35 bg-[#030213]/85 font-terminal text-[13px] shadow-[0_0_0_1px_rgba(0,187,127,0.08),0_0_24px_rgba(0,187,127,0.14)] backdrop-blur-md"
@@ -795,6 +850,20 @@ export function HeroVideo() {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Mobile language pill (the hero terminal that holds EN/ES is hidden) */}
+      <button
+        type="button"
+        onClick={toggleLanguage}
+        aria-hidden={sectionOpen || undefined}
+        tabIndex={sectionOpen ? -1 : undefined}
+        aria-label={language === 'es' ? 'Switch to English' : 'Cambiar a español'}
+        className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex h-11 min-w-11 items-center justify-center rounded-full border border-[#00BB7F]/40 bg-[#030213]/85 px-3 font-mono text-[13px] text-zinc-400 md:hidden"
+      >
+        <span className={language === 'en' ? 'font-bold text-[#00BB7F]' : ''}>EN</span>
+        <span className="px-1 text-zinc-600">/</span>
+        <span className={language === 'es' ? 'font-bold text-[#00BB7F]' : ''}>ES</span>
+      </button>
 
       </div>
 
