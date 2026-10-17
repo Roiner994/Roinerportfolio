@@ -4481,13 +4481,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                     {activeView === "contact" && (
                       <div ref={contactRootRef} className="w-full space-y-8 pb-4 [@media(max-height:820px)]:space-y-5">
                         <div data-contact-reveal="header" className="space-y-1">
-                          <div className="flex items-center gap-2 text-xs font-mono">
+                          <div className="flex items-center gap-2 text-xs font-mono max-md:text-[14px]">
                             <span className="text-emerald-500">$</span>
                             <span className="text-zinc-300">
                               init secure-channel --handshake
                             </span>
                           </div>
-                          <div className="text-[10px] font-mono text-zinc-600">
+                          <div className="text-[10px] font-mono text-zinc-600 max-md:text-[12px] max-md:text-zinc-500">
                             {t("SYSTEM_SECURE_RELAY")}
                           </div>
                         </div>
@@ -4495,13 +4495,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         <div className="grid gap-8 xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.28fr)] xl:items-center xl:gap-12">
                           {/* Photo frame: square slot for Roiner's image */}
                           <div
-                            className="mx-auto w-full max-w-[260px] sm:max-w-[320px] xl:max-w-[400px] [@media(max-height:820px)]:xl:max-w-[340px]"
+                            className="mx-auto w-full max-w-[260px] max-md:max-w-[200px] sm:max-w-[320px] xl:max-w-[400px] [@media(max-height:820px)]:xl:max-w-[340px]"
                           >
                             <AnimatedContactAvatar
                               isExternallyHovered={isContactCardHovered}
                               frameRef={contactPhotoRef}
                             />
-                            <div data-contact-reveal="caption" className="mt-3 flex items-center justify-between font-mono text-[10px] text-zinc-600">
+                            <div data-contact-reveal="caption" className="mt-3 flex items-center justify-between font-mono text-[10px] text-zinc-600 max-md:text-[12px] max-md:text-zinc-500">
                               <span>
                                 <span className="text-emerald-500/60">~/</span>
                                 roiner.png
@@ -4515,7 +4515,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             <div data-contact-reveal="title" className="space-y-4 [@media(max-height:820px)]:space-y-3">
                               <div className="flex items-center gap-3">
                                 <div className="h-px w-8 bg-emerald-500/30" />
-                                <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-emerald-500/60 font-bold">
+                                <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-emerald-500/60 font-bold max-md:text-[12px] max-md:tracking-[0.25em]">
                                   outbound_comms
                                 </span>
                               </div>
@@ -4527,7 +4527,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 </span>
                               </h2>
 
-                              <p className="max-w-xl text-sm text-zinc-400 font-mono leading-relaxed">
+                              <p className="max-w-xl text-sm text-zinc-400 font-mono leading-relaxed max-md:text-[15px] max-md:text-zinc-300">
                                 {t("CONTACT_SUBTITLE")}
                               </p>
                             </div>
@@ -4576,11 +4576,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   onHoverEnd={() =>
                                     setIsContactCardHovered(false)
                                   }
-                                  className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-lg border border-zinc-800/50 bg-zinc-900/10 px-4 py-3 [@media(max-height:820px)]:py-2 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.03]"
+                                  className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-lg border border-zinc-800/50 bg-zinc-900/10 px-4 py-3 [@media(max-height:820px)]:py-2 max-md:min-h-[60px] max-md:py-2.5 max-md:[@media(max-height:820px)]:py-2.5 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.03]"
                                 >
                                   <div className="flex-1 min-w-0">
                                     <span
-                                      className={`mb-1 inline-block font-mono text-[9px] font-black tracking-widest ${item.color} bg-white/5 px-1.5 py-0.5 rounded`}
+                                      className={`mb-1 inline-block font-mono text-[9px] font-black tracking-widest max-md:text-[11px] ${item.color} bg-white/5 px-1.5 py-0.5 rounded`}
                                     >
                                       {item.label}
                                     </span>
@@ -4588,12 +4588,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                       <span className="text-emerald-500/50 font-mono text-xs font-bold">
                                         $
                                       </span>
-                                      <span className="font-mono text-[13px] text-zinc-300 group-hover:text-white transition-colors truncate">
+                                      <span className="font-mono text-[13px] text-zinc-300 group-hover:text-white transition-colors truncate max-md:whitespace-normal max-md:text-[15px] max-md:[overflow-wrap:anywhere]">
                                         {item.value}
                                       </span>
                                     </div>
                                   </div>
-                                  <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                                  <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-500 opacity-0 transition-opacity group-hover:opacity-100 max-md:h-5 max-md:w-5 max-md:opacity-100" />
                                 </motion.a>
                               ))}
                             </div>
@@ -4615,7 +4615,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   {t("CURRICULUM_VITAE")}
                                 </span>
                               </div>
-                              <p className="font-mono text-[12.5px] leading-relaxed text-zinc-400">
+                              <p className="font-mono text-[12.5px] leading-relaxed text-zinc-400 max-md:text-[15px] max-md:text-zinc-300">
                                 {language === "es"
                                   ? cvData.summaryEs
                                   : cvData.summaryEn}
@@ -4624,11 +4624,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 {cvData.languages.map((lang) => (
                                   <span
                                     key={lang.label}
-                                    className="flex items-center gap-2 rounded-md border border-zinc-800 bg-black/40 px-2.5 py-1 font-mono text-[11px] text-zinc-300"
+                                    className="flex items-center gap-2 rounded-md border border-zinc-800 bg-black/40 px-2.5 py-1 font-mono text-[11px] text-zinc-300 max-md:text-[13px]"
                                   >
                                     {lang.label}
                                     <span className="text-zinc-700">::</span>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500/70">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500/70 max-md:text-[12px]">
                                       {lang.level}
                                     </span>
                                   </span>
@@ -4644,7 +4644,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   }
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="group/cv flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-emerald-300 transition-colors hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                                  className="group/cv flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-emerald-300 max-md:min-h-12 max-md:w-full max-md:justify-center max-md:text-[14px] transition-colors hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                                 >
                                   <FileText className="h-4 w-4" />
                                   {language === "es" ? "Ver CV" : "View CV"}
@@ -4656,7 +4656,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     href={file.href}
                                     download
                                     title={file.detail}
-                                    className="group/dl flex items-center gap-2 rounded-lg border border-zinc-800 bg-black/40 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:border-emerald-500/50 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                                    className="group/dl flex items-center gap-2 rounded-lg border border-zinc-800 bg-black/40 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-zinc-400 max-md:min-h-12 max-md:flex-1 max-md:justify-center max-md:whitespace-nowrap max-md:px-3 max-md:text-[13px] max-md:tracking-wider max-md:text-zinc-300 transition-colors hover:border-emerald-500/50 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                                   >
                                     <Download className="h-4 w-4 text-zinc-600 transition-colors group-hover/dl:text-emerald-500" />
                                     {file.label}
@@ -4679,7 +4679,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                               // wide as the hint, so it sits in the free column
                               // under the photo) so it is never cut off above
                               // the GOTO bar.
-                              "sticky bottom-0 z-20 -mb-6 w-fit max-w-full self-start bg-gradient-to-t from-zinc-950 from-55% to-transparent pb-4 pr-4 pt-4 md:-mb-10"
+                              "sticky bottom-0 z-20 -mb-6 w-fit max-w-full self-start bg-gradient-to-t from-zinc-950 from-55% to-transparent pb-4 pr-4 pt-4 max-md:static max-md:mb-0 max-md:w-full max-md:bg-none max-md:p-0 md:-mb-10"
                             : "w-full"
                         }
                       >
@@ -4720,13 +4720,40 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           </span>
                         </button>
                       )}
+                      {activeView === "contact" && (
+                        <button
+                          type="button"
+                          data-mobile-ai-cta=""
+                          onClick={handleNext}
+                          className="mb-8 mt-2 flex min-h-[64px] w-full items-center justify-between gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-left font-mono md:hidden"
+                        >
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-[12px] uppercase tracking-widest text-zinc-400">
+                              {language === "es"
+                                ? "Pregúntale a la IA"
+                                : "Ask the AI"}
+                            </span>
+                            <span className="truncate text-[16px] font-bold text-zinc-100">
+                              <span className="text-emerald-500">$</span>{" "}
+                              {language === "es"
+                                ? "Abrir ask-roiner"
+                                : "Open ask-roiner"}
+                            </span>
+                          </span>
+                          <span aria-hidden="true" className="shrink-0 text-[18px] text-emerald-400">
+                            →
+                          </span>
+                        </button>
+                      )}
                       <motion.div
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
                         viewport={{ once: false, amount: 0.1 }}
                         onClick={handleNext}
                         className={`cursor-pointer group/prompt inline-block w-full relative z-10 ${
-                          activeView === "about" || activeView === "experience"
+                          activeView === "about" ||
+                          activeView === "experience" ||
+                          activeView === "contact"
                             ? "max-md:hidden"
                             : ""
                         } ${
