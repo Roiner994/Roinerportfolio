@@ -62,6 +62,10 @@ export type ProjectLink = {
 export type ProjectImage = {
   src: string;
   caption: string;
+  /** "video" renders a muted, looping mp4 (autoplays while visible). Default: image. */
+  type?: "image" | "video";
+  /** Optional poster for videos; without it the first frame is shown. */
+  poster?: string;
 };
 
 export type ProjectPresentation = "media-first" | "info-first";
@@ -140,7 +144,7 @@ const experienceDataEs: ExperienceEntry[] = [
     period: "2021 - Mayo 2026",
     location: "Argentina",
     description:
-      "Arquitectura y desarrollo Full Stack para la plataforma líder en trazabilidad agrícola y sostenibilidad. Implementación de sistemas de inteligencia verificada para análisis de carteras de productores desde riesgos regionales hasta el nivel de parcela individual. Liderazgo técnico en la evolución del producto utilizando React y TypeScript.",
+      "Diseñé y desarrollé como Full Stack la plataforma líder en trazabilidad agrícola y sostenibilidad. Implementé sistemas de inteligencia verificada para el análisis de carteras de productores, desde riesgos regionales hasta el nivel de parcela individual. Lideré técnicamente la evolución del producto con React y TypeScript.",
     tech: ["React", "TypeScript", "Node.js", "SQL", "AWS"],
   },
   {
@@ -193,7 +197,7 @@ const experienceDataEn: ExperienceEntry[] = [
     period: "2021 - May 2026",
     location: "Argentina",
     description:
-      "Full Stack architecture and development for the leading agricultural traceability and sustainability platform. Implementation of verified intelligence systems for producer portfolio analysis from regional risks to plot level. Technical leadership in product evolution using React and TypeScript.",
+      "Architected and developed, as a full stack engineer, the leading agricultural traceability and sustainability platform. Implemented verified intelligence systems for producer portfolio analysis, from regional risks down to the plot level. Led the technical evolution of the product using React and TypeScript.",
     tech: ["React", "TypeScript", "Node.js", "SQL", "AWS"],
   },
   {
@@ -405,6 +409,11 @@ const projectEntriesEs: ProjectEntry[] = [
     ],
     tech: ["Django", "DRF", "Celery", "Vue 3", "n8n", "LiteLLM", "WhatsApp Cloud API", "Twilio", "Instagram API", "PostgreSQL", "pgvector"],
     gallery: [
+      {
+        type: "video",
+        src: "/projects/plunkton/demo.mp4",
+        caption: "Conversación en vivo: la IA responde y califica un lead",
+      },
       {
         src: "/projects/plunkton/01-leads-produccion.webp",
         caption:
@@ -802,6 +811,11 @@ const projectEntriesEn: ProjectEntry[] = [
     ],
     tech: ["Django", "DRF", "Celery", "Vue 3", "n8n", "LiteLLM", "WhatsApp Cloud API", "Twilio", "Instagram API", "PostgreSQL", "pgvector"],
     gallery: [
+      {
+        type: "video",
+        src: "/projects/plunkton/demo.mp4",
+        caption: "Live conversation: AI answers and qualifies a lead",
+      },
       {
         src: "/projects/plunkton/01-leads-produccion.webp",
         caption:

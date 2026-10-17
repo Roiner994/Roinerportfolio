@@ -751,17 +751,41 @@ function ProjectMediaPanel({
   selectedImageIndex: number;
   onSelectImage: (index: number) => void;
 }) {
-  const images = useMemo(
-    () =>
+  // Videos that failed to load are dropped, so the viewer falls back to images.
+  const [failedMedia, setFailedMedia] = useState<string[]>([]);
+  const images = useMemo(() => {
+    const all: ProjectImage[] =
       project.gallery && project.gallery.length > 0
         ? project.gallery
-        : getProjectMedia(project.id, project.mediaCaptions),
-    [project.gallery, project.id, project.mediaCaptions],
-  );
+        : getProjectMedia(project.id, project.mediaCaptions);
+    return all.filter((item) => !failedMedia.includes(item.src));
+  }, [project.gallery, project.id, project.mediaCaptions, failedMedia]);
   const isLandscape = project.galleryVariant === "landscape";
   const activeImage = images[selectedImageIndex] ?? images[0];
+  const isVideo = activeImage?.type === "video";
+  const reduceMotion = useReducedMotion() ?? false;
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const [isImageLoading, setIsImageLoading] = useState(true);
+
+  // Video: muted loop that plays only while visible (paused off-screen, and
+  // never autoplayed with reduced motion; controls are shown instead).
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!isVideo || !video || reduceMotion) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.35 },
+    );
+    io.observe(video);
+    return () => io.disconnect();
+  }, [isVideo, activeImage?.src, reduceMotion]);
 
   // Reset loading state when image source changes
   useEffect(() => {
@@ -777,6 +801,7 @@ function ProjectMediaPanel({
       images[(selectedImageIndex - 1 + images.length) % images.length],
     ];
     neighbours.forEach((img) => {
+      if (img.type === "video") return;
       const preloader = new window.Image();
       preloader.decoding = "async";
       preloader.src = img.src;
@@ -844,6 +869,32 @@ function ProjectMediaPanel({
           </AnimatePresence>
 
           <AnimatePresence mode="wait">
+            {isVideo ? (
+              <motion.video
+                key={activeImage.src}
+                ref={videoRef}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isImageLoading ? 0 : 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                src={activeImage.src}
+                poster={activeImage.poster}
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                controls={reduceMotion}
+                aria-label={activeImage.caption || project.displayName}
+                onLoadedData={() => setIsImageLoading(false)}
+                onError={() => {
+                  setFailedMedia((prev) => [...prev, activeImage.src]);
+                  setIsImageLoading(true);
+                }}
+                className={`relative z-10 w-full object-contain ${
+                  isLandscape ? "max-h-full bg-zinc-950" : "h-full max-h-full"
+                }`}
+              />
+            ) : (
             <motion.img
               key={activeImage.src}
               initial={{ opacity: 0, x: 20, scale: 0.98 }}
@@ -867,6 +918,7 @@ function ProjectMediaPanel({
                     }
               }
             />
+            )}
           </AnimatePresence>
 
           <div
