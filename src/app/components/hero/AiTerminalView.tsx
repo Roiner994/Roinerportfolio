@@ -1,8 +1,11 @@
+import { AiAgentsCrew } from "./AiAgentsCrew";
+import { HeroNameTreatment } from "./HeroNameTreatment";
 import {
   type ComponentType,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -21,11 +24,6 @@ export type AiSlashCommand = { name: string; desc: string };
 // VS15 (\uFE0E) forces text presentation so these never render as emoji.
 const DOT = "\u23FA\uFE0E"; // ⏺
 const SPINNER = ["\u00B7", "\u273B", "\u2722", "\u2733\uFE0E"]; // · ✻ ✢ ✳
-
-const ROINER_ASCII = [
-  "█▀█ █▀█ █ █▄ █ █▀▀ █▀█",
-  "█▀▄ █▄█ █ █ ▀█ ██▄ █▀▄",
-].join("\n");
 
 const STRINGS = {
   en: {
@@ -62,6 +60,49 @@ const STRINGS = {
   },
 } as const;
 
+// Mount heavy decorative parts (the robots) a couple of frames
+// after the view itself, so the view swap under the CRT transition stays a
+// single cheap frame.
+function useDeferredMount(frames = 2) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let n = 0;
+    let id = 0;
+    const step = () => {
+      if (++n >= frames) setReady(true);
+      else id = requestAnimationFrame(step);
+    };
+    id = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(id);
+  }, [frames]);
+  return ready;
+}
+
+// The hero's own "ROINER" tile treatment (HeroNameTreatment, used as-is with
+// no props). Only its first row is shown; it is scaled down from outside.
+// Mounted once the terminal is revealed so its own letter stagger plays then.
+function RoinerBanner({ delay }: { delay: number }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setShow(true), Math.max(50, delay * 1000));
+    return () => window.clearTimeout(id);
+  }, [delay]);
+  return (
+    <div
+      data-ai-name-banner
+      aria-label="ROINER"
+      role="img"
+      className="pointer-events-none hidden h-[52px] w-[300px] select-none sm:block"
+    >
+      {show && (
+        <div className="w-[420px] origin-top-left scale-[0.72] [&>div>div:nth-child(n+2)]:hidden [&>div]:!py-0">
+          <HeroNameTreatment />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface AiTerminalViewProps {
   lang: "en" | "es";
   messages: AiChatMessage[];
@@ -78,6 +119,10 @@ export interface AiTerminalViewProps {
   Typewriter: ComponentType<{ text: string; speed?: number; onTick?: () => void }>;
   onTypingTick?: () => void;
   footer?: ReactNode;
+  /** Seconds before the banner sweep / robots entrance (longer after CRT). */
+  entranceDelay?: number;
+  /** Robots leave (AI -> Contact transition). */
+  crewLeaving?: boolean;
 }
 
 function ThinkingLine({ label }: { label: string }) {
@@ -115,7 +160,12 @@ export function AiTerminalView({
   Typewriter,
   onTypingTick,
   footer,
+  entranceDelay: entranceDelayProp = 0.15,
+  crewLeaving = false,
 }: AiTerminalViewProps) {
+  // Frozen at mount so the entrance timing never shifts mid-animation.
+  const [entranceDelay] = useState(entranceDelayProp);
+  const decorReady = useDeferredMount(3);
   const s = STRINGS[lang] ?? STRINGS.en;
   const [suggestIndex, setSuggestIndex] = useState(-1);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -143,6 +193,27 @@ export function AiTerminalView({
   }, [showSuggestions]);
 
   const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
+
+  // A reply that arrives after Thinking waits (empty ⏺ line) until the robot's
+  // beam hits it; the crew calls onImpact (immediately when no beam is shown).
+  // Safety net: never hold the reply longer than 1.2 s.
+  const [awaitingFrom, setAwaitingFrom] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (isThinking) setAwaitingFrom(lastAssistantId ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isThinking]);
+  const holdReply =
+    !isThinking && awaitingFrom !== undefined && lastAssistantId !== undefined && lastAssistantId !== awaitingFrom;
+  useEffect(() => {
+    if (!holdReply) return;
+    const id = window.setTimeout(() => setAwaitingFrom(undefined), 1200);
+    return () => window.clearTimeout(id);
+  }, [holdReply]);
+  const releaseReply = useCallback(() => setAwaitingFrom(undefined), []);
+  const getReplyTarget = useCallback(
+    () => document.querySelector<HTMLElement>("[data-ai-reply-target]"),
+    [],
+  );
 
   const submit = (value: string) => {
     if (!value.trim()) return;
@@ -222,20 +293,25 @@ export function AiTerminalView({
       className="flex h-full min-h-0 w-full flex-col bg-[#09090b] font-mono text-[13px] leading-relaxed text-zinc-300"
       onClick={() => inputRef.current?.focus({ preventScroll: true })}
     >
+      <div className="relative flex min-h-0 flex-1 flex-col">
+      {decorReady && (
+        <AiAgentsCrew
+          thinking={isThinking}
+          entranceDelay={entranceDelay + 0.1}
+          leaving={crewLeaving}
+          getReplyTarget={getReplyTarget}
+          onImpact={releaseReply}
+        />
+      )}
       <div
         id="out"
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]"
+        className="relative z-[1] min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]"
       >
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-5 pb-4 pt-6 sm:px-8">
           {/* Banner */}
           <div className="flex flex-col items-start gap-4">
-            <pre
-              aria-label="ROINER"
-              className="hidden select-none whitespace-pre font-mono text-[13px] leading-[1.05] text-[#00bc7d] sm:block lg:text-[16px]"
-            >
-              {ROINER_ASCII}
-            </pre>
+            <RoinerBanner delay={entranceDelay} />
             <div
               data-ai-banner
               className="max-w-full rounded-lg border border-[#00bc7d]/45 px-4 py-3 sm:min-w-[26rem]"
@@ -272,9 +348,14 @@ export function AiTerminalView({
               }
               return (
                 <div key={m.id} data-ai-msg="assistant" className="flex gap-2 text-zinc-100">
-                  <span className="shrink-0 select-none text-[#00d492]">{DOT}</span>
+                  <span
+                    className="shrink-0 select-none text-[#00d492]"
+                    data-ai-reply-target={m.id === lastAssistantId && holdReply ? "" : undefined}
+                  >
+                    {DOT}
+                  </span>
                   <span className="min-w-0 whitespace-pre-wrap break-words">
-                    {m.id === lastAssistantId ? (
+                    {m.id === lastAssistantId && holdReply ? null : m.id === lastAssistantId ? (
                       <Typewriter text={m.content} speed={12} onTick={onTypingTick} />
                     ) : (
                       m.content
@@ -318,7 +399,7 @@ export function AiTerminalView({
       </div>
 
       {/* Input */}
-      <div className="mx-auto w-full max-w-4xl px-5 pb-3 pt-1 sm:px-8">
+      <div className="relative z-[1] mx-auto w-full max-w-4xl px-5 pb-3 pt-1 sm:px-8">
         <div className="relative">
           {isSlash && (
             <div
@@ -365,24 +446,19 @@ export function AiTerminalView({
                 autoComplete="off"
                 spellCheck={false}
                 aria-label={placeholder}
-                className="w-full bg-transparent text-zinc-100 caret-transparent outline-none disabled:opacity-60"
+                placeholder={placeholder}
+                // Native caret (emerald): the visible text is always exactly the
+                // input value, the caret follows arrows / mid-text edits, and
+                // the placeholder starts right after the caret.
+                className="w-full bg-transparent font-mono text-zinc-100 caret-[#00d492] outline-none placeholder:text-zinc-600 disabled:opacity-60"
               />
-              {/* Custom block cursor sits right after the typed text; when the
-                  input is empty the placeholder starts after the cursor. */}
+              {/* Zero-width anchor at the caret's start position (the input is
+                  empty when AI mode opens): the CRT transition's dot lands here. */}
               <span
                 aria-hidden
                 data-ai-cursor
-                className="pointer-events-none absolute top-1/2 h-[1.15em] w-[0.6em] -translate-y-1/2 bg-[#00d492]"
-                style={{
-                  left: `${inputValue.length}ch`,
-                  animation: "hero-caret-blink 1.05s steps(1) infinite",
-                }}
+                className="pointer-events-none absolute left-0 top-1/2 h-[1.15em] w-[2px] -translate-y-1/2 opacity-0"
               />
-              {!inputValue && (
-                <span className="pointer-events-none absolute left-[1.25ch] top-1/2 -translate-y-1/2 truncate pr-2 text-zinc-600" style={{ maxWidth: "calc(100% - 1.25ch)" }}>
-                  {placeholder}
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -397,6 +473,7 @@ export function AiTerminalView({
         ) : (
           <div className="mt-1.5 px-1 text-[11px] text-zinc-600">{s.hints.join(" · ")}</div>
         )}
+      </div>
       </div>
       {footer}
     </div>

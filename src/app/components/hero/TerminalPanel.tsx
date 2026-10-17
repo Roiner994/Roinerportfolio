@@ -1068,6 +1068,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // While true, the view swap under the transition is instant (no
   // AnimatePresence fade, so there is never a blank frame).
   const [instantViewSwap, setInstantViewSwap] = useState(false);
+  const [aiCrewLeaving, setAiCrewLeaving] = useState(false);
   const projContactSnapRef = useRef<{
     projectsClone?: HTMLElement;
     projectsBox?: XpBox;
@@ -1457,6 +1458,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       return;
     isContactAiTransitioningRef.current = true;
     setInstantViewSwap(true);
+    if (direction === "reverse") setAiCrewLeaving(true);
     setInputValue("");
     contactAiCancelRef.current = runContactAiTransition({
       direction,
@@ -1478,6 +1480,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         isContactAiTransitioningRef.current = false;
         contactAiCancelRef.current = null;
         setInstantViewSwap(false);
+        setAiCrewLeaving(false);
         if (direction === "forward") {
           inputRef.current?.focus({ preventScroll: true });
         }
@@ -3151,6 +3154,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                 Typewriter={TypewriterText}
                 onTypingTick={scrollToBottom}
                 footer={renderStatusBar(true)}
+                // After the CRT power-off the view mounts under black; the
+                // banner sweep / robots wait until the terminal is revealed.
+                entranceDelay={instantViewSwap ? 0.55 : 0.15}
+                crewLeaving={aiCrewLeaving}
               />
             </motion.div>
           ) : activeView === "terminal" ? (
