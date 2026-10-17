@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { runExpProjectsTransition, type Box as XpBox, type PanelKey as XpPanelKey } from "./expProjectsTransition";
+import { runProjectsContactTransition } from "./projectsContactTransition";
 import {
   Terminal,
   X,
@@ -1102,6 +1103,20 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const projectFolderRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const projectTitleRef = useRef<HTMLSpanElement>(null);
   const contactPhotoRef = useRef<HTMLDivElement>(null);
+  const contactRootRef = useRef<HTMLDivElement>(null);
+  const projectsRootRef = useRef<HTMLDivElement>(null);
+  const [projContactTransition, setProjContactTransition] = useState<{
+    direction: "forward" | "reverse";
+  } | null>(null);
+  const isProjContactTransitioningRef = useRef(false);
+  const projContactSnapRef = useRef<{
+    projectsClone?: HTMLElement;
+    projectsBox?: XpBox;
+    avatar?: { src: string; box: XpBox } | null;
+    contactClone?: HTMLElement;
+    contactBox?: XpBox;
+    contactScrollTop?: number;
+  } | null>(null);
   const contactCvRef = useRef<HTMLDivElement>(null);
   const contactCvButtonRef = useRef<HTMLAnchorElement>(null);
   const [cvFocusTick, setCvFocusTick] = useState(0);
@@ -1179,7 +1194,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const usesTouchNavigationCopy = isMobile || isCompactViewport;
 
   const sectionMiniPose: AvatarPose | null =
-    aboutExpTransition !== null || expProjectsTransition !== null
+    aboutExpTransition !== null ||
+    expProjectsTransition !== null ||
+    projContactTransition !== null
       ? null
       : !isAiMode && activeView === "projects"
       ? hasOpenedProject
@@ -1194,6 +1211,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       activeView === "projects" &&
       !isAiMode &&
       expProjectsTransition === null &&
+      projContactTransition === null &&
       !hasOpenedProject
     ) {
       // let the avatar settle (pop / morph hand-off) before the bubble appears
@@ -1206,13 +1224,25 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       };
     }
     setProjectsHint(false);
-  }, [isExpanded, activeView, isAiMode, expProjectsTransition, hasOpenedProject]);
+  }, [
+    isExpanded,
+    activeView,
+    isAiMode,
+    expProjectsTransition,
+    projContactTransition,
+    hasOpenedProject,
+  ]);
 
   // `cv` alias: once Contact is showing (and no transition runs), bring the
   // CV block into view, focus its main button and pulse its border.
   useEffect(() => {
     if (cvFocusTick === 0) return;
-    if (activeView !== "contact" || expProjectsTransition !== null) return;
+    if (
+      activeView !== "contact" ||
+      expProjectsTransition !== null ||
+      projContactTransition !== null
+    )
+      return;
     const t0 = window.setTimeout(() => {
       contactCvRef.current?.scrollIntoView({
         behavior: reduceMotion ? "auto" : "smooth",
@@ -1228,7 +1258,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       setCvHighlight(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cvFocusTick, activeView, expProjectsTransition]);
+  }, [cvFocusTick, activeView, expProjectsTransition, projContactTransition]);
 
   // Preload all pixel-art sprites on mount
   useEffect(() => {
@@ -1875,7 +1905,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     ) => {
       if (
         isAboutExpTransitioningRef.current ||
-        isExpProjectsTransitioningRef.current
+        isExpProjectsTransitioningRef.current ||
+        isProjContactTransitioningRef.current
       )
         return;
 
@@ -2030,8 +2061,141 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expProjectsTransition]);
 
+  // ---- Projects <-> Contact ("zoom & portal") ----
+  const startProjContactTransition = useCallback(
+    (direction: "forward" | "reverse") => {
+      if (
+        isAboutExpTransitioningRef.current ||
+        isExpProjectsTransitioningRef.current ||
+        isProjContactTransitioningRef.current
+      )
+        return;
+      const snap: NonNullable<typeof projContactSnapRef.current> = {};
+      if (direction === "forward") {
+        const root = projectsRootRef.current;
+        if (!root) {
+          setActiveView("contact");
+          return;
+        }
+        snap.projectsBox = rectOf(root);
+        snap.projectsClone = root.cloneNode(true) as HTMLElement;
+        const mini = document.getElementById("mini") as HTMLImageElement | null;
+        if (mini) {
+          const r = rectOf(mini);
+          const hidden = mini.classList.contains("off");
+          snap.avatar =
+            r.width > 0
+              ? { src: mini.src, box: { ...r, top: hidden ? r.top - 20 : r.top } }
+              : null;
+          mini.style.visibility = "hidden";
+        }
+        setProjectsHint(false);
+      } else {
+        const inner = innerScrollRef.current;
+        if (!inner) {
+          setActiveView("projects");
+          return;
+        }
+        snap.contactBox = rectOf(inner);
+        snap.contactClone = inner.cloneNode(true) as HTMLElement;
+        snap.contactScrollTop = inner.scrollTop;
+      }
+      projContactSnapRef.current = snap;
+      isProjContactTransitioningRef.current = true;
+      setTerminalMode("shell");
+      setIsExpanded(true);
+      // The destination view mounts immediately, underneath the snapshot.
+      setActiveView(direction === "forward" ? "contact" : "projects");
+      setProjContactTransition({ direction });
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
+    if (!projContactTransition) return;
+    const snap = projContactSnapRef.current;
+    if (!snap) return;
+    const forward = projContactTransition.direction === "forward";
+    const inner = innerScrollRef.current;
+    const mini = document.getElementById("mini") as HTMLImageElement | null;
+    if (mini) mini.style.visibility = "hidden";
+
+    let projects: HTMLElement | null;
+    let projectsBox: XpBox;
+    let contact: HTMLElement | null;
+    let contactBox: XpBox;
+    let avatar: { src: string; box: XpBox } | null = null;
+    if (forward) {
+      if (overlayScrollRef.current) overlayScrollRef.current.scrollTop = 0;
+      if (inner) inner.scrollTop = 0;
+      projects = snap.projectsClone ?? null;
+      projectsBox = snap.projectsBox!;
+      contact = inner;
+      contactBox = inner ? rectOf(inner) : projectsBox;
+      avatar = snap.avatar ?? null;
+    } else {
+      if (projectsScrollSectionRef.current)
+        projectsScrollSectionRef.current.scrollTop = 0;
+      projects = projectsRootRef.current;
+      projectsBox = projects ? rectOf(projects) : snap.contactBox!;
+      contact = snap.contactClone ?? null;
+      contactBox = snap.contactBox!;
+      if (mini) {
+        const r = rectOf(mini);
+        const hidden = mini.classList.contains("off");
+        if (r.width > 0)
+          avatar = {
+            src: `/avatar/${hasOpenedProject ? "laptop" : "coffee"}.png`,
+            box: { ...r, top: hidden ? r.top - 20 : r.top },
+          };
+      }
+    }
+
+    const finish = () => {
+      if (!forward) {
+        // Hand over from the flying sprite to the real avatar without its
+        // CSS fade/pop, so it simply stays where the sprite landed.
+        skipMiniPopRef.current = true;
+      }
+      if (mini) {
+        mini.style.transition = "none";
+        mini.style.visibility = "";
+        window.setTimeout(() => {
+          mini.style.transition = "";
+        }, 120);
+      }
+      isProjContactTransitioningRef.current = false;
+      lastTransitionEndRef.current = performance.now();
+      projContactSnapRef.current = null;
+      setProjContactTransition(null);
+    };
+
+    if (!projects || !contact) {
+      finish();
+      return;
+    }
+
+    const cancel = runProjectsContactTransition({
+      direction: projContactTransition.direction,
+      reduceMotion,
+      projects,
+      projectsBox,
+      contact,
+      contactBox,
+      contactScrollTop: snap.contactScrollTop,
+      avatar,
+      onDone: finish,
+    });
+    return cancel;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projContactTransition]);
+
   const handleCommand = (cmd: string) => {
-    if (isAboutExpTransitioningRef.current) return;
+    if (
+      isAboutExpTransitioningRef.current ||
+      isProjContactTransitioningRef.current
+    )
+      return;
     setHasInteracted(true);
     const cleanCmd = cmd.toLowerCase().trim();
 
@@ -2061,6 +2225,18 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     if (cleanCmd === "experience" && isExpanded && activeView === "projects") {
       setInputValue("");
       startExpProjectsTransition("reverse", "experience");
+      return;
+    }
+
+    if (cleanCmd === "contact" && isExpanded && activeView === "projects") {
+      setInputValue("");
+      startProjContactTransition("forward");
+      return;
+    }
+
+    if (cleanCmd === "projects" && isExpanded && activeView === "contact") {
+      setInputValue("");
+      startProjContactTransition("reverse");
       return;
     }
 
@@ -2103,7 +2279,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const handleNext = () => {
     if (
       isAboutExpTransitioningRef.current ||
-      isExpProjectsTransitioningRef.current
+      isExpProjectsTransitioningRef.current ||
+      isProjContactTransitioningRef.current
     )
       return;
 
@@ -2140,7 +2317,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const closeExpanded = () => {
     if (
       isAboutExpTransitioningRef.current ||
-      isExpProjectsTransitioningRef.current
+      isExpProjectsTransitioningRef.current ||
+      isProjContactTransitioningRef.current
     )
       return;
     if (isAiMode) {
@@ -2153,11 +2331,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const handleExternalClose = useCallback(() => {
     if (
       isAboutExpTransitioningRef.current ||
-      isExpProjectsTransitioningRef.current
+      isExpProjectsTransitioningRef.current ||
+      isProjContactTransitioningRef.current
     )
       return;
     if (activeViewRef.current === "projects") {
       startExpProjectsTransition("reverse", "experience");
+      return;
+    }
+    if (activeViewRef.current === "contact") {
+      startProjContactTransition("reverse");
       return;
     }
     if (activeViewRef.current === "experience") {
@@ -2166,7 +2349,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }
     if (performance.now() - lastTransitionEndRef.current < 420) return;
     closeExpanded();
-  }, [startAboutExpTransition, startExpProjectsTransition]);
+  }, [
+    startAboutExpTransition,
+    startExpProjectsTransition,
+    startProjContactTransition,
+  ]);
 
   // Let external UIs (e.g. the video hero) drive the same command router.
   useImperativeHandle(ref, () => ({
@@ -2241,7 +2428,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     const onWheel = (e: WheelEvent) => {
       if (
         isAboutExpTransitioningRef.current ||
-        isExpProjectsTransitioningRef.current
+        isExpProjectsTransitioningRef.current ||
+        isProjContactTransitioningRef.current
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -2300,7 +2488,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
       if (
         isAboutExpTransitioningRef.current ||
-        isExpProjectsTransitioningRef.current
+        isExpProjectsTransitioningRef.current ||
+        isProjContactTransitioningRef.current
       ) {
         if (
           [
@@ -2338,6 +2527,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         e.preventDefault();
         e.stopPropagation();
         startExpProjectsTransition("reverse", "experience");
+        return;
+      }
+
+      if (e.key === "Escape" && activeViewRef.current === "contact") {
+        e.preventDefault();
+        e.stopPropagation();
+        startProjContactTransition("reverse");
         return;
       }
 
@@ -2379,7 +2575,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     const onTouchMove = (e: TouchEvent) => {
       if (
         isAboutExpTransitioningRef.current ||
-        isExpProjectsTransitioningRef.current
+        isExpProjectsTransitioningRef.current ||
+        isProjContactTransitioningRef.current
       ) {
         e.preventDefault();
         return;
@@ -2434,6 +2631,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     handleNext,
     startAboutExpTransition,
     startExpProjectsTransition,
+    startProjContactTransition,
   ]);
 
   const handleTerminalClick = () => {
@@ -3666,6 +3864,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
                     {activeView === "projects" && (
                       <div
+                        ref={projectsRootRef}
                         className={`flex flex-col bg-zinc-950/50 lg:flex-row ${
                           usesProjectSplitScroll
                             ? "h-full flex-1 min-h-0 overflow-hidden"
@@ -4012,8 +4211,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                     )}
 
                     {activeView === "contact" && (
-                      <div className="w-full space-y-8 pb-4 [@media(max-height:820px)]:space-y-5">
-                        <div className="space-y-1">
+                      <div ref={contactRootRef} className="w-full space-y-8 pb-4 [@media(max-height:820px)]:space-y-5">
+                        <div data-contact-reveal="header" className="space-y-1">
                           <div className="flex items-center gap-2 text-xs font-mono">
                             <span className="text-emerald-500">$</span>
                             <span className="text-zinc-300">
@@ -4028,14 +4227,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         <div className="grid gap-8 xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.28fr)] xl:items-center xl:gap-12">
                           {/* Photo frame: square slot for Roiner's image */}
                           <div
-                            data-contact-reveal="photo"
                             className="mx-auto w-full max-w-[260px] sm:max-w-[320px] xl:max-w-[400px] [@media(max-height:820px)]:xl:max-w-[340px]"
                           >
                             <AnimatedContactAvatar
                               isExternallyHovered={isContactCardHovered}
                               frameRef={contactPhotoRef}
                             />
-                            <div className="mt-3 flex items-center justify-between font-mono text-[10px] text-zinc-600">
+                            <div data-contact-reveal="caption" className="mt-3 flex items-center justify-between font-mono text-[10px] text-zinc-600">
                               <span>
                                 <span className="text-emerald-500/60">~/</span>
                                 roiner.png
@@ -4203,6 +4401,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                       </div>
                     )}
                     {activeView !== "terminal" && activeView !== "projects" && (
+                      <div
+                        data-contact-reveal={
+                          activeView === "contact" ? "prompt" : undefined
+                        }
+                        className="w-full"
+                      >
                       <motion.div
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
@@ -4246,6 +4450,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           <div className="w-2 h-4 bg-white/40 group-hover/prompt:bg-emerald-500 shrink-0" />
                         </div>
                       </motion.div>
+                      </div>
                     )}
                   </div>
                 </div>
