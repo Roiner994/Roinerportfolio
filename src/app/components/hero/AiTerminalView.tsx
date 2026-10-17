@@ -144,6 +144,27 @@ function ThinkingLine({ label }: { label: string }) {
   );
 }
 
+function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(pointer: coarse)");
+    const on = () => setCoarse(mql.matches);
+    mql.addEventListener("change", on);
+    return () => mql.removeEventListener("change", on);
+  }, []);
+  return coarse;
+}
+
+// Mobile mini crew (the full AiAgentsCrew only shows from 1100px).
+const MINI_CREW = [
+  { id: "frontend", src: "/hero/agents/gemini.png" },
+  { id: "backend", src: "/hero/agents/cursor.png" },
+  { id: "ai", src: "/hero/agents/claude.png" },
+  { id: "devops", src: "/hero/agents/chatgpt.png" },
+] as const;
+
 export function AiTerminalView({
   lang,
   messages,
@@ -167,6 +188,11 @@ export function AiTerminalView({
   const [entranceDelay] = useState(entranceDelayProp);
   const decorReady = useDeferredMount(3);
   const s = STRINGS[lang] ?? STRINGS.en;
+  const isCoarse = useCoarsePointer();
+  const touchHint =
+    lang === "es"
+      ? "toca una pregunta o escribe la tuya"
+      : "tap a question or type your own";
   const [suggestIndex, setSuggestIndex] = useState(-1);
   const [slashIndex, setSlashIndex] = useState(0);
 
@@ -183,9 +209,27 @@ export function AiTerminalView({
 
   // Focus the prompt on mount (the view mounts after AnimatePresence's exit,
   // so the parent's focus effect has already run) and again after a reply.
+  // Not on touch screens: focusing pops the keyboard over the reply.
   useEffect(() => {
-    if (!isThinking) inputRef.current?.focus({ preventScroll: true });
-  }, [isThinking, inputRef]);
+    if (!isThinking && !isCoarse) inputRef.current?.focus({ preventScroll: true });
+  }, [isThinking, inputRef, isCoarse]);
+
+  // Phones: hide the tab bar while the keyboard is up (see mobile.css).
+  useEffect(() => {
+    if (!isCoarse) return;
+    const el = inputRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const on = () => root.setAttribute("data-kb-open", "");
+    const off = () => root.removeAttribute("data-kb-open");
+    el.addEventListener("focus", on);
+    el.addEventListener("blur", off);
+    return () => {
+      el.removeEventListener("focus", on);
+      el.removeEventListener("blur", off);
+      off();
+    };
+  }, [isCoarse, inputRef]);
 
   useEffect(() => setSlashIndex(0), [inputValue]);
   useEffect(() => {
@@ -290,8 +334,10 @@ export function AiTerminalView({
   return (
     <div
       data-ai-terminal
-      className="flex h-full min-h-0 w-full flex-col bg-[#09090b] font-mono text-[13px] leading-relaxed text-zinc-300"
-      onClick={() => inputRef.current?.focus({ preventScroll: true })}
+      className="flex h-full min-h-0 w-full flex-col bg-[#09090b] font-mono text-[13px] leading-relaxed text-zinc-300 max-md:text-[16px]"
+      onClick={() => {
+        if (!isCoarse) inputRef.current?.focus({ preventScroll: true });
+      }}
     >
       <div className="relative flex min-h-0 flex-1 flex-col">
       {decorReady && (
@@ -308,7 +354,7 @@ export function AiTerminalView({
         ref={scrollRef}
         className="relative z-[1] min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]"
       >
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-5 pb-4 pt-6 sm:px-8">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-5 pb-4 pt-6 max-md:px-4 max-md:pt-4 sm:px-8">
           {/* Banner */}
           <div className="flex flex-col items-start gap-4">
             <RoinerBanner delay={entranceDelay} />
@@ -320,8 +366,8 @@ export function AiTerminalView({
                 <span className="mr-2 text-[#00d492]">{SPINNER[1]}</span>
                 {s.welcome} <span className="font-semibold text-white">ask-roiner</span>
               </div>
-              <div className="mt-2 text-xs text-zinc-500">{s.intro}</div>
-              <div className="mt-2 text-xs text-zinc-600">
+              <div className="mt-2 text-xs text-zinc-500 max-md:text-[14px] max-md:text-zinc-400">{s.intro}</div>
+              <div className="mt-2 text-xs text-zinc-600 max-md:text-[13px]">
                 cwd: <span className="text-zinc-400">~/ai</span>
               </div>
             </div>
@@ -370,7 +416,7 @@ export function AiTerminalView({
           {/* Suggested questions */}
           {showSuggestions && suggestedQuestions.length > 0 && (
             <div data-ai-suggestions className="mt-1 flex flex-col gap-0.5">
-              <div className="mb-1 text-xs text-zinc-600">{s.try}:</div>
+              <div className="mb-1 text-xs text-zinc-600 max-md:text-[14px] max-md:text-zinc-500">{s.try}:</div>
               {suggestedQuestions.map((q, i) => {
                 const active = i === suggestIndex;
                 return (
@@ -383,7 +429,7 @@ export function AiTerminalView({
                       e.stopPropagation();
                       submit(q);
                     }}
-                    className={`group flex w-fit max-w-full items-baseline gap-2 rounded px-2 py-0.5 text-left transition-colors ${
+                    className={`group flex w-fit max-w-full items-baseline gap-2 rounded px-2 py-0.5 text-left transition-colors max-md:min-h-11 max-md:w-full max-md:items-center max-md:border max-md:border-zinc-800 max-md:px-3 max-md:py-2 ${
                       active ? "bg-[#00bc7d]/10 text-[#00d492]" : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
@@ -399,7 +445,25 @@ export function AiTerminalView({
       </div>
 
       {/* Input */}
-      <div className="relative z-[1] mx-auto w-full max-w-4xl px-5 pb-3 pt-1 sm:px-8">
+      <div className="relative z-[1] mx-auto w-full max-w-4xl px-5 pb-3 pt-1 max-md:px-4 sm:px-8">
+        {decorReady && (
+          <div
+            data-ai-mini-crew
+            aria-hidden="true"
+            className="mb-2 flex items-end gap-2.5 px-1 md:hidden"
+          >
+            {MINI_CREW.map((a, i) => (
+              <img
+                key={a.id}
+                src={a.src}
+                alt=""
+                draggable={false}
+                className={`h-7 w-7 object-contain ${isThinking ? "ai-mini-bounce" : ""}`}
+                style={{ imageRendering: "pixelated", animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+        )}
         <div className="relative">
           {isSlash && (
             <div
@@ -471,7 +535,9 @@ export function AiTerminalView({
             ))}
           </div>
         ) : (
-          <div className="mt-1.5 px-1 text-[11px] text-zinc-600">{s.hints.join(" · ")}</div>
+          <div className="mt-1.5 px-1 text-[11px] text-zinc-600 max-md:text-[13px] max-md:text-zinc-500">
+            {isCoarse ? touchHint : s.hints.join(" · ")}
+          </div>
         )}
       </div>
       </div>

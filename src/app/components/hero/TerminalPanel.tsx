@@ -127,6 +127,14 @@ const HIDDEN_SECTION_STYLE: React.CSSProperties = {
   pointerEvents: "none",
 };
 
+/** Touch-first device: don't auto-focus text inputs (it pops the keyboard). */
+function isCoarsePointer(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(pointer: coarse)").matches
+  );
+}
+
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
@@ -1568,7 +1576,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         contactAiCancelRef.current = null;
         setInstantViewSwap(false);
         setAiCrewLeaving(false);
-        if (direction === "forward") {
+        if (direction === "forward" && !isCoarsePointer()) {
           inputRef.current?.focus({ preventScroll: true });
         }
       },
@@ -2917,7 +2925,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       return;
     }
 
-    inputRef.current?.focus();
+    if (!isCoarsePointer()) inputRef.current?.focus();
     chatScrollRef.current?.scrollTo({
       top: chatScrollRef.current.scrollHeight,
       behavior: "smooth",
