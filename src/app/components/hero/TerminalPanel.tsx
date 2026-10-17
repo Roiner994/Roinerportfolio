@@ -822,7 +822,7 @@ function ProjectMediaPanel({
   }
 
   return (
-    <div className="group relative w-full min-w-0">
+    <div className="group relative w-full min-w-0 lg:flex lg:h-full lg:flex-col lg:justify-center">
       <div
         className={`overflow-hidden rounded-[2rem] shadow-2xl transition-all duration-500 ${
           isLandscape
@@ -834,7 +834,7 @@ function ProjectMediaPanel({
           className={`relative flex items-center justify-center overflow-hidden ${
             isLandscape
               ? "aspect-[16/10] w-full p-2 sm:p-3"
-              : "h-[min(58vh,600px)] min-h-[340px] p-3 sm:p-5"
+              : "h-[min(58vh,600px)] min-h-[340px] p-3 sm:p-5 lg:h-[calc(100vh-345px)]"
           }`}
         >
           {/* Loading indicator */}
@@ -911,25 +911,9 @@ function ProjectMediaPanel({
                   ? "max-h-full bg-zinc-950"
                   : "h-full max-h-full drop-shadow-[0_0_50px_rgba(16,185,129,0.1)]"
               }`}
-              style={
-                isLandscape
-                  ? undefined
-                  : {
-                      filter: "contrast(1.05) brightness(1.05)",
-                    }
-              }
             />
             )}
           </AnimatePresence>
-
-          <div
-            className="absolute inset-0 z-20 pointer-events-none opacity-[0.03]"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, #10b981 1px, transparent 1px)",
-              backgroundSize: "24px 24px",
-            }}
-          />
 
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.04),transparent_70%)]" />
 
@@ -3816,7 +3800,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 items-start gap-8 p-6 lg:grid-cols-[minmax(300px,0.62fr)_minmax(0,1.38fr)] lg:p-8">
+                            <div className="grid grid-cols-1 items-start gap-8 p-6 lg:grid-cols-[minmax(300px,0.58fr)_minmax(0,1.42fr)] lg:p-8">
                               <div
                                 ref={projectsTextPanelRef}
                                 className="space-y-7 min-w-0"
@@ -3936,7 +3920,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
                               <div
                                 ref={projectsMediaPanelRef}
-                                className="w-full min-w-0 space-y-6 lg:sticky lg:top-6"
+                                className="w-full min-w-0 space-y-6 lg:sticky lg:top-6 lg:h-[calc(100vh-222px)]"
                               >
                                 {activeProject.presentation ===
                                 "media-first" ? (

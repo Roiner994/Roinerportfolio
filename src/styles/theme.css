@@ -361,6 +361,12 @@
     transform 0.3s ease;
 }
 
+/* Projects: no CRT vignette over the screenshots/video (keeps them crisp and
+   full-contrast). The global 3% scanlines stay. */
+body:has([data-section-overlay][data-view="projects"]) .crt-vignette {
+  display: none;
+}
+
 /* Projects (desktop): rest the mini avatar in the explorer column, above the
    ENTER hint, so it never covers the project text or the media viewer. */
 @media (min-width: 1024px) {

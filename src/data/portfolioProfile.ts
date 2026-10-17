@@ -415,17 +415,17 @@ const projectEntriesEs: ProjectEntry[] = [
         caption: "Conversación real: la IA califica el lead y lo deriva a un vendedor",
       },
       {
-        src: "/projects/plunkton/01-leads-produccion.webp",
+        src: "/projects/plunkton/01-leads-produccion-crop.webp",
         caption:
           "Bandeja de leads en producción: pendientes, esperando respuesta y sin asignar, con resúmenes de IA.",
       },
       {
-        src: "/projects/plunkton/02-lead-conversacion.webp",
+        src: "/projects/plunkton/02-lead-conversacion-crop.webp",
         caption:
           "Conversación de un lead de Instagram: respuesta privada al comentario, asistente IA y vendedor en un mismo hilo.",
       },
       {
-        src: "/projects/plunkton/03-lead-detalle.webp",
+        src: "/projects/plunkton/03-lead-detalle-crop.webp",
         caption:
           "Detalle del lead con insights consolidados por IA, etapa, intención y score de lead caliente.",
       },
@@ -440,22 +440,22 @@ const projectEntriesEs: ProjectEntry[] = [
           "Estado de conexión de WhatsApp, Instagram, chat web, Pilot CRM y Tokko.",
       },
       {
-        src: "/projects/plunkton/05-integraciones-estado.webp",
+        src: "/projects/plunkton/05-integraciones-estado-crop.webp",
         caption:
           "Panel de integraciones con el asistente virtual y la configuración de reactividad de derivación.",
       },
       {
-        src: "/projects/plunkton/06-integracion-pilot-crm.webp",
+        src: "/projects/plunkton/06-integracion-pilot-crm-crop.webp",
         caption:
           "Conexión con Pilot CRM y sincronización bidireccional configurable.",
       },
       {
-        src: "/projects/plunkton/07-dashboard.webp",
+        src: "/projects/plunkton/07-dashboard-crop.webp",
         caption:
           "Dashboard de conversión: leads nuevos, intención de compra, tasa de cierre y fuentes.",
       },
       {
-        src: "/projects/plunkton/08-equipo.webp",
+        src: "/projects/plunkton/08-equipo-crop.webp",
         caption:
           "Equipo organizado por tipo: ventas 0 km, postventa y planes de ahorro.",
       },
@@ -494,7 +494,7 @@ const projectEntriesEs: ProjectEntry[] = [
     tech: ["NestJS", "React", "TypeScript", "Vite", "Cloudflare Pages", "Meta Ads API", "Stripe", "ThriveCart", "ConvertKit"],
     gallery: [
       {
-        src: "/projects/goscale/01-whatsapp-analytics.webp",
+        src: "/projects/goscale/01-whatsapp-analytics-crop.webp",
         caption:
           "Analítica de captación por WhatsApp: leads del gestor vs. WhatsApp por fuente (Meta, TikTok, orgánico, listas).",
       },
@@ -637,7 +637,7 @@ const projectEntriesEs: ProjectEntry[] = [
           "Registro de pagos en Google Sheets: fecha, referencia, monto y tasa por comprobante, más un resumen diario.",
       },
       {
-        file: "Screenshot_2026-05-07_at_12.55.04_PM.png",
+        file: "n8n-workflow-crop.webp",
         caption:
           "El workflow de n8n detrás del agente de WhatsApp.",
       },
@@ -817,17 +817,17 @@ const projectEntriesEn: ProjectEntry[] = [
         caption: "Real conversation: AI qualifies the lead and hands it off to a salesperson",
       },
       {
-        src: "/projects/plunkton/01-leads-produccion.webp",
+        src: "/projects/plunkton/01-leads-produccion-crop.webp",
         caption:
           "Production lead inbox: pending, awaiting reply, and unassigned queues with AI summaries.",
       },
       {
-        src: "/projects/plunkton/02-lead-conversacion.webp",
+        src: "/projects/plunkton/02-lead-conversacion-crop.webp",
         caption:
           "An Instagram lead conversation: comment private reply, AI assistant, and salesperson in one thread.",
       },
       {
-        src: "/projects/plunkton/03-lead-detalle.webp",
+        src: "/projects/plunkton/03-lead-detalle-crop.webp",
         caption:
           "Lead detail with AI-consolidated insights, stage, intent, and a hot-lead score.",
       },
@@ -842,22 +842,22 @@ const projectEntriesEn: ProjectEntry[] = [
           "Connection status for WhatsApp, Instagram, web chat, Pilot CRM, and Tokko.",
       },
       {
-        src: "/projects/plunkton/05-integraciones-estado.webp",
+        src: "/projects/plunkton/05-integraciones-estado-crop.webp",
         caption:
           "Integrations panel with the virtual assistant and handoff reactivity settings.",
       },
       {
-        src: "/projects/plunkton/06-integracion-pilot-crm.webp",
+        src: "/projects/plunkton/06-integracion-pilot-crm-crop.webp",
         caption:
           "Pilot CRM connection with bidirectional sync toggles.",
       },
       {
-        src: "/projects/plunkton/07-dashboard.webp",
+        src: "/projects/plunkton/07-dashboard-crop.webp",
         caption:
           "Conversion dashboard: new leads, purchase intent, close rate, and lead sources.",
       },
       {
-        src: "/projects/plunkton/08-equipo.webp",
+        src: "/projects/plunkton/08-equipo-crop.webp",
         caption:
           "Team organized by type: new-car sales, after-sales, and savings plans.",
       },
@@ -896,7 +896,7 @@ const projectEntriesEn: ProjectEntry[] = [
     tech: ["NestJS", "React", "TypeScript", "Vite", "Cloudflare Pages", "Meta Ads API", "Stripe", "ThriveCart", "ConvertKit"],
     gallery: [
       {
-        src: "/projects/goscale/01-whatsapp-analytics.webp",
+        src: "/projects/goscale/01-whatsapp-analytics-crop.webp",
         caption:
           "WhatsApp capture analytics: manager vs. WhatsApp leads by source (Meta, TikTok, organic, lists).",
       },
@@ -1037,7 +1037,7 @@ const projectEntriesEn: ProjectEntry[] = [
           "Payment log in Google Sheets: date, reference, amount, and exchange rate per receipt, plus a daily summary.",
       },
       {
-        file: "Screenshot_2026-05-07_at_12.55.04_PM.png",
+        file: "n8n-workflow-crop.webp",
         caption:
           "The n8n workflow behind the WhatsApp agent.",
       },
