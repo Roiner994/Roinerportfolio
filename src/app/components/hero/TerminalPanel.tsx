@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { runExpProjectsTransition, type Box as XpBox, type PanelKey as XpPanelKey } from "./expProjectsTransition";
 import { runProjectsContactTransition } from "./projectsContactTransition";
+import { runContactAiTransition } from "./contactAiTransition";
 import {
   Terminal,
   X,
@@ -1061,6 +1062,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     direction: "forward" | "reverse";
   } | null>(null);
   const isProjContactTransitioningRef = useRef(false);
+  // Contact <-> AI "CRT power-off" transition (see contactAiTransition.ts).
+  const isContactAiTransitioningRef = useRef(false);
+  const contactAiCancelRef = useRef<null | (() => void)>(null);
+  // While true, the view swap under the transition is instant (no
+  // AnimatePresence fade, so there is never a blank frame).
+  const [instantViewSwap, setInstantViewSwap] = useState(false);
   const projContactSnapRef = useRef<{
     projectsClone?: HTMLElement;
     projectsBox?: XpBox;
@@ -1439,6 +1446,46 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       },
     ]);
   };
+
+  const startContactAiTransition = (direction: "forward" | "reverse") => {
+    if (
+      isAboutExpTransitioningRef.current ||
+      isExpProjectsTransitioningRef.current ||
+      isProjContactTransitioningRef.current ||
+      isContactAiTransitioningRef.current
+    )
+      return;
+    isContactAiTransitioningRef.current = true;
+    setInstantViewSwap(true);
+    setInputValue("");
+    contactAiCancelRef.current = runContactAiTransition({
+      direction,
+      reduceMotion,
+      getPhoto: () => document.querySelector<HTMLElement>("[data-contact-photo]"),
+      getCursor: () => document.querySelector<HTMLElement>("[data-ai-cursor]"),
+      getAiRoot: () => document.querySelector<HTMLElement>("[data-ai-terminal]"),
+      onSwap: () => {
+        if (direction === "forward") {
+          enterAiMode();
+        } else {
+          setTerminalMode("shell");
+          setIsExpanded(true);
+          setActiveView("contact");
+          setInputValue("");
+        }
+      },
+      onDone: () => {
+        isContactAiTransitioningRef.current = false;
+        contactAiCancelRef.current = null;
+        setInstantViewSwap(false);
+        if (direction === "forward") {
+          inputRef.current?.focus({ preventScroll: true });
+        }
+      },
+    });
+  };
+
+  useEffect(() => () => contactAiCancelRef.current?.(), []);
 
   const aiSlashCommands = AI_SLASH_COMMANDS.map((name) => ({
     name,
@@ -1880,7 +1927,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       if (
         isAboutExpTransitioningRef.current ||
         isExpProjectsTransitioningRef.current ||
-        isProjContactTransitioningRef.current
+        isProjContactTransitioningRef.current ||
+        isContactAiTransitioningRef.current
       )
         return;
 
@@ -2041,7 +2089,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       if (
         isAboutExpTransitioningRef.current ||
         isExpProjectsTransitioningRef.current ||
-        isProjContactTransitioningRef.current
+        isProjContactTransitioningRef.current ||
+        isContactAiTransitioningRef.current
       )
         return;
       const snap: NonNullable<typeof projContactSnapRef.current> = {};
@@ -2167,7 +2216,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const handleCommand = (cmd: string) => {
     if (
       isAboutExpTransitioningRef.current ||
-      isProjContactTransitioningRef.current
+      isProjContactTransitioningRef.current ||
+      isContactAiTransitioningRef.current
     )
       return;
     setHasInteracted(true);
@@ -2220,6 +2270,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       return;
     }
 
+    if (cleanCmd === "ai" && isExpanded && activeView === "contact" && !isAiMode) {
+      startContactAiTransition("forward");
+      return;
+    }
+
+    if (cleanCmd === "contact" && isAiMode && activeView === "terminal") {
+      startContactAiTransition("reverse");
+      return;
+    }
+
     if (cleanCmd === "cv") {
       // Alias: the CV now lives inside Contact.
       handleCommand("contact");
@@ -2254,7 +2314,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     if (
       isAboutExpTransitioningRef.current ||
       isExpProjectsTransitioningRef.current ||
-      isProjContactTransitioningRef.current
+      isProjContactTransitioningRef.current ||
+      isContactAiTransitioningRef.current
     )
       return;
 
@@ -2292,7 +2353,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     if (
       isAboutExpTransitioningRef.current ||
       isExpProjectsTransitioningRef.current ||
-      isProjContactTransitioningRef.current
+      isProjContactTransitioningRef.current ||
+      isContactAiTransitioningRef.current
     )
       return;
     if (isAiMode) {
@@ -2306,7 +2368,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     if (
       isAboutExpTransitioningRef.current ||
       isExpProjectsTransitioningRef.current ||
-      isProjContactTransitioningRef.current
+      isProjContactTransitioningRef.current ||
+      isContactAiTransitioningRef.current
     )
       return;
     if (activeViewRef.current === "projects") {
@@ -2403,7 +2466,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       if (
         isAboutExpTransitioningRef.current ||
         isExpProjectsTransitioningRef.current ||
-        isProjContactTransitioningRef.current
+        isProjContactTransitioningRef.current ||
+        isContactAiTransitioningRef.current
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -2463,7 +2527,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       if (
         isAboutExpTransitioningRef.current ||
         isExpProjectsTransitioningRef.current ||
-        isProjContactTransitioningRef.current
+        isProjContactTransitioningRef.current ||
+        isContactAiTransitioningRef.current
       ) {
         if (
           [
@@ -2550,7 +2615,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       if (
         isAboutExpTransitioningRef.current ||
         isExpProjectsTransitioningRef.current ||
-        isProjContactTransitioningRef.current
+        isProjContactTransitioningRef.current ||
+        isContactAiTransitioningRef.current
       ) {
         e.preventDefault();
         return;
@@ -3060,9 +3126,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           {activeView === "terminal" && isAiMode ? (
             <motion.div
               key="ai-terminal"
-              initial={{ opacity: 0 }}
+              initial={instantViewSwap ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={
+                instantViewSwap
+                  ? { opacity: 0, transition: { duration: 0 } }
+                  : { opacity: 0 }
+              }
               className="flex h-full min-h-0 min-w-0 flex-col"
             >
               <AiTerminalView
@@ -3253,9 +3323,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           ) : (
             <motion.div
               key="expanded-view"
-              initial={{ opacity: 0, y: 20 }}
+              initial={instantViewSwap ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              exit={
+                instantViewSwap
+                  ? { opacity: 0, transition: { duration: 0 } }
+                  : { opacity: 0, y: -20 }
+              }
               className={`flex h-full min-h-0 flex-col ${
                 activeView === "experience" ? "bg-black" : "bg-black/40"
               }`}
@@ -4182,7 +4256,15 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         data-contact-reveal={
                           activeView === "contact" ? "prompt" : undefined
                         }
-                        className="w-full"
+                        className={
+                          activeView === "contact"
+                            ? // Pinned to the bottom of the scroller (and only as
+                              // wide as the hint, so it sits in the free column
+                              // under the photo) so it is never cut off above
+                              // the GOTO bar.
+                              "sticky bottom-0 z-20 -mb-6 w-fit max-w-full self-start bg-gradient-to-t from-zinc-950 from-55% to-transparent pb-4 pr-4 pt-4 md:-mb-10"
+                            : "w-full"
+                        }
                       >
                       <motion.div
                         initial={{ opacity: 0 }}
@@ -4191,7 +4273,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         onClick={handleNext}
                         className={`cursor-pointer group/prompt inline-block w-full relative z-10 ${
                           activeView === "contact"
-                            ? "mt-8 mb-6 self-start"
+                            ? "mt-0 mb-0 self-start"
                             : "mt-8 mb-12"
                         }`}
                       >
