@@ -3127,28 +3127,39 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }
 
     const fullText = `"${aboutData.bio}"`;
-    if (hasVisitedAboutRef.current || isAboutExpTransitioningRef.current) {
+    if (
+      hasVisitedAboutRef.current ||
+      isAboutExpTransitioningRef.current ||
+      reduceMotion
+    ) {
+      // Reduced motion: the bio appears complete (no typewriter).
       setAboutTypedLength(fullText.length);
+      if (reduceMotion) hasVisitedAboutRef.current = true;
       return;
     }
 
+    // Same typing speed everywhere; phones render half as often (6 chars per
+    // 36 ms instead of 3 per 18 ms) since each tick re-renders this panel.
+    const step = isMobile ? 6 : 3;
+    const delay = isMobile ? 36 : 18;
     let frame = 0;
+    let timer = 0;
     const tick = () => {
-      frame += 3;
+      frame += step;
       setAboutTypedLength(Math.min(frame, fullText.length));
       if (frame < fullText.length) {
-        window.setTimeout(tick, 18);
+        timer = window.setTimeout(tick, delay);
       } else {
         hasVisitedAboutRef.current = true;
       }
     };
 
-    const startDelay = window.setTimeout(tick, 180);
+    timer = window.setTimeout(tick, 180);
 
     return () => {
-      window.clearTimeout(startDelay);
+      window.clearTimeout(timer);
     };
-  }, [activeView, aboutData.bio]);
+  }, [activeView, aboutData.bio, reduceMotion, isMobile]);
 
   useEffect(() => {
     setActiveProjectImageIndex(0);
@@ -3234,6 +3245,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                 </div>
               </div>
   );
+
+  // Mobile About: tapping a robot card expands its skill chips (no navigation).
+  const [aboutOpenAgent, setAboutOpenAgent] = useState<AgentId | null>(null);
 
   // Mobile Experience: robots are an in-flow filter row (no fixed bar).
   const [expFilter, setExpFilter] = useState<AgentId | null>(null);
@@ -3748,7 +3762,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                         }
                       >
                         {/* Profile Header Section */}
-                        <div className="grid md:grid-cols-12 gap-12 items-start">
+                        <div className="grid md:grid-cols-12 gap-12 items-start max-md:grid-cols-[104px_minmax(0,1fr)] max-md:gap-x-4 max-md:gap-y-6">
                           <motion.div
                             initial={
                               hasVisitedAboutRef.current
@@ -3756,10 +3770,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 : { opacity: 0, scale: 0.9 }
                             }
                             animate={{ opacity: 1, scale: 1 }}
-                            className="md:col-span-4 relative group mx-auto md:mx-0 max-w-sm"
+                            className="md:col-span-4 relative group mx-auto md:mx-0 max-w-sm max-md:mx-0 max-md:w-[104px]"
                           >
-                            <div className="absolute -inset-4 bg-emerald-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                            <div className="relative aspect-square md:aspect-[4/5] rounded-2xl border border-emerald-500/20 overflow-hidden bg-zinc-900 shadow-2xl">
+                            <div className="absolute -inset-4 bg-emerald-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 max-md:hidden" />
+                            <div className="relative aspect-square md:aspect-[4/5] rounded-2xl border border-emerald-500/20 overflow-hidden bg-zinc-900 shadow-2xl max-md:rounded-xl">
                               <img
                                 src="/avatar-complete3.png"
                                 alt="Roiner Hernandez"
@@ -3771,31 +3785,50 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             </div>
 
                             {/* Targeting corner elements */}
-                            <div className="absolute -top-3 -left-3 w-16 h-16 border-t-2 border-l-2 border-emerald-500/35 pointer-events-none" />
-                            <div className="absolute -top-3 -right-3 w-16 h-16 border-t-2 border-r-2 border-emerald-500/35 pointer-events-none" />
-                            <div className="absolute -bottom-3 -left-3 w-16 h-16 border-b-2 border-l-2 border-emerald-500/35 pointer-events-none" />
-                            <div className="absolute -bottom-3 -right-3 w-16 h-16 border-b-2 border-r-2 border-emerald-500/35 pointer-events-none" />
+                            <div className="absolute -top-3 -left-3 w-16 h-16 border-t-2 border-l-2 border-emerald-500/35 pointer-events-none max-md:hidden" />
+                            <div className="absolute -top-3 -right-3 w-16 h-16 border-t-2 border-r-2 border-emerald-500/35 pointer-events-none max-md:hidden" />
+                            <div className="absolute -bottom-3 -left-3 w-16 h-16 border-b-2 border-l-2 border-emerald-500/35 pointer-events-none max-md:hidden" />
+                            <div className="absolute -bottom-3 -right-3 w-16 h-16 border-b-2 border-r-2 border-emerald-500/35 pointer-events-none max-md:hidden" />
                           </motion.div>
 
-                          <div className="md:col-span-8 space-y-8 pt-4">
+                          {/* Mobile: terminal-style identity next to the small portrait */}
+                          {isMobile && (
+                            <div data-about-whoami="" className="min-w-0 space-y-1.5 self-center font-mono">
+                              <div className="flex items-center gap-2 text-[14px] text-zinc-500">
+                                <span className="text-emerald-500">$</span>
+                                <span>whoami</span>
+                              </div>
+                              <p className="text-[18px] font-bold leading-tight text-zinc-100">
+                                {aboutData.name}
+                              </p>
+                              <p className="text-[14px] leading-snug text-emerald-400/90">
+                                {t("HERO_TITLE")}
+                              </p>
+                              <p className="text-[12px] text-zinc-500">
+                                <span className="text-emerald-500/60">~/</span>roiner.png
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="md:col-span-8 space-y-8 pt-4 max-md:col-span-2 max-md:space-y-6 max-md:pt-0">
                             <div className="space-y-6">
                               <div
                                 data-about-badge=""
                                 className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20"
                               >
                                 <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                                <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest">
+                                <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest max-md:text-[12px] max-md:tracking-wider">
                                   SYSTEM_IDENTIFIED: HUMAN_ENGINEER
                                 </span>
                               </div>
 
                               <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
+                                <div className="flex items-center gap-2 text-xs font-mono text-zinc-500 max-md:text-[14px]">
                                   <span className="text-emerald-500">$</span>
                                   <span>cat profile_summary.md</span>
                                 </div>
                                 <div className="relative min-h-[15rem]">
-                                  <p className="text-xl text-zinc-300 leading-relaxed font-light whitespace-pre-wrap">
+                                  <p className="text-xl text-zinc-300 leading-relaxed font-light whitespace-pre-wrap max-md:text-[17px] max-md:font-normal">
                                     {`${aboutData.bio}`.slice(
                                       0,
                                       aboutTypedLength,
@@ -3822,10 +3855,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 data-about-card=""
                                 className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors"
                               >
-                                <span className="text-[10px] text-zinc-500 uppercase font-mono">
+                                <span className="text-[10px] text-zinc-500 uppercase font-mono max-md:text-[12px]">
                                   {t("LABEL_LOCATION")}
                                 </span>
-                                <p className="text-zinc-200 text-xs font-mono">
+                                <p className="text-zinc-200 text-xs font-mono max-md:text-[14px]">
                                   {aboutData.location}
                                 </p>
                               </div>
@@ -3833,10 +3866,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 data-about-card=""
                                 className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-1 group hover:border-emerald-500/30 transition-colors"
                               >
-                                <span className="text-[10px] text-zinc-500 uppercase font-mono">
+                                <span className="text-[10px] text-zinc-500 uppercase font-mono max-md:text-[12px]">
                                   {t("LABEL_EDUCATION")}
                                 </span>
-                                <p className="text-zinc-200 text-xs font-mono">
+                                <p className="text-zinc-200 text-xs font-mono max-md:text-[14px]">
                                   {aboutData.education}
                                 </p>
                               </div>
@@ -3844,12 +3877,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 data-about-badge=""
                                 className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-1 col-span-2 sm:col-span-1"
                               >
-                                <span className="text-[10px] text-emerald-500/70 uppercase font-mono">
+                                <span className="text-[10px] text-emerald-500/70 uppercase font-mono max-md:text-[12px]">
                                   {t("LABEL_STATUS")}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
-                                  <p className="text-emerald-300 text-xs font-mono">
+                                  <p className="text-emerald-300 text-xs font-mono max-md:text-[14px]">
                                     {aboutStatusText}
                                   </p>
                                 </div>
@@ -3865,7 +3898,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                               data-about-divider=""
                               className="h-px flex-1 bg-zinc-800"
                             />
-                            <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em]">
+                            <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em] max-md:text-[13px] max-md:tracking-[0.15em]">
                               {t("NEURAL_SKILL_MATRIX")}
                             </h3>
                             <div
@@ -3879,14 +3912,40 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             ref={aboutCardsGridRef}
                             className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
                           >
-                            {agentCards.map((agent, idx) => (
+                            {agentCards.map((agent, idx) => {
+                              const chipsOpen =
+                                !isMobile || aboutOpenAgent === agent.id;
+                              return (
                               <div
                                 key={agent.id}
                                 data-about-card=""
+                                {...(isMobile
+                                  ? {
+                                      role: "button",
+                                      tabIndex: 0,
+                                      "aria-expanded": chipsOpen,
+                                      onKeyDown: (e: React.KeyboardEvent) => {
+                                        if (e.key === " ") {
+                                          e.preventDefault();
+                                          setAboutOpenAgent((cur) =>
+                                            cur === agent.id ? null : agent.id,
+                                          );
+                                        }
+                                      },
+                                    }
+                                  : {})}
                                 onClick={() =>
-                                  startAboutExpTransition("forward")
+                                  isMobile
+                                    ? setAboutOpenAgent((cur) =>
+                                        cur === agent.id ? null : agent.id,
+                                      )
+                                    : startAboutExpTransition("forward")
                                 }
-                                className="group relative flex flex-col items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3 sm:p-4 text-center font-mono cursor-pointer transition-all duration-300 hover:border-emerald-500/40 hover:bg-zinc-900/60 shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]"
+                                className={`group relative flex flex-col items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3 sm:p-4 text-center font-mono cursor-pointer transition-all duration-300 hover:border-emerald-500/40 hover:bg-zinc-900/60 shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]${
+                                  isMobile && chipsOpen
+                                    ? " border-emerald-500/50 bg-emerald-500/[0.06]"
+                                    : ""
+                                }`}
                               >
                                 {/* Floating robot sprite */}
                                 <div className="relative flex h-[72px] sm:h-[88px] w-full items-center justify-center">
@@ -3921,12 +3980,26 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     {agent.area}
                                   </h4>
 
-                                  <div className="flex flex-wrap justify-center gap-1 pt-0.5">
+                                  {isMobile && (
+                                    <span className="block text-[12px] text-zinc-400">
+                                      {agent.skills.length}{" "}
+                                      {language === "es" ? "skills" : "skills"}{" "}
+                                      <span aria-hidden="true">
+                                        {chipsOpen ? "▴" : "▾"}
+                                      </span>
+                                    </span>
+                                  )}
+
+                                  <div
+                                    className={`flex flex-wrap justify-center gap-1 pt-0.5${
+                                      chipsOpen ? "" : " hidden"
+                                    }`}
+                                  >
                                     {agent.skills.map((skill) => (
                                       <span
                                         key={skill}
                                         data-about-chip=""
-                                        className="px-1.5 py-0.5 bg-black/40 border border-zinc-800/80 text-[10px] text-zinc-300 font-mono rounded group-hover:border-emerald-500/30 group-hover:text-zinc-100 transition-colors"
+                                        className="px-1.5 py-0.5 bg-black/40 border border-zinc-800/80 text-[10px] text-zinc-300 font-mono rounded group-hover:border-emerald-500/30 group-hover:text-zinc-100 transition-colors max-md:px-2 max-md:py-1 max-md:text-[13px]"
                                       >
                                         {skill}
                                       </span>
@@ -3934,9 +4007,35 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   </div>
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
+
+                        {/* Mobile: touch "command bar" (the hero terminal's job lives here now) */}
+                        {isMobile && (
+                          <div data-about-commands="" className="space-y-3 font-mono">
+                            <div className="flex items-center gap-2 text-[14px] text-zinc-500">
+                              <span className="text-emerald-500">$</span>
+                              <span>ls ~/</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(["experience", "projects", "contact", "ai"] as const).map(
+                                (cmd) => (
+                                  <button
+                                    key={cmd}
+                                    type="button"
+                                    onClick={() => handleCommand(cmd)}
+                                    className="flex min-h-11 items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 text-left text-[15px] text-zinc-200"
+                                  >
+                                    <span className="text-emerald-500">cd</span>
+                                    <span className="truncate">{cmd}</span>
+                                  </button>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
