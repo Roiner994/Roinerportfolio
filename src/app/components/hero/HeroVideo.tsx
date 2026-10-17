@@ -239,10 +239,14 @@ export function HeroVideo() {
       if (!sectionOpenRef.current) openForward('about');
     };
     const back = () => {
-      // Projects scrolls its own content; leaving it is explicit (GOTO / RETURN_TO_SHELL).
+      if (!sectionOpenRef.current || !autoAboutRef.current || animatingRef.current) return;
+      // Only the About/Experience stack reverses on upward input at the top.
+      // Projects, Contact and AI scroll their own content; leaving them is
+      // explicit (Escape / GOTO / RETURN_TO_SHELL), never a scroll.
       const overlay = document.querySelector<HTMLElement>('[data-section-overlay]');
-      if (overlay?.dataset.view === 'projects') return;
-      if (sectionOpenRef.current && autoAboutRef.current && !animatingRef.current && overlayAtTop()) {
+      const view = overlay?.dataset.view;
+      if (view !== 'about' && view !== 'experience') return;
+      if (overlayAtTop()) {
         panelRef.current?.close(); // the close effect plays the reverse
       }
     };
@@ -251,8 +255,13 @@ export function HeroVideo() {
       if (el && el.hasAttribute?.('data-section-overlay')) lastOverlayScroll = performance.now();
     };
     const onWheel = (e: WheelEvent) => {
+      if (sectionOpenRef.current) {
+        // A section is open: only an upward wheel can matter (back() filters
+        // by view); skip everything else.
+        if (e.deltaY < -4) back();
+        return;
+      }
       if (e.deltaY > 4) forward();
-      else if (e.deltaY < -4) back();
     };
     const onKey = (e: globalThis.KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
