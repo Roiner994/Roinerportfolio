@@ -373,7 +373,7 @@ body:has([data-section-overlay][data-view="projects"]) .crt-vignette {
   .pixel-avatar-mini[data-place="projects"] {
     left: 176px;
     right: auto;
-    bottom: 118px;
+    bottom: 72px;
   }
 }
 

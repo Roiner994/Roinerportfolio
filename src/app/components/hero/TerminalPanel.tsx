@@ -3731,39 +3731,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             })}
                           </div>
 
-                          {usesProjectSplitScroll && (
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              onClick={handleNext}
-                              className="cursor-pointer border-t border-zinc-800/60 bg-black/50 px-4 py-3 group/prompt"
-                            >
-                              <div className="flex items-center gap-2 text-white/40 font-mono text-xs group-hover/prompt:text-white/80 transition-colors">
-                                <span className="group-hover/prompt:text-emerald-500 transition-colors">
-                                  $
-                                </span>
-                                <span>
-                                  {t("PRESS")}{" "}
-                                  <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all">
-                                    ENTER
-                                  </span>{" "}
-                                  {hasNextProject ? (
-                                    `${t("TO_OPEN")} ${projectEntries[activeProjectIndex + 1].terminalName}`
-                                  ) : (
-                                    <>
-                                      {language === "es"
-                                        ? "para continuar"
-                                        : "to continue"}{" "}
-                                      <span className="text-emerald-400">
-                                        → CONTACT
-                                      </span>
-                                    </>
-                                  )}
-                                </span>
-                                <div className="h-3.5 w-1.5 bg-white/40 group-hover/prompt:bg-emerald-500" />
-                              </div>
-                            </motion.div>
-                          )}
                         </motion.aside>
 
                         <AnimatePresence mode="wait">
@@ -3861,7 +3828,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
                                 </div>
 
-                                <div className="space-y-3.5">
+                                <div className="space-y-[18px]">
                                   {activeProject.highlights.map(
                                     (highlight, index) => (
                                       <motion.div
@@ -3875,7 +3842,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                       >
                                         <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500/50 transition-colors group-hover:text-emerald-500" />
                                         <div className="flex flex-col">
-                                          <p className="font-mono text-[12.5px] leading-relaxed text-zinc-400 transition-colors group-hover:text-zinc-200">
+                                          <p className="font-mono text-[12.5px] leading-[1.65] text-zinc-400 transition-colors group-hover:text-zinc-200">
                                             {highlight.includes(": ") ? (
                                               <>
                                                 <span className="font-bold text-emerald-500/80">
@@ -4447,7 +4414,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               className={`hero-bubble-anchor pointer-events-none fixed z-[161] ${
                 isCompactViewport
                   ? "right-[76px] bottom-[118px] sm:right-[106px] sm:bottom-[104px]"
-                  : "hero-bubble-anchor--sidebar left-3 bottom-[244px]"
+                  : "hero-bubble-anchor--sidebar left-3 bottom-[198px]"
               }`}
             >
               <div className="hero-bubble">
