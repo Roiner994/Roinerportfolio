@@ -991,7 +991,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     fromRects: RectBox[];
     toRects: RectBox[];
   } | null>(null);
-  const [activeExperienceIndex, setActiveExperienceIndex] = useState(0);
+  // Active Experience job: kept out of React state so scrolling never
+  // re-renders the whole panel; toggled as a data attribute on the job nodes.
+  const activeExperienceIndexRef = useRef(0);
+  const appliedExperienceIndexRef = useRef(-1);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -999,6 +1002,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const experienceRailRef = useRef<HTMLDivElement>(null);
   const experienceNodeRefs = useRef<Array<HTMLDivElement | null>>([]);
   const experienceItemRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const applyActiveExperienceIndex = useCallback((idx: number) => {
+    activeExperienceIndexRef.current = idx;
+    if (appliedExperienceIndexRef.current === idx) return;
+    appliedExperienceIndexRef.current = idx;
+    experienceItemRefs.current.forEach((node, i) => {
+      if (!node) return;
+      if (i === idx) node.setAttribute("data-job-active", "");
+      else node.removeAttribute("data-job-active");
+    });
+  }, []);
   const experiencePulseRef = useRef<HTMLDivElement>(null);
   const experienceGlowRefs = useRef<Array<HTMLDivElement | null>>([]);
 
@@ -1712,7 +1725,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
         hasVisitedAboutRef.current = true;
         isAboutExpTransitioningRef.current = true;
-        setActiveExperienceIndex(0);
+        appliedExperienceIndexRef.current = -1;
+        applyActiveExperienceIndex(0);
         setTerminalMode("shell");
         setIsExpanded(true);
         // The view itself switches mid-animation (inside the RAF loop) so the
@@ -2747,25 +2761,25 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     });
   }, [chatHistory, isAiMode, activeView]);
 
-  // Track which Experience job is visible while scrolling so matching robots glow
-  useEffect(() => {
+  // Track which Experience job is visible while scrolling (badge/chips glow).
+  // rAF-throttled, and the result is applied as a data attribute (no React
+  // render); a layout effect so the first state is set before paint.
+  useLayoutEffect(() => {
     if (activeView !== "experience") {
       return;
     }
 
-    const updateActiveJob = () => {
+    const computeActiveJob = (): number => {
       const scroller = getActiveScroller();
       if (scroller) {
         if (scroller.scrollTop <= 20) {
-          setActiveExperienceIndex(0);
-          return;
+          return 0;
         }
         if (
           scroller.scrollTop + scroller.clientHeight >=
           scroller.scrollHeight - 24
         ) {
-          setActiveExperienceIndex(Math.max(0, experienceData.length - 1));
-          return;
+          return Math.max(0, experienceData.length - 1);
         }
       }
 
@@ -2778,9 +2792,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         if (!node) continue;
         const r = node.getBoundingClientRect();
         if (r.top <= anchorY && r.bottom >= anchorY) {
-          bestIdx = i;
-          bestDist = 0;
-          break;
+          return i;
         }
         const center = (r.top + r.bottom) * 0.5;
         const dist = Math.abs(center - anchorY);
@@ -2789,11 +2801,25 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           bestIdx = i;
         }
       }
-
-      setActiveExperienceIndex(bestIdx);
+      return bestIdx;
     };
 
-    updateActiveJob();
+    let raf = 0;
+    const updateActiveJob = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        applyActiveExperienceIndex(computeActiveJob());
+      });
+    };
+
+    // Initial state synchronously (the nodes were just mounted / re-shown).
+    appliedExperienceIndexRef.current = -1;
+    applyActiveExperienceIndex(
+      isAboutExpTransitioningRef.current
+        ? activeExperienceIndexRef.current
+        : computeActiveJob(),
+    );
     document.addEventListener("scroll", updateActiveJob, {
       capture: true,
       passive: true,
@@ -2801,12 +2827,18 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     window.addEventListener("resize", updateActiveJob);
 
     return () => {
+      window.cancelAnimationFrame(raf);
       document.removeEventListener("scroll", updateActiveJob, {
         capture: true,
       });
       window.removeEventListener("resize", updateActiveJob);
     };
-  }, [activeView, experienceData.length, getActiveScroller]);
+  }, [
+    activeView,
+    experienceData.length,
+    getActiveScroller,
+    applyActiveExperienceIndex,
+  ]);
 
   useEffect(() => {
     if (activeView !== "experience") {
@@ -3646,7 +3678,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
                           <div className="space-y-16 relative">
                             {experienceData.map((exp, i) => {
-                              const isJobActive = i === activeExperienceIndex;
                               return (
                                 <motion.div
                                   key={i}
@@ -3660,7 +3691,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   }
                                   animate={{ opacity: 1, x: 0 }}
                                   transition={{ delay: 0.1 + i * 0.08 }}
-                                  className="relative"
+                                  className="group/job relative"
                                 >
                                   <div
                                     ref={(node) => {
@@ -3679,11 +3710,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     <div className="flex flex-col gap-1">
                                       <div className="flex flex-wrap items-center gap-2">
                                         <span
-                                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
-                                            isJobActive
-                                              ? "text-emerald-300 bg-emerald-500/15 border-emerald-400/40 shadow-[0_0_12px_rgba(77,255,176,0.18)]"
-                                              : "text-emerald-500 bg-emerald-500/5 border-emerald-500/20"
-                                          }`}
+                                          className="text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors text-emerald-500 bg-emerald-500/5 border-emerald-500/20 group-data-[job-active]/job:text-emerald-300 group-data-[job-active]/job:bg-emerald-500/15 group-data-[job-active]/job:border-emerald-400/40 group-data-[job-active]/job:shadow-[0_0_12px_rgba(77,255,176,0.18)]"
                                         >
                                           {exp.period}
                                         </span>
@@ -3720,19 +3747,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                       {exp.tech.map((techItem, ti) => (
                                         <span
                                           key={ti}
-                                          className={`text-[10px] font-mono flex items-center gap-1 px-1.5 py-0.5 rounded border transition-all duration-300 ${
-                                            isJobActive
-                                              ? "text-emerald-300 border-emerald-500/35 bg-emerald-500/10 shadow-[0_0_10px_rgba(77,255,176,0.14)]"
-                                              : "text-zinc-500 border-transparent"
-                                          }`}
+                                          className="text-[10px] font-mono flex items-center gap-1 px-1.5 py-0.5 rounded border transition-[color,background-color,border-color,box-shadow] duration-300 text-zinc-500 border-transparent group-data-[job-active]/job:text-emerald-300 group-data-[job-active]/job:border-emerald-500/35 group-data-[job-active]/job:bg-emerald-500/10 group-data-[job-active]/job:shadow-[0_0_10px_rgba(77,255,176,0.14)]"
                                         >
-                                          <span
-                                            className={
-                                              isJobActive
-                                                ? "text-emerald-400"
-                                                : "text-emerald-500/30"
-                                            }
-                                          >
+                                          <span className="text-emerald-500/30 group-data-[job-active]/job:text-emerald-400">
                                             #
                                           </span>
                                           {techItem}
@@ -4426,9 +4443,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       });
       if (matchingIndices.length === 0) return;
       const nextIdx =
-        matchingIndices.find((idx) => idx > activeExperienceIndex) ??
-        matchingIndices[0];
-      setActiveExperienceIndex(nextIdx);
+        matchingIndices.find(
+          (idx) => idx > activeExperienceIndexRef.current,
+        ) ?? matchingIndices[0];
+      applyActiveExperienceIndex(nextIdx);
       experienceItemRefs.current[nextIdx]?.scrollIntoView({
         behavior: reduceMotion ? "auto" : "smooth",
         block: "center",
