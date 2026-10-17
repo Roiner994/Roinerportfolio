@@ -705,11 +705,16 @@ function ProjectMediaPanel({
   project,
   selectedImageIndex,
   onSelectImage,
+  compact = false,
 }: {
   project: ProjectEntry;
   selectedImageIndex: number;
   onSelectImage: (index: number) => void;
+  /** Mobile: in-flow viewer, swipe between images, tap to view full screen. */
+  compact?: boolean;
 }) {
+  const [zoomed, setZoomed] = useState(false);
+  const swipeRef = useRef<{ x: number; y: number } | null>(null);
   // Videos that failed to load are dropped, so the viewer falls back to images.
   const [failedMedia, setFailedMedia] = useState<string[]>([]);
   const images = useMemo(() => {
@@ -780,6 +785,26 @@ function ProjectMediaPanel({
     return null;
   }
 
+  const swipeHandlers = compact
+    ? {
+        onTouchStart: (e: React.TouchEvent) => {
+          const t = e.touches[0];
+          swipeRef.current = t ? { x: t.clientX, y: t.clientY } : null;
+        },
+        onTouchEnd: (e: React.TouchEvent) => {
+          const start = swipeRef.current;
+          swipeRef.current = null;
+          const t = e.changedTouches[0];
+          if (!start || !t || images.length < 2) return;
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+          if (dx < 0) nextImage();
+          else prevImage();
+        },
+      }
+    : {};
+
   return (
     <div className="group relative w-full min-w-0 lg:flex lg:h-full lg:flex-col lg:justify-center">
       <div
@@ -790,10 +815,14 @@ function ProjectMediaPanel({
         }`}
       >
         <div
+          {...swipeHandlers}
+          style={compact ? { touchAction: "pan-y" } : undefined}
           className={`relative flex items-center justify-center overflow-hidden ${
             isLandscape
               ? "aspect-[16/10] w-full p-2 sm:p-3"
-              : "h-[min(58vh,600px)] min-h-[340px] p-3 sm:p-5 lg:h-[calc(100vh-345px)]"
+              : compact
+                ? "h-[min(56dvh,520px)] min-h-[300px] p-3"
+                : "h-[min(58vh,600px)] min-h-[340px] p-3 sm:p-5 lg:h-[calc(100vh-345px)]"
           }`}
         >
           {/* Loading indicator */}
@@ -803,7 +832,7 @@ function ProjectMediaPanel({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-0 flex items-center justify-center bg-zinc-950/20 backdrop-blur-sm"
+                className={`absolute inset-0 z-0 flex items-center justify-center bg-zinc-950/20 ${compact ? "" : "backdrop-blur-sm"}`}
               >
                 <div className="flex flex-col items-center gap-4">
                   <motion.div
@@ -861,6 +890,7 @@ function ProjectMediaPanel({
               animate={{ opacity: isImageLoading ? 0 : 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: -20, scale: 1.02 }}
               onLoad={() => setIsImageLoading(false)}
+              onClick={compact ? () => setZoomed(true) : undefined}
               transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               src={activeImage.src}
               alt={activeImage.caption || project.displayName}
@@ -882,7 +912,8 @@ function ProjectMediaPanel({
               <div className="absolute inset-y-0 left-0 w-16 z-30 flex items-center justify-center transition-opacity duration-300">
                 <button
                   onClick={prevImage}
-                  className="h-full w-full flex items-center justify-center bg-gradient-to-r from-black/40 to-transparent text-emerald-500/60 hover:text-emerald-400 transition-colors"
+                  aria-label={language === "es" ? "Imagen anterior" : "Previous image"}
+                className="h-full w-full flex items-center justify-center bg-gradient-to-r from-black/40 to-transparent text-emerald-500/60 hover:text-emerald-400 transition-colors"
                 >
                   <ChevronLeft className="w-8 h-8" />
                 </button>
@@ -890,7 +921,8 @@ function ProjectMediaPanel({
               <div className="absolute inset-y-0 right-0 w-16 z-30 flex items-center justify-center transition-opacity duration-300">
                 <button
                   onClick={nextImage}
-                  className="h-full w-full flex items-center justify-center bg-gradient-to-l from-black/40 to-transparent text-emerald-500/60 hover:text-emerald-400 transition-colors"
+                  aria-label={language === "es" ? "Imagen siguiente" : "Next image"}
+                className="h-full w-full flex items-center justify-center bg-gradient-to-l from-black/40 to-transparent text-emerald-500/60 hover:text-emerald-400 transition-colors"
                 >
                   <ChevronRight className="w-8 h-8" />
                 </button>
@@ -900,6 +932,36 @@ function ProjectMediaPanel({
           )}
         </div>
       </div>
+
+      {/* Mobile full-screen image viewer (tap the image; tap anywhere to close) */}
+      {compact &&
+        zoomed &&
+        !isVideo &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={activeImage.caption || project.displayName}
+            onClick={() => setZoomed(false)}
+            className="fixed inset-0 z-[400] flex items-center justify-center bg-black/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]"
+          >
+            <img
+              src={activeImage.src}
+              alt={activeImage.caption || project.displayName}
+              className="max-h-full max-w-full object-contain"
+            />
+            <button
+              type="button"
+              aria-label={language === "es" ? "Cerrar" : "Close"}
+              onClick={() => setZoomed(false)}
+              className="absolute right-2 top-[max(0.5rem,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/90 text-zinc-200"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>,
+          document.body,
+        )}
 
       {/* Feature caption: what the app does in this slide (also the media counter) */}
       {activeImage.caption && (
@@ -921,7 +983,7 @@ function ProjectMediaPanel({
                 </span>
                 <span className="h-px flex-1 bg-gradient-to-r from-emerald-500/30 to-transparent" />
               </div>
-              <p className="mt-2.5 flex gap-2.5 font-mono text-[18px] font-semibold leading-snug tracking-tight text-zinc-100 xl:text-[20px]">
+              <p className="mt-2.5 flex gap-2.5 font-mono text-[18px] font-semibold leading-snug tracking-tight text-zinc-100 max-md:text-[16px] xl:text-[20px]">
                 <span className="text-emerald-500" aria-hidden="true">
                   &gt;
                 </span>
@@ -1078,6 +1140,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   const projectsStatusBarRef = useRef<HTMLDivElement>(null);
   const projectsScrollSectionRef = useRef<HTMLElement>(null);
   const projectFolderRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const projectChipsRef = useRef<HTMLDivElement>(null);
   const projectTitleRef = useRef<HTMLSpanElement>(null);
   const contactPhotoRef = useRef<HTMLDivElement>(null);
   const contactRootRef = useRef<HTMLDivElement>(null);
@@ -2117,7 +2180,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
     const cancel = runExpProjectsTransition({
       direction,
-      reduceMotion,
+      // Mobile: the short crossfade (no full-screen pixel unfold over a
+      // single-column layout; also avoids the heavy first-frame setup).
+      reduceMotion: reduceMotion || isMobile,
       sprites: agentCards.map((a) => a.sprite),
       panels: {
         sidebar: projectsSidebarRef.current,
@@ -3089,6 +3154,17 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     setActiveProjectImageIndex(0);
   }, [activeProjectId]);
 
+  // Mobile project picker: keep the active chip centred in the strip.
+  useEffect(() => {
+    if (!isMobile || activeView !== "projects") return;
+    const strip = projectChipsRef.current;
+    const idx = projectEntries.findIndex((p) => p.id === activeProject.id);
+    const chip = projectFolderRefs.current[idx];
+    if (!strip || !chip) return;
+    const left = chip.offsetLeft - (strip.clientWidth - chip.clientWidth) / 2;
+    strip.scrollTo({ left: Math.max(0, left), behavior: reduceMotion ? "auto" : "smooth" });
+  }, [isMobile, activeView, activeProject.id, projectEntries, reduceMotion]);
+
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 1023px)");
     const syncCompactViewport = () => {
@@ -3163,6 +3239,79 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     keepAboutExpMounted &&
     isExpanded &&
     (activeView === "about" || activeView === "experience");
+
+  // Project media / architecture visual: rendered in the right column on
+  // desktop, and in the single-column flow (after the description) on mobile.
+  const projectMediaBlock = (
+    <>
+                                {activeProject.presentation ===
+                                "media-first" ? (
+                                  <ProjectMediaPanel
+                                    project={activeProject}
+                                    selectedImageIndex={activeProjectImageIndex}
+                                    onSelectImage={setActiveProjectImageIndex}
+                                    compact={isMobile}
+                                  />
+                                ) : (
+                                  <div>
+                                    {/* Process Architecture Visual */}
+                                    <div className="overflow-hidden rounded-[2rem] border border-emerald-500/10 bg-zinc-950/50 p-8 shadow-2xl backdrop-blur-sm transition-all duration-500 hover:border-emerald-500/20 max-md:rounded-2xl max-md:p-5 max-md:backdrop-blur-none">
+                                      <div className="flex items-center gap-3 mb-10">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                                          <Activity className="w-4 h-4 text-emerald-500" />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-emerald-400">
+                                            {activeProject.fallbackVisual?.title?.replace(
+                                              "PROJECT_FEATURE_CORE",
+                                              "SYSTEM_ARCHITECTURE",
+                                            ) ?? "PROCESS_ARCHITECTURE"}
+                                          </span>
+                                          <span className="font-mono text-[9px] text-zinc-600 uppercase tracking-widest">
+                                            Topology_v2.4
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div className="relative space-y-6">
+                                        {/* Vertical Spine - Solid Color (Static) */}
+                                        <div className="absolute left-4 top-2 bottom-2 w-px bg-emerald-500/20" />
+
+                                        {(
+                                          activeProject.fallbackVisual?.lines ??
+                                          []
+                                        ).map((line, idx) => (
+                                          <motion.div
+                                            key={line}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: idx * 0.15 }}
+                                            className="relative pl-12 flex items-center group/line"
+                                          >
+                                            <div className="absolute left-[12.5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 flex items-center justify-center">
+                                              <div className="relative w-2 h-2 rounded-full border border-emerald-500/50 bg-black group-hover/line:bg-emerald-500 group-hover/line:shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-300" />
+                                            </div>
+
+                                            {/* Card - No Border, Minimal Background */}
+                                            <div className="flex-1 rounded-2xl bg-zinc-900/10 px-6 py-5 transition-all duration-300 group-hover/line:bg-emerald-500/[0.03] max-md:px-3 max-md:py-3">
+                                              <div className="flex items-center justify-between gap-4">
+                                                <span className="font-mono text-[13px] leading-relaxed text-zinc-300 group-hover/line:text-zinc-100 transition-colors max-md:text-[15px]">
+                                                  <span className="text-emerald-500/40 mr-3">
+                                                    0{idx + 1}_
+                                                  </span>
+                                                  {line.replace(/^\d+_\s*/, "")}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </motion.div>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                  </div>
+                                )}
+    </>
+  );
 
   const panel = (
     <motion.div
@@ -3911,9 +4060,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           ref={projectsSidebarRef}
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="flex w-full flex-shrink-0 flex-col border-b border-zinc-800 bg-black/40 min-h-0 lg:w-64 lg:border-b-0 lg:border-r"
+                          data-project-picker=""
+                          className="flex w-full flex-shrink-0 flex-col border-b border-zinc-800 bg-black/40 min-h-0 max-md:bg-zinc-950 lg:w-64 lg:border-b-0 lg:border-r"
                         >
-                          <div className="border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between bg-zinc-900/20">
+                          <div className="border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between bg-zinc-900/20 max-md:hidden">
                             <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
                               <Terminal className="w-3 h-3 text-emerald-500/50" />
                               <span>{t("EXPLORER")}</span>
@@ -3924,8 +4074,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             </div>
                           </div>
 
-                          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 pt-4 space-y-0.5">
-                            <div className="px-2 pb-2 flex items-center justify-between">
+                          <div
+                            ref={projectChipsRef}
+                            data-project-picker-strip=""
+                            className="flex-1 overflow-y-auto custom-scrollbar p-2 pt-4 space-y-0.5 max-md:flex max-md:h-12 max-md:flex-none max-md:items-center max-md:gap-2 max-md:space-y-0 max-md:overflow-x-auto max-md:overflow-y-hidden max-md:px-3 max-md:py-0.5 max-md:[scrollbar-width:none]"
+                          >
+                            <div className="px-2 pb-2 flex items-center justify-between max-md:hidden">
                               <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
                                 {t("WORKSPACE")}
                               </span>
@@ -3946,16 +4100,17 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     setActiveProjectId(project.id);
                                     setHasOpenedProject(true);
                                   }}
-                                  className={`group relative flex w-full items-center gap-3 px-3 py-2.5 text-left transition-all duration-200 rounded-lg ${
+                                  aria-current={isActive ? "true" : undefined}
+                                  className={`group relative flex w-full items-center gap-3 px-3 py-2.5 text-left transition-all duration-200 rounded-lg max-md:h-11 max-md:w-auto max-md:shrink-0 max-md:gap-2 max-md:rounded-full max-md:border max-md:px-4 max-md:py-0 ${
                                     isActive
-                                      ? "bg-emerald-500/[0.07] text-emerald-400"
-                                      : "text-zinc-500 hover:bg-zinc-800/40 hover:text-zinc-300"
+                                      ? "bg-emerald-500/[0.07] text-emerald-400 max-md:border-emerald-500/50 max-md:bg-emerald-500/10"
+                                      : "text-zinc-500 hover:bg-zinc-800/40 hover:text-zinc-300 max-md:border-zinc-800 max-md:text-zinc-300"
                                   }`}
                                 >
                                   {isActive && (
                                     <motion.div
                                       layoutId="active-indicator"
-                                      className="absolute left-0 top-2 bottom-2 w-0.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                                      className="absolute left-0 top-2 bottom-2 w-0.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] max-md:hidden"
                                     />
                                   )}
 
@@ -3971,7 +4126,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     </div>
                                     <div className="flex flex-col min-w-0">
                                       <span
-                                        className={`font-mono text-xs truncate ${isActive ? "font-bold text-zinc-100" : ""}`}
+                                        className={`font-mono text-xs truncate max-md:overflow-visible max-md:whitespace-nowrap max-md:text-[14px] ${isActive ? "font-bold text-zinc-100" : ""}`}
                                       >
                                         {project.terminalName}
                                       </span>
@@ -3979,7 +4134,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   </div>
                                   {project.building && (
                                     <span
-                                      className="ml-auto flex shrink-0 items-center"
+                                      className="ml-auto flex shrink-0 items-center max-md:ml-0"
                                       title={
                                         language === "es"
                                           ? "Construyendo ahora"
@@ -4020,7 +4175,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           >
                             <div
                               ref={projectsBreadcrumbRef}
-                              className="border-b border-zinc-800 px-6 py-4"
+                              className="border-b border-zinc-800 px-6 py-4 max-md:px-4 max-md:py-3"
                             >
                               <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em]">
                                 <span className="text-[#00FF41]">
@@ -4038,7 +4193,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 items-start gap-8 p-6 lg:grid-cols-[minmax(300px,0.58fr)_minmax(0,1.42fr)] lg:p-8">
+                            <div className="grid grid-cols-1 items-start gap-8 p-6 max-md:gap-6 max-md:p-4 lg:grid-cols-[minmax(300px,0.58fr)_minmax(0,1.42fr)] lg:p-8">
                               <div
                                 ref={projectsTextPanelRef}
                                 className="space-y-7 min-w-0"
@@ -4077,9 +4232,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   </div>
 
                                   {/* Links - Moved to the top for visibility */}
-                                  <p className="text-[15px] leading-7 text-zinc-300">
+                                  <p className="text-[15px] leading-7 text-zinc-300 max-md:text-[16px]">
                                     {activeProject.description}
                                   </p>
+
+                                  {/* Mobile: media sits in the flow, right after the description */}
+                                  {isMobile && (
+                                    <div data-mobile-media="" className="pt-2">
+                                      {projectMediaBlock}
+                                    </div>
+                                  )}
 
                                   {activeProject.links.length > 0 && (
                                     <div className="py-1">
@@ -4113,7 +4275,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                       >
                                         <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500/50 transition-colors group-hover:text-emerald-500" />
                                         <div className="flex flex-col">
-                                          <p className="font-mono text-[12.5px] leading-[1.65] text-zinc-400 transition-colors group-hover:text-zinc-200">
+                                          <p className="font-mono text-[12.5px] leading-[1.65] text-zinc-400 transition-colors group-hover:text-zinc-200 max-md:text-[15px] max-md:text-zinc-300">
                                             {highlight.includes(": ") ? (
                                               <>
                                                 <span className="font-bold text-emerald-500/80">
@@ -4147,7 +4309,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                         transition={{
                                           delay: 0.5 + index * 0.04,
                                         }}
-                                        className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 font-mono text-[11px] text-zinc-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
+                                        className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 font-mono text-[11px] text-zinc-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-300 max-md:px-2.5 max-md:py-1.5 max-md:text-[13px]"
                                       >
                                         {tech}
                                       </motion.li>
@@ -4158,79 +4320,40 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
                               <div
                                 ref={projectsMediaPanelRef}
-                                className="w-full min-w-0 space-y-6 lg:sticky lg:top-6 lg:h-[calc(100vh-222px)]"
+                                className="w-full min-w-0 space-y-6 max-md:hidden lg:sticky lg:top-6 lg:h-[calc(100vh-222px)]"
                               >
-                                {activeProject.presentation ===
-                                "media-first" ? (
-                                  <ProjectMediaPanel
-                                    project={activeProject}
-                                    selectedImageIndex={activeProjectImageIndex}
-                                    onSelectImage={setActiveProjectImageIndex}
-                                  />
-                                ) : (
-                                  <div>
-                                    {/* Process Architecture Visual */}
-                                    <div className="overflow-hidden rounded-[2rem] border border-emerald-500/10 bg-zinc-950/50 p-8 shadow-2xl backdrop-blur-sm transition-all duration-500 hover:border-emerald-500/20">
-                                      <div className="flex items-center gap-3 mb-10">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                                          <Activity className="w-4 h-4 text-emerald-500" />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5">
-                                          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-emerald-400">
-                                            {activeProject.fallbackVisual?.title?.replace(
-                                              "PROJECT_FEATURE_CORE",
-                                              "SYSTEM_ARCHITECTURE",
-                                            ) ?? "PROCESS_ARCHITECTURE"}
-                                          </span>
-                                          <span className="font-mono text-[9px] text-zinc-600 uppercase tracking-widest">
-                                            Topology_v2.4
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      <div className="relative space-y-6">
-                                        {/* Vertical Spine - Solid Color (Static) */}
-                                        <div className="absolute left-4 top-2 bottom-2 w-px bg-emerald-500/20" />
-
-                                        {(
-                                          activeProject.fallbackVisual?.lines ??
-                                          []
-                                        ).map((line, idx) => (
-                                          <motion.div
-                                            key={line}
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: idx * 0.15 }}
-                                            className="relative pl-12 flex items-center group/line"
-                                          >
-                                            <div className="absolute left-[12.5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 flex items-center justify-center">
-                                              <div className="relative w-2 h-2 rounded-full border border-emerald-500/50 bg-black group-hover/line:bg-emerald-500 group-hover/line:shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-300" />
-                                            </div>
-
-                                            {/* Card - No Border, Minimal Background */}
-                                            <div className="flex-1 rounded-2xl bg-zinc-900/10 px-6 py-5 transition-all duration-300 group-hover/line:bg-emerald-500/[0.03]">
-                                              <div className="flex items-center justify-between gap-4">
-                                                <span className="font-mono text-[13px] leading-relaxed text-zinc-300 group-hover/line:text-zinc-100 transition-colors">
-                                                  <span className="text-emerald-500/40 mr-3">
-                                                    0{idx + 1}_
-                                                  </span>
-                                                  {line.replace(/^\d+_\s*/, "")}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </motion.div>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                  </div>
-                                )}
+                                {!isMobile && projectMediaBlock}
                               </div>
                             </div>
+                            {hasNextProject && (
+                              <button
+                                type="button"
+                                data-mobile-next-project=""
+                                onClick={() => {
+                                  setActiveProjectId(
+                                    projectEntries[activeProjectIndex + 1].id,
+                                  );
+                                  setHasOpenedProject(true);
+                                }}
+                                className="mx-4 mb-3 mt-2 flex min-h-[64px] w-[calc(100%-2rem)] items-center justify-between gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-left font-mono md:hidden"
+                              >
+                                <span className="flex min-w-0 flex-col gap-0.5">
+                                  <span className="text-[12px] uppercase tracking-widest text-zinc-400">
+                                    {language === "es"
+                                      ? "Siguiente proyecto"
+                                      : "Next project"}
+                                  </span>
+                                  <span className="truncate text-[16px] font-bold text-zinc-100">
+                                    {projectEntries[activeProjectIndex + 1].displayName}
+                                  </span>
+                                </span>
+                                <ChevronRight className="h-5 w-5 shrink-0 text-emerald-400" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleCommand("contact")}
-                              className="group/continue mx-6 mb-10 mt-2 flex cursor-pointer items-center gap-2 border-t border-zinc-800/60 pt-6 font-mono text-xs text-white/40 transition-colors hover:text-white/80 lg:mx-8"
+                              className="group/continue mx-6 mb-10 mt-2 flex cursor-pointer items-center gap-2 border-t border-zinc-800/60 pt-6 font-mono text-xs text-white/40 transition-colors hover:text-white/80 max-md:mx-4 max-md:min-h-[56px] max-md:pt-4 max-md:text-[15px] max-md:text-white/70 lg:mx-8"
                             >
                               <span className="text-emerald-500/70 group-hover/continue:text-emerald-500">
                                 $
@@ -4570,7 +4693,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                   ? undefined
                   : ({ "--tail-x": "92%" } as React.CSSProperties)
               }
-              className={`hero-bubble-anchor pointer-events-none fixed z-[161] ${
+              className={`hero-bubble-anchor pointer-events-none fixed z-[161] max-md:hidden ${
                 isCompactViewport
                   ? "right-[76px] bottom-[118px] sm:right-[106px] sm:bottom-[104px]"
                   : "hero-bubble-anchor--sidebar left-3 bottom-[198px]"

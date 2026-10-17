@@ -42,3 +42,14 @@
     width: auto !important;
   }
 }
+
+/* Step 3 · Projects: the mini avatar would cover the single-column content.
+   visibility (not display) so Projects→Contact still reads its start rect. */
+@media (max-width: 767px) {
+  .pixel-avatar-mini[data-place="projects"] {
+    visibility: hidden;
+  }
+  [data-project-picker] [data-project-picker-strip]::-webkit-scrollbar {
+    display: none;
+  }
+}
