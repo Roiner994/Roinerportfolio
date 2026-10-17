@@ -361,6 +361,16 @@
     transform 0.3s ease;
 }
 
+/* Projects (desktop): rest the mini avatar in the explorer column, above the
+   ENTER hint, so it never covers the project text or the media viewer. */
+@media (min-width: 1024px) {
+  .pixel-avatar-mini[data-place="projects"] {
+    left: 176px;
+    right: auto;
+    bottom: 118px;
+  }
+}
+
 .pixel-avatar-mini.off {
   opacity: 0;
   transform: translateY(20px);
@@ -511,6 +521,9 @@
   .hero-bubble { font-size: 13px; max-width: none; }
   .hero-bubble-text { white-space: nowrap; }
 }
+/* Projects hint bubble resting above the mini avatar in the explorer column */
+.hero-bubble-anchor--sidebar .hero-bubble { font-size: 12px; max-width: 214px; }
+.hero-bubble-anchor--sidebar .hero-bubble-text { white-space: normal; }
 @media (prefers-reduced-motion: reduce) {
   .hero-bubble { animation: none; }
 }

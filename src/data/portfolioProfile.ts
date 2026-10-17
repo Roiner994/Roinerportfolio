@@ -64,9 +64,23 @@ export type ProjectImage = {
 
 export type ProjectPresentation = "media-first" | "info-first";
 
+export type ProjectStatusKind =
+  | "production"
+  | "live"
+  | "prototype"
+  | "personal"
+  | "past";
+
 export type ProjectStatus = {
   label: string;
   value?: string;
+  kind?: ProjectStatusKind;
+};
+
+/** Curated caption for an image in src/assets/projects/<id>/ (matched by file name; spaces as "_"). */
+export type ProjectMediaCaption = {
+  file: string;
+  caption: string;
 };
 
 export type ProjectFallbackVisual = {
@@ -97,6 +111,10 @@ export type ProjectEntry = {
   fallbackVisual?: ProjectFallbackVisual;
   focusAreas?: string;
   deliveryScope?: string;
+  /** Shows a pulsing "currently building" dot in the Projects explorer. */
+  building?: boolean;
+  /** Ordered, captioned subset of src/assets/projects/<id>/ images. */
+  mediaCaptions?: ProjectMediaCaption[];
 };
 
 const experienceDataEs: ExperienceEntry[] = [
@@ -346,30 +364,16 @@ const projectEntriesEs: ProjectEntry[] = [
       "Convierte conversaciones dispersas en leads calificados y priorizados, listos para que un vendedor los tome.",
     presentation: "media-first",
     galleryVariant: "landscape",
+    building: true,
     description:
-      "Plataforma de ventas con IA para concesionarios de autos, en producción. Un asistente atiende a los leads por WhatsApp, Instagram y un widget de chat web, mientras un CRM los prioriza y los deriva al vendedor indicado.",
+      "Plataforma de ventas con IA para concesionarios de autos, en producción: un asistente atiende leads por WhatsApp, Instagram y chat web, y un CRM los deriva al vendedor indicado.",
     highlights: [
-      "Problema: Los concesionarios reciben consultas por WhatsApp, Instagram y su sitio web. Los leads quedan repartidos entre canales, sin una señal clara de cuáles están listos para comprar.",
-      "Asistente IA: Responde preguntas sobre modelos y stock, califica la intención de compra con un score y una temperatura, y registra los productos que le interesan a cada lead.",
-      "CRM inteligente: Centraliza los leads con resúmenes consolidados por IA y un próximo paso sugerido, una cola de prioridad y un dashboard de conversión.",
-      "Integraciones: WhatsApp vía Meta Cloud API o Twilio; DMs de Instagram y respuestas privadas automáticas a comentarios; widget de chat web embebible; sincronización bidireccional con Pilot CRM (leads, contactos y estados); y Tokko para propiedades. Cada canal muestra su estado de conexión en un solo panel.",
-      "Derivación a humanos: Deriva cada lead a un vendedor según el tipo de equipo (0 km, postventa, planes de ahorro) y le avisa por WhatsApp.",
-      "Multi-tenant: Cada concesionario gestiona su propio equipo, sucursales, catálogo de productos, integraciones de canales y la personalización del asistente.",
+      "Asistente IA: Responde sobre modelos y stock, puntúa la intención de compra y registra los productos que le interesan a cada lead.",
+      "CRM inteligente: Resúmenes de leads con IA y un próximo paso sugerido, una cola de prioridad y un dashboard de conversión.",
+      "Canales: WhatsApp (Meta Cloud API o Twilio), DMs y respuestas a comentarios de Instagram, widget de chat web, sincronización bidireccional con Pilot CRM y Tokko.",
+      "Multi-tenant y derivación: Cada concesionario gestiona su equipo, sucursales y catálogo; los leads llegan al vendedor indicado con aviso por WhatsApp.",
     ],
-    tech: [
-      "IA aplicada",
-      "IA conversacional",
-      "Django",
-      "DRF",
-      "Celery",
-      "Vue 3",
-      "n8n",
-      "LiteLLM",
-      "WhatsApp Cloud API / Twilio",
-      "Instagram API",
-      "Postgres + pgvector",
-      "Pilot CRM",
-    ],
+    tech: ["Django", "DRF", "Celery", "Vue 3", "n8n", "LiteLLM", "WhatsApp Cloud API", "Twilio", "Instagram API", "PostgreSQL", "pgvector"],
     gallery: [
       {
         src: "/projects/plunkton/01-leads-produccion.webp",
@@ -424,8 +428,8 @@ const projectEntriesEs: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "MOTOR_DE_LEADS",
-      value: "ACTIVO",
+      label: "En producción",
+      kind: "production",
     },
   },
   {
@@ -441,28 +445,14 @@ const projectEntriesEs: ProjectEntry[] = [
     presentation: "media-first",
     galleryVariant: "landscape",
     description:
-      "SaaS para lanzadores de productos digitales en LATAM. Reúne todo un lanzamiento en un solo lugar: estrategia, oferta, copy, tráfico pago, captación por WhatsApp, finanzas y ventas.",
+      "SaaS para lanzadores de productos digitales en LATAM que reúne todo un lanzamiento en un solo lugar: estrategia, oferta, copy, tráfico pago, captación por WhatsApp, finanzas y ventas.",
     highlights: [
-      "Flujo guiado: Cada lanzamiento va de Cliente > Producto > Lanzamiento y luego pasa por seis pilares: Estratega, Copy, Tráfico, Plataformas, Finanzas y Ventas.",
-      "Planificación estratégica: La planificación calcula fechas y CPL y desbloquea Concepción, Oferta y Métricas en vivo, con seguimiento planificado vs. real.",
-      "Tráfico y WhatsApp Analytics: Dashboards de embudo y calidad de lead, control de presupuesto diario y analítica de captación por WhatsApp que compara los leads del gestor con los que ingresaron a WhatsApp, por fuente (Meta, TikTok, orgánico, listas anteriores).",
-      "Integraciones: ConvertKit para email, Sendflow para grupos de WhatsApp, Stripe y ThriveCart para checkouts y cobro en cuotas, y Meta Ads para campañas e inversión.",
-      "Finanzas y ventas: Presupuesto vs. inversión real, balance entre socios, resultados de venta, cobro de cuotas y lead score, con roles Admin, Editor y Viewer.",
+      "Flujo guiado: Cliente > Producto > Lanzamiento, organizado en seis pilares: Estratega, Copy, Tráfico, Plataformas, Finanzas y Ventas.",
+      "Planificación y métricas en vivo: Calcula fechas y CPL, con seguimiento planificado vs. real en todo el embudo.",
+      "Tráfico y WhatsApp Analytics: Dashboards de embudo, calidad de lead y presupuesto diario, con captación por WhatsApp desglosada por fuente.",
+      "Integraciones y finanzas: ConvertKit, Sendflow, Stripe, ThriveCart y Meta Ads; presupuesto vs. real, cuotas y roles Admin/Editor/Viewer.",
     ],
-    tech: [
-      "SaaS",
-      "Marketing Ops",
-      "NestJS",
-      "React",
-      "TypeScript",
-      "Vite",
-      "Monorepo",
-      "Cloudflare Pages",
-      "Meta Ads API",
-      "Stripe",
-      "ThriveCart",
-      "ConvertKit",
-    ],
+    tech: ["NestJS", "React", "TypeScript", "Vite", "Cloudflare Pages", "Meta Ads API", "Stripe", "ThriveCart", "ConvertKit"],
     gallery: [
       {
         src: "/projects/goscale/01-whatsapp-analytics.webp",
@@ -512,120 +502,30 @@ const projectEntriesEs: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "MOTOR_DE_LANZAMIENTOS",
-      value: "ACTIVO",
-    },
-  },
-  {
-    id: "flashcardia",
-    terminalName: "Flashcardia",
-    displayName: "Flashcardia",
-    subtitle: "De tarjetas manuales a práctica activa con IA.",
-    category: "Product",
-    role: "Diseño de producto, UX y arquitectura de funcionalidades con IA.",
-    impact:
-      "Transforma la práctica de vocabulario en un ciclo estructurado de aprendizaje con generación, repetición y feedback evaluado por IA.",
-    presentation: "media-first",
-    description:
-      "Plataforma de aprendizaje con IA que reduce la fricción de crear tarjetas de estudio y convierte la práctica de vocabulario en entrenamiento activo.",
-    highlights: [
-      "Problema: En herramientas como Anki, cada tarjeta debe crearse manualmente, lo que hace que preparar material de estudio sea lento y pesado.",
-      "Solución: Flashcardia genera tarjetas completas con definición, pronunciación y ejemplos de uso, reduciendo la fricción de estudiar.",
-      "Modo Challenge: Modo de práctica activa donde el usuario crea frases propias y recibe feedback de IA, una puntuación de 1 a 10 y ejemplos mejorados.",
-      "Explorar: Módulo para descubrir decks públicos, copiarlos y empezar a practicar rápidamente.",
-    ],
-    tech: [
-      "IA aplicada",
-      "Language Learning",
-      "Spaced Repetition",
-      "AI Feedback",
-      "Product Design",
-      "React Native",
-      "Supabase",
-    ],
-    links: [
-      {
-        label: "ABRIR_APLICACIÓN_WEB",
-        href: "https://flashcardia-web.vercel.app/",
-      },
-    ],
-    status: {
-      label: "CICLO_DE_APRENDIZAJE",
-      value: "ACTIVO",
-    },
-  },
-  {
-    id: "autostream",
-    terminalName: "Chatbot_AI",
-    displayName: "WhatsApp Commerce Agent",
-    subtitle: "AGENTE COMERCIAL CONFIGURABLE PARA WHATSAPP",
-    category: "Automation",
-    role: "Automatización comercial con n8n, WhatsApp, reglas dinámicas e IA multimodal.",
-    impact:
-      "Permite adaptar la lógica de atención y ventas desde un documento, sin reescribir código.",
-    presentation: "media-first",
-    description:
-      "Agente comercial para WhatsApp construido con n8n. Automatiza atención, ventas y registro de pagos a partir de reglas de negocio escritas en lenguaje natural.",
-    highlights: [
-      "Problema: Muchos negocios atienden clientes por WhatsApp de forma manual y dependen de procesos repetitivos para responder consultas, validar pagos y registrar operaciones.",
-      "Solución: El bot centraliza la atención y permite definir la lógica comercial desde un documento editable, sin modificar código.",
-      "Reglas de negocio: El negocio puede cambiar tono, personalidad, catálogo, respuestas, políticas o incluso gestionar distintas tiendas escribiendo nuevas reglas en el documento.",
-      "Inteligencia de medios: El sistema interpreta mensajes, notas de audio e imágenes de WhatsApp para sostener conversaciones más naturales.",
-      "Seguimiento de pagos: Cuando detecta un comprobante de pago, analiza la imagen, extrae el monto y registra la operación en Excel/Sheets para control diario.",
-    ],
-    tech: [
-      "N8N",
-      "WhatsApp",
-      "LLMs",
-      "OCR",
-      "Speech-to-Text",
-      "Automatización",
-      "Excel",
-      "Prompt Logic",
-    ],
-    links: [
-      {
-        label: "VER_CÓDIGO_EN_GITHUB",
-        href: "https://github.com/Roiner994/whatsapp-automatization",
-      },
-    ],
-    status: {
-      label: "REGLAS_CONFIGURADAS",
-      value: "LÓGICA_EN_VIVO",
+      label: "En línea",
+      kind: "live",
     },
   },
   {
     id: "ucrop",
-    terminalName: "UCROP_IT",
-    displayName: "ucrop.it Traceability Platform",
+    terminalName: "ucrop.it",
+    displayName: "ucrop.it",
     subtitle: "PLATAFORMA B2B DE TRAZABILIDAD AGRÍCOLA",
     category: "Platform",
-    role: "Desarrollo full stack de funcionalidades web, mobile, APIs y backoffice para una plataforma agrícola de trazabilidad.",
+    role:
+      "Desarrollo full stack de funcionalidades web, mobile, APIs y backoffice para una plataforma agrícola de trazabilidad.",
     impact:
       "Centraliza datos de campo, actividades agrícolas, indicadores ambientales y reportes normativos para compañías y unidades productivas.",
     presentation: "info-first",
     description:
-      "Plataforma B2B de trazabilidad agrícola, sostenibilidad y cumplimiento normativo que conecta campos, cultivos, actividades, datos geoespaciales e informes ambientales en un ecosistema web, móvil y backoffice.",
+      "Plataforma B2B de trazabilidad agrícola, sostenibilidad y cumplimiento normativo en web, móvil y backoffice.",
     highlights: [
-      "Flujo de trazabilidad: Construcción de flujos para registrar campos, cultivos y actividades, conectándolos con Crop Story y reportes de trazabilidad.",
-      "Inteligencia geoespacial: Creación de campos desde Google Maps o importación KMZ, con soporte para polígonos, imágenes satelitales y análisis histórico del terreno.",
-      "Sostenibilidad: Visualización de indicadores como huella de carbono, huella hídrica y CFT dentro de reportes ambientales asociados al cultivo.",
-      "Cumplimiento: Cálculo y generación de informes para normativas como 2BSvs, EPA y EUDR aplicadas a unidades productivas y compañías agrícolas.",
-      "Alcance de entrega: Desarrollo dentro de un equipo multidisciplinario de funcionalidades web, mobile, backoffice, APIs y servicios.",
+      "Flujos de trazabilidad: Registro de campos, cultivos y actividades, conectados con Crop Story y reportes de trazabilidad.",
+      "Geoespacial: Campos desde Google Maps o importación KMZ, con polígonos, imágenes satelitales y análisis histórico del terreno.",
+      "Sostenibilidad: Indicadores de huella de carbono, huella hídrica y CFT en los reportes ambientales de cada cultivo.",
+      "Cumplimiento: Generación de informes para 2BSvs, EPA y EUDR para unidades productivas y compañías agrícolas.",
     ],
-    tech: [
-      "React",
-      "Next.js",
-      "Expo",
-      "NestJS",
-      "Python",
-      "Google Maps",
-      "KMZ",
-      "Satellite Data",
-      "Traceability",
-      "Sustainability",
-      "Compliance",
-    ],
+    tech: ["React", "Next.js", "Expo", "NestJS", "Python", "Google Maps API"],
     links: [
       {
         label: "EXPLORE_PRODUCT_SITE",
@@ -637,8 +537,8 @@ const projectEntriesEs: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "ALCANCE_TOTAL",
-      value: "FULL_STACK",
+      label: "Trabajo anterior",
+      kind: "past",
     },
     fallbackVisual: {
       title: "PIPELINE_DE_TRAZABILIDAD",
@@ -650,44 +550,202 @@ const projectEntriesEs: ProjectEntry[] = [
         "05_ web + mobile + backoffice + services",
       ],
     },
-    focusAreas:
-      "Creación de cultivos, campos mapeados, flujos de actividades e informes de producto vinculados a sostenibilidad.",
-    deliveryScope:
-      "Frontend, backend, microservicios, despliegues y operaciones de backoffice en toda la plataforma.",
+  },
+  {
+    id: "autostream",
+    terminalName: "WhatsApp Commerce Agent",
+    displayName: "WhatsApp Commerce Agent",
+    subtitle: "AGENTE COMERCIAL CONFIGURABLE PARA WHATSAPP",
+    category: "Automation",
+    role:
+      "Automatización comercial con n8n, WhatsApp, reglas dinámicas e IA multimodal.",
+    impact:
+      "Permite adaptar la lógica de atención y ventas desde un documento, sin reescribir código.",
+    presentation: "media-first",
+    description:
+      "Agente de ventas y atención para WhatsApp construido con n8n, guiado por reglas de negocio escritas en lenguaje natural.",
+    highlights: [
+      "Reglas en un documento: Tono, catálogo, políticas e incluso varias tiendas se editan en un documento, sin cambiar código.",
+      "Multimodal: Entiende mensajes de texto, notas de voz e imágenes enviadas por WhatsApp.",
+      "Seguimiento de pagos: Lee comprobantes de pago, extrae el monto y registra cada operación en Excel/Sheets.",
+      "Ventas y atención: Responde sobre el catálogo, toma pedidos e indica los métodos de pago en el chat.",
+    ],
+    tech: ["n8n", "WhatsApp", "LLMs", "OCR", "Speech-to-Text", "Google Sheets"],
+    mediaCaptions: [
+      {
+        file: "01chat.png",
+        caption:
+          "Chat de WhatsApp: el agente responde desde dos catálogos (ropa y cuentas de streaming) e indica los métodos de pago.",
+      },
+      {
+        file: "02chat.png",
+        caption:
+          "Pedidos repetidos en un mismo chat: el agente envía cada código de acceso de Netflix o Disney cuando se le pide.",
+      },
+      {
+        file: "Screenshot_2026-05-07_at_1.59.16_PM.png",
+        caption:
+          "Reglas de negocio en lenguaje natural: rol, catálogos de las tiendas, preguntas frecuentes y protocolo de respuesta.",
+      },
+      {
+        file: "Screenshot_2026-05-07_at_12.52.29_PM.png",
+        caption:
+          "El prompt del agente vive en un Google Doc editable: el negocio cambia su comportamiento sin tocar código.",
+      },
+      {
+        file: "Screenshot_2026-05-07_at_12.53.34_PM.png",
+        caption:
+          "Registro de pagos en Google Sheets: fecha, referencia, monto y tasa por comprobante, más un resumen diario.",
+      },
+      {
+        file: "Screenshot_2026-05-07_at_12.55.04_PM.png",
+        caption:
+          "El workflow de n8n detrás del agente de WhatsApp.",
+      },
+    ],
+    links: [
+      {
+        label: "VER_CÓDIGO_EN_GITHUB",
+        href: "https://github.com/Roiner994/whatsapp-automatization",
+      },
+    ],
+    status: {
+      label: "Prototipo",
+      kind: "prototype",
+    },
+  },
+  {
+    id: "flashcardia",
+    terminalName: "Flashcardia",
+    displayName: "Flashcardia",
+    subtitle: "DE TARJETAS MANUALES A PRÁCTICA ACTIVA CON IA.",
+    category: "Product",
+    role:
+      "Diseño de producto, UX y arquitectura de funcionalidades con IA.",
+    impact:
+      "Transforma la práctica de vocabulario en un ciclo estructurado de aprendizaje con generación, repetición y feedback evaluado por IA.",
+    presentation: "media-first",
+    description:
+      "App de flashcards con IA que genera tarjetas de estudio completas y convierte la práctica de vocabulario en entrenamiento activo.",
+    highlights: [
+      "Tarjetas con IA: Genera tarjetas completas con definición, pronunciación y ejemplos de uso.",
+      "Modo Challenge: Escribe tus propias frases y recibe feedback de IA, una puntuación de 1 a 10 y un ejemplo mejorado.",
+      "Sesiones de repaso: Práctica con repetición espaciada y calificaciones Again, Hard, Good y Easy.",
+      "Explorar: Descubre decks públicos, cópialos y empieza a practicar de inmediato.",
+    ],
+    tech: ["React Native", "Supabase"],
+    mediaCaptions: [
+      {
+        file: "01_card.png",
+        caption:
+          "Vista previa de tarjeta: concepto, significado y ejemplos de uso generados por IA, lista para guardar en un mazo.",
+      },
+      {
+        file: "02_card.png",
+        caption:
+          "Inicio del mazo: tarjetas nuevas, en aprendizaje y en repaso, y acceso rápido a “Crear tarjeta con IA”.",
+      },
+      {
+        file: "03_card.png",
+        caption:
+          "Sesión de repaso: cada tarjeta se califica como Again, Hard, Good o Easy.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.06.12_PM.png",
+        caption:
+          "Configuración del Challenge: cantidad de tarjetas a practicar y modo de dificultad.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.06.47_PM.png",
+        caption:
+          "Modo Challenge: la IA puntúa con 10/10 una frase escrita por el usuario y sugiere una mejor forma de decirla.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.07.08_PM.png",
+        caption:
+          "Uso incorrecto: la IA explica el error, lo puntúa con 1/10 y muestra un ejemplo correcto.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.07.24_PM.png",
+        caption:
+          "Challenge completado, con la puntuación final.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.02.21_PM.png",
+        caption:
+          "Inicio de sesión con Google o email para sincronizar mazos entre dispositivos, o continuar como invitado.",
+      },
+    ],
+    links: [
+      {
+        label: "ABRIR_APLICACIÓN_WEB",
+        href: "https://flashcardia-web.vercel.app/",
+      },
+    ],
+    status: {
+      label: "Proyecto personal",
+      kind: "personal",
+    },
   },
   {
     id: "calai",
-    terminalName: "Cal_AI",
-    displayName: "Cal AI Nutrition Scanner",
+    terminalName: "Cal AI",
+    displayName: "Cal AI",
     subtitle: "APP MOBILE DE REGISTRO NUTRICIONAL CON IA",
     category: "AI Tool",
-    role: "UX mobile para registro nutricional, análisis visual y corrección asistida por IA.",
+    role:
+      "UX mobile para registro nutricional, análisis visual y corrección asistida por IA.",
     impact:
       "Reduce la fricción de registrar comidas al convertir una foto en estimaciones editables de calorías y macronutrientes.",
     presentation: "media-first",
     description:
-      "App mobile de registro nutricional con IA que estima calorías y macronutrientes a partir de una foto, permitiendo ajustar el resultado con correcciones en lenguaje natural.",
+      "App móvil que estima calorías y macros a partir de una foto de la comida y permite corregir el resultado en lenguaje natural.",
     highlights: [
-      "Problema: Registrar comidas manualmente suele ser lento, impreciso y difícil de mantener como hábito diario.",
-      "Análisis visual: Detecta ingredientes, estima porciones, calorías y macronutrientes a partir de una foto tomada con la cámara o importada desde la galería.",
-      "Ajuste conversacional: Permite corregir el análisis con lenguaje natural, ajustando ingredientes o cantidades sin rehacer el registro.",
-      "Seguimiento de progreso: Muestra gráficas semanales para comparar consumo, objetivos configurados y patrones de alimentación.",
+      "Análisis de foto: Detecta ingredientes y estima porciones, calorías y macronutrientes desde la cámara o la galería.",
+      "Ajustes con IA: Corrige ingredientes o cantidades en lenguaje natural sin rehacer el registro.",
+      "Registro diario: Calorías frente a la meta diaria, con progreso de macros y las comidas del día.",
+      "Tendencias: Gráficas semanales y mensuales para comparar consumo, metas y patrones de alimentación.",
     ],
-    tech: [
-      "React Native",
-      "Computer Vision",
-      "LLMs",
-      "Nutrition AI",
-      "Data Visualization",
-      "Mobile UX",
+    tech: ["React Native", "LLMs", "Computer Vision"],
+    mediaCaptions: [
+      {
+        file: "Screenshot_20260507-133748.png",
+        caption:
+          "Análisis de la foto: calorías totales, macros y desglose por ingrediente de la comida.",
+      },
+      {
+        file: "Screenshot_20260507-133907.png",
+        caption:
+          "Ajuste con IA: se agrega “con un aguacate y jugo de fresa” en lenguaje natural.",
+      },
+      {
+        file: "Screenshot_20260507-133927.png",
+        caption:
+          "Desglose actualizado tras el ajuste con IA, con el aguacate y el jugo agregados.",
+      },
+      {
+        file: "Screenshot_20260507-134906.png",
+        caption:
+          "Hoy: calorías frente a la meta diaria, progreso de macros y comidas registradas.",
+      },
+      {
+        file: "camera.png",
+        caption:
+          "Tendencias semanales: promedio diario, calorías por día, metas alcanzadas y reparto de macros.",
+      },
+      {
+        file: "Screenshot_20260507-134930.png",
+        caption:
+          "Tendencias mensuales: promedio diario, comidas registradas, metas alcanzadas y reparto de macros.",
+      },
     ],
-    links: [],
+    links: [
+    ],
     status: {
-      label: "INFERENCIA_VISUAL",
-      value: "LISTO",
+      label: "Proyecto personal",
+      kind: "personal",
     },
-  }
-
+  },
 ];
 
 const projectEntriesEn: ProjectEntry[] = [
@@ -703,30 +761,16 @@ const projectEntriesEn: ProjectEntry[] = [
       "Turns scattered conversations into qualified, prioritized leads that are ready for a salesperson.",
     presentation: "media-first",
     galleryVariant: "landscape",
+    building: true,
     description:
-      "AI sales platform for car dealerships, running in production. An assistant serves leads over WhatsApp, Instagram, and a web chat widget, while a CRM prioritizes them and hands them off to the right salesperson.",
+      "AI sales platform for car dealerships, in production: an assistant answers leads on WhatsApp, Instagram, and web chat, and a CRM routes them to the right salesperson.",
     highlights: [
-      "Problem: Dealerships receive inquiries through WhatsApp, Instagram, and their website. Those leads end up spread across channels, with no clear signal of which ones are ready to buy.",
-      "AI Assistant: Answers questions about models and stock, qualifies purchase intent with a score and temperature, and records each lead's product interests.",
-      "Smart CRM: Centralizes leads with AI-consolidated summaries and a suggested next step, a priority queue, and a conversion dashboard.",
-      "Integrations: WhatsApp through the Meta Cloud API or Twilio; Instagram DMs plus automatic private replies to post comments; an embeddable web chat widget; bidirectional sync with Pilot CRM (leads, contacts, and status); and Tokko for real-estate listings. Each channel shows its connection status in one panel.",
-      "Human Handoff: Routes each lead to a salesperson by team type (new cars, after-sales, savings plans) and notifies them over WhatsApp.",
-      "Multi-tenant: Each dealership manages its own team, branches, product catalog, channel integrations, and assistant personalization.",
+      "AI Assistant: Answers model and stock questions, scores purchase intent, and records each lead’s product interests.",
+      "Smart CRM: AI lead summaries with a suggested next step, a priority queue, and a conversion dashboard.",
+      "Channels: WhatsApp (Meta Cloud API or Twilio), Instagram DMs and comment replies, a web chat widget, two-way Pilot CRM sync, and Tokko.",
+      "Multi-tenant Handoff: Each dealership runs its own team, branches, and catalog; leads go to the right salesperson with a WhatsApp alert.",
     ],
-    tech: [
-      "Applied AI",
-      "Conversational AI",
-      "Django",
-      "DRF",
-      "Celery",
-      "Vue 3",
-      "n8n",
-      "LiteLLM",
-      "WhatsApp Cloud API / Twilio",
-      "Instagram API",
-      "Postgres + pgvector",
-      "Pilot CRM",
-    ],
+    tech: ["Django", "DRF", "Celery", "Vue 3", "n8n", "LiteLLM", "WhatsApp Cloud API", "Twilio", "Instagram API", "PostgreSQL", "pgvector"],
     gallery: [
       {
         src: "/projects/plunkton/01-leads-produccion.webp",
@@ -781,8 +825,8 @@ const projectEntriesEn: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "LEAD_ENGINE",
-      value: "ACTIVE",
+      label: "In production",
+      kind: "production",
     },
   },
   {
@@ -798,28 +842,14 @@ const projectEntriesEn: ProjectEntry[] = [
     presentation: "media-first",
     galleryVariant: "landscape",
     description:
-      "SaaS for digital product launchers in LATAM. It brings a whole launch into one place: strategy, offer, copy, paid traffic, WhatsApp capture, finance, and sales.",
+      "SaaS for digital product launchers in LATAM that runs a whole launch in one place: strategy, offer, copy, paid traffic, WhatsApp capture, finance, and sales.",
     highlights: [
-      "Guided Flow: Each launch goes Client > Product > Launch, then through six pillars: Strategist, Copy, Traffic, Platforms, Finance, and Sales.",
-      "Strategic Planning: Planning calculates dates and CPL and unlocks the Concept, Offer, and Live Metrics modules, with planned vs. actual tracking.",
-      "Traffic & WhatsApp Analytics: Funnel and lead-quality dashboards, daily budget control, and WhatsApp capture analytics that compare leads in the manager against leads who joined WhatsApp, broken down by source (Meta, TikTok, organic, previous lists).",
-      "Integrations: ConvertKit for email, Sendflow for WhatsApp groups, Stripe and ThriveCart for checkouts and installment billing, and Meta Ads for campaigns and spend.",
-      "Finance & Sales: Budget vs. actual investment, partner balance, sales results, installment collection, and lead scoring, with Admin, Editor, and Viewer roles.",
+      "Guided Flow: Client > Product > Launch, organized in six pillars: Strategist, Copy, Traffic, Platforms, Finance, and Sales.",
+      "Planning & Live Metrics: Calculates dates and CPL, with planned vs. actual tracking across the funnel.",
+      "Traffic & WhatsApp Analytics: Funnel, lead-quality, and daily budget dashboards, with WhatsApp capture broken down by source.",
+      "Integrations & Finance: ConvertKit, Sendflow, Stripe, ThriveCart, and Meta Ads; budget vs. actual, installments, and Admin/Editor/Viewer roles.",
     ],
-    tech: [
-      "SaaS",
-      "Marketing Ops",
-      "NestJS",
-      "React",
-      "TypeScript",
-      "Vite",
-      "Monorepo",
-      "Cloudflare Pages",
-      "Meta Ads API",
-      "Stripe",
-      "ThriveCart",
-      "ConvertKit",
-    ],
+    tech: ["NestJS", "React", "TypeScript", "Vite", "Cloudflare Pages", "Meta Ads API", "Stripe", "ThriveCart", "ConvertKit"],
     gallery: [
       {
         src: "/projects/goscale/01-whatsapp-analytics.webp",
@@ -867,120 +897,30 @@ const projectEntriesEn: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "LAUNCH_ENGINE",
-      value: "ACTIVE",
-    },
-  },
-  {
-    id: "flashcardia",
-    terminalName: "Flashcardia",
-    displayName: "Flashcardia",
-    subtitle: "From manual cards to active practice with AI.",
-    category: "Product",
-    role: "Product design, UX, and AI feature architecture.",
-    impact:
-      "Transforms vocabulary practice into a structured learning cycle with AI-evaluated generation, repetition, and feedback.",
-    presentation: "media-first",
-    description:
-      "AI learning platform that reduces study card creation friction and turns vocabulary practice into active training.",
-    highlights: [
-      "Problem: In tools like Anki, each card must be created manually, making study material preparation slow and tedious.",
-      "Solution: Flashcardia generates complete cards with definition, pronunciation, and usage examples, reducing study friction.",
-      "Challenge Mode: Active practice mode where the user creates their own sentences and receives AI feedback, a score from 1 to 10, and improved examples.",
-      "Explore: Module to discover public decks, copy them, and start practicing quickly.",
-    ],
-    tech: [
-      "Applied AI",
-      "Language Learning",
-      "Spaced Repetition",
-      "AI Feedback",
-      "Product Design",
-      "React Native",
-      "Supabase",
-    ],
-    links: [
-      {
-        label: "LAUNCH_WEB_APPLICATION",
-        href: "https://flashcardia-web.vercel.app/",
-      },
-    ],
-    status: {
-      label: "KNOWLEDGE_LOOP",
-      value: "ACTIVE",
-    },
-  },
-  {
-    id: "autostream",
-    terminalName: "Chatbot_AI",
-    displayName: "WhatsApp Commerce Agent",
-    subtitle: "CONFIGURABLE COMMERCIAL AGENT FOR WHATSAPP",
-    category: "Automation",
-    role: "Commercial automation with n8n, WhatsApp, dynamic rules, and multimodal AI.",
-    impact:
-      "Allows adapting support and sales logic from a document, without rewriting code.",
-    presentation: "media-first",
-    description:
-      "Commercial agent for WhatsApp built with n8n. Automates support, sales, and payment registration from business rules written in natural language.",
-    highlights: [
-      "Problem: Many businesses handle WhatsApp customers manually and rely on repetitive processes to answer queries, validate payments, and register operations.",
-      "Solution: The bot centralizes support and allows defining business logic from an editable document, without code modification.",
-      "Business Rules: The business can change tone, personality, catalog, responses, policies, or even manage different stores by writing new rules in the document.",
-      "Media Intelligence: The system interprets WhatsApp messages, audio notes, and images to maintain more natural conversations.",
-      "Payment Tracking: When it detects a payment receipt, it analyzes the image, extracts the amount, and registers the operation in Excel/Sheets for daily control.",
-    ],
-    tech: [
-      "N8N",
-      "WhatsApp",
-      "LLMs",
-      "OCR",
-      "Speech-to-Text",
-      "Automation",
-      "Excel",
-      "Prompt Logic",
-    ],
-    links: [
-      {
-        label: "VIEW_GITHUB_REPOSITORY",
-        href: "https://github.com/Roiner994/whatsapp-automatization",
-      },
-    ],
-    status: {
-      label: "PROMPT_CONFIGURED",
-      value: "LIVE_LOGIC",
+      label: "Live",
+      kind: "live",
     },
   },
   {
     id: "ucrop",
-    terminalName: "UCROP_IT",
-    displayName: "ucrop.it Traceability Platform",
+    terminalName: "ucrop.it",
+    displayName: "ucrop.it",
     subtitle: "AGRICULTURAL TRACEABILITY B2B PLATFORM",
     category: "Platform",
-    role: "Full stack development of web, mobile, API, and backoffice functionalities for an agricultural traceability platform.",
+    role:
+      "Full stack development of web, mobile, API, and backoffice functionalities for an agricultural traceability platform.",
     impact:
       "Centralizes field data, agricultural activities, environmental indicators, and regulatory reports for companies and production units.",
     presentation: "info-first",
     description:
-      "B2B platform for agricultural traceability, sustainability, and regulatory compliance that connects fields, crops, activities, geospatial data, and environmental reports in a web, mobile, and backoffice ecosystem.",
+      "B2B platform for agricultural traceability, sustainability, and regulatory compliance across web, mobile, and backoffice.",
     highlights: [
-      "Traceability Flow: Construction of flows to register fields, crops, and activities, connecting them with Crop Story and traceability reports.",
-      "Geo Intelligence: Field creation from Google Maps or KMZ import, with support for polygons, satellite imagery, and historical terrain analysis.",
-      "Sustainability: Visualization of indicators such as carbon footprint, water footprint, and CFT within environmental reports associated with the crop.",
-      "Compliance: Calculation and generation of reports for regulations such as 2BSvs, EPA, and EUDR applied to production units and agricultural companies.",
-      "Delivery Scope: Development within a multidisciplinary team of web, mobile, backoffice, APIs, and services.",
+      "Traceability Flows: Register fields, crops, and activities, linked to Crop Story and traceability reports.",
+      "Geospatial: Fields from Google Maps or KMZ import, with polygons, satellite imagery, and historical terrain analysis.",
+      "Sustainability: Carbon footprint, water footprint, and CFT indicators in each crop’s environmental reports.",
+      "Compliance: Report generation for 2BSvs, EPA, and EUDR for production units and agricultural companies.",
     ],
-    tech: [
-      "React",
-      "Next.js",
-      "Expo",
-      "NestJS",
-      "Python",
-      "Google Maps",
-      "KMZ",
-      "Satellite Data",
-      "Traceability",
-      "Sustainability",
-      "Compliance",
-    ],
+    tech: ["React", "Next.js", "Expo", "NestJS", "Python", "Google Maps API"],
     links: [
       {
         label: "EXPLORE_PRODUCT_SITE",
@@ -992,8 +932,8 @@ const projectEntriesEn: ProjectEntry[] = [
       },
     ],
     status: {
-      label: "END_TO_END_SCOPE",
-      value: "FULL_STACK",
+      label: "Past work",
+      kind: "past",
     },
     fallbackVisual: {
       title: "TRACEABILITY_PIPELINE",
@@ -1005,44 +945,202 @@ const projectEntriesEn: ProjectEntry[] = [
         "05_ web + mobile + backoffice + services",
       ],
     },
-    focusAreas:
-      "Crop creation, mapped fields, activity flows and sustainability-linked product reporting.",
-    deliveryScope:
-      "Frontend, backend, microservices, deployments and backoffice operations across the platform.",
+  },
+  {
+    id: "autostream",
+    terminalName: "WhatsApp Commerce Agent",
+    displayName: "WhatsApp Commerce Agent",
+    subtitle: "CONFIGURABLE COMMERCIAL AGENT FOR WHATSAPP",
+    category: "Automation",
+    role:
+      "Commercial automation with n8n, WhatsApp, dynamic rules, and multimodal AI.",
+    impact:
+      "Allows adapting support and sales logic from a document, without rewriting code.",
+    presentation: "media-first",
+    description:
+      "WhatsApp sales and support agent built with n8n, driven by business rules written in plain language.",
+    highlights: [
+      "Rules in a Document: Tone, catalog, policies, and even multiple stores are edited in a doc, with no code changes.",
+      "Multimodal: Understands text messages, voice notes, and images sent over WhatsApp.",
+      "Payment Tracking: Reads payment receipts, extracts the amount, and logs each operation in Excel/Sheets.",
+      "Sales & Support: Answers catalog questions, takes requests, and shares payment methods in the chat.",
+    ],
+    tech: ["n8n", "WhatsApp", "LLMs", "OCR", "Speech-to-Text", "Google Sheets"],
+    mediaCaptions: [
+      {
+        file: "01chat.png",
+        caption:
+          "WhatsApp chat: the agent answers from two store catalogs (clothing and streaming accounts) and lists the payment methods.",
+      },
+      {
+        file: "02chat.png",
+        caption:
+          "Repeated requests in one chat: the agent sends each Netflix or Disney access code on demand.",
+      },
+      {
+        file: "Screenshot_2026-05-07_at_1.59.16_PM.png",
+        caption:
+          "Business rules written in plain language: role, store catalogs, FAQ, and response protocol.",
+      },
+      {
+        file: "Screenshot_2026-05-07_at_12.52.29_PM.png",
+        caption:
+          "The agent’s system prompt lives in an editable Google Doc, so the business changes behavior without touching code.",
+      },
+      {
+        file: "Screenshot_2026-05-07_at_12.53.34_PM.png",
+        caption:
+          "Payment log in Google Sheets: date, reference, amount, and exchange rate per receipt, plus a daily summary.",
+      },
+      {
+        file: "Screenshot_2026-05-07_at_12.55.04_PM.png",
+        caption:
+          "The n8n workflow behind the WhatsApp agent.",
+      },
+    ],
+    links: [
+      {
+        label: "VIEW_GITHUB_REPOSITORY",
+        href: "https://github.com/Roiner994/whatsapp-automatization",
+      },
+    ],
+    status: {
+      label: "Prototype",
+      kind: "prototype",
+    },
+  },
+  {
+    id: "flashcardia",
+    terminalName: "Flashcardia",
+    displayName: "Flashcardia",
+    subtitle: "FROM MANUAL CARDS TO ACTIVE PRACTICE WITH AI.",
+    category: "Product",
+    role:
+      "Product design, UX, and AI feature architecture.",
+    impact:
+      "Transforms vocabulary practice into a structured learning cycle with AI-evaluated generation, repetition, and feedback.",
+    presentation: "media-first",
+    description:
+      "AI flashcard app that generates complete study cards and turns vocabulary practice into active training.",
+    highlights: [
+      "AI Cards: Generates full cards with definition, pronunciation, and usage examples.",
+      "Challenge Mode: Write your own sentences and get AI feedback, a 1–10 score, and an improved example.",
+      "Review Sessions: Spaced-repetition practice with Again, Hard, Good, and Easy ratings.",
+      "Explore: Discover public decks, copy them, and start practicing right away.",
+    ],
+    tech: ["React Native", "Supabase"],
+    mediaCaptions: [
+      {
+        file: "01_card.png",
+        caption:
+          "Card preview: AI-generated concept, meaning, and usage examples, ready to save to a deck.",
+      },
+      {
+        file: "02_card.png",
+        caption:
+          "Deck home: new, learning, and review counts, plus a quick “Create card with AI” action.",
+      },
+      {
+        file: "03_card.png",
+        caption:
+          "Review session: each card is rated Again, Hard, Good, or Easy.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.06.12_PM.png",
+        caption:
+          "Challenge setup: choose how many cards to practice and the difficulty mode.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.06.47_PM.png",
+        caption:
+          "Challenge mode: the AI scores a user-written sentence 10/10 and suggests a better way to say it.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.07.08_PM.png",
+        caption:
+          "Wrong usage: the AI explains the mistake, scores it 1/10, and shows a correct example.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.07.24_PM.png",
+        caption:
+          "Challenge complete, with the final score.",
+      },
+      {
+        file: "Screenshot_2026-02-20_at_10.02.21_PM.png",
+        caption:
+          "Sign in with Google or email to sync decks across devices, or continue as a guest.",
+      },
+    ],
+    links: [
+      {
+        label: "LAUNCH_WEB_APPLICATION",
+        href: "https://flashcardia-web.vercel.app/",
+      },
+    ],
+    status: {
+      label: "Personal project",
+      kind: "personal",
+    },
   },
   {
     id: "calai",
-    terminalName: "Cal_AI",
-    displayName: "Cal AI Nutrition Scanner",
+    terminalName: "Cal AI",
+    displayName: "Cal AI",
     subtitle: "AI NUTRITION LOGGING MOBILE APP",
     category: "AI Tool",
-    role: "Mobile UX for nutritional logging, visual analysis, and AI-assisted correction.",
+    role:
+      "Mobile UX for nutritional logging, visual analysis, and AI-assisted correction.",
     impact:
       "Reduces the friction of logging meals by converting a photo into editable estimates of calories and macronutrients.",
     presentation: "media-first",
     description:
-      "AI nutritional logging mobile app that estimates calories and macronutrients from a photo, allowing adjustments with natural language corrections.",
+      "Mobile app that estimates calories and macros from a meal photo and lets you correct the result in plain language.",
     highlights: [
-      "Problem: Logging meals manually is usually slow, imprecise, and hard to maintain as a daily habit.",
-      "Vision Analysis: Detects ingredients, estimates portions, calories, and macronutrients from a photo taken with the camera or imported from the gallery.",
-      "Conversational Refinement: Allows correcting the analysis with natural language, adjusting ingredients or quantities without redoing the record.",
-      "Progress Tracking: Shows weekly charts to compare intake, configured goals, and eating patterns.",
+      "Photo Analysis: Detects ingredients and estimates portions, calories, and macronutrients from the camera or gallery.",
+      "AI Adjustments: Correct ingredients or quantities in natural language without redoing the log.",
+      "Daily Log: Calories against the daily goal, with macro progress and the meals logged today.",
+      "Trends: Weekly and monthly charts to compare intake, goals, and eating patterns.",
     ],
-    tech: [
-      "React Native",
-      "Computer Vision",
-      "LLMs",
-      "Nutrition AI",
-      "Data Visualization",
-      "Mobile UX",
+    tech: ["React Native", "LLMs", "Computer Vision"],
+    mediaCaptions: [
+      {
+        file: "Screenshot_20260507-133748.png",
+        caption:
+          "Photo analysis: total calories, macros, and a per-ingredient breakdown of the meal.",
+      },
+      {
+        file: "Screenshot_20260507-133907.png",
+        caption:
+          "Adjust with AI: adding “with an avocado and strawberry juice” in plain language.",
+      },
+      {
+        file: "Screenshot_20260507-133927.png",
+        caption:
+          "Updated breakdown after the AI adjustment, with the avocado and juice added.",
+      },
+      {
+        file: "Screenshot_20260507-134906.png",
+        caption:
+          "Today: calories against the daily goal, macro progress, and the meals logged.",
+      },
+      {
+        file: "camera.png",
+        caption:
+          "Weekly trends: daily average, calories per day, goals met, and macro split.",
+      },
+      {
+        file: "Screenshot_20260507-134930.png",
+        caption:
+          "Monthly trends: daily average, meals logged, goals met, and macro split.",
+      },
     ],
-    links: [],
+    links: [
+    ],
     status: {
-      label: "VISION_INFERENCE",
-      value: "READY",
+      label: "Personal project",
+      kind: "personal",
     },
-  }
-
+  },
 ];
 
 export const portfolioData = {

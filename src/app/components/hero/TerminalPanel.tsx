@@ -6,12 +6,12 @@ import {
   useLayoutEffect,
   forwardRef,
   useImperativeHandle,
+  useMemo,
 } from "react";
 import { createPortal } from "react-dom";
 import { runExpProjectsTransition, type Box as XpBox, type PanelKey as XpPanelKey } from "./expProjectsTransition";
 import {
   Terminal,
-  Sparkles,
   X,
   Briefcase,
   Calendar,
@@ -31,8 +31,6 @@ import {
   Globe,
   Smartphone,
   Activity,
-  Target,
-  Layers,
   ArrowUpRight,
 } from "lucide-react";
 import {
@@ -50,6 +48,7 @@ import {
   experienceData,
   projectEntries,
   type ProjectEntry,
+  type ProjectStatus,
   type ProjectImage,
   type ProjectLink,
 } from "@/data/portfolioProfile";
@@ -693,6 +692,56 @@ function ProjectSectionLabel({ children }: { children: string }) {
   );
 }
 
+const PROJECT_STATUS_STYLES: Record<
+  NonNullable<ProjectStatus["kind"]>,
+  { badge: string; dot: string; pulse: boolean }
+> = {
+  production: {
+    badge: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+    dot: "bg-emerald-400",
+    pulse: true,
+  },
+  live: {
+    badge: "border-emerald-500/30 bg-emerald-500/[0.06] text-emerald-300",
+    dot: "bg-emerald-400",
+    pulse: false,
+  },
+  prototype: {
+    badge: "border-amber-400/30 bg-amber-400/[0.06] text-amber-200",
+    dot: "bg-amber-300",
+    pulse: false,
+  },
+  personal: {
+    badge: "border-sky-400/30 bg-sky-400/[0.06] text-sky-200",
+    dot: "bg-sky-300",
+    pulse: false,
+  },
+  past: {
+    badge: "border-zinc-600/60 bg-zinc-800/40 text-zinc-300",
+    dot: "bg-zinc-400",
+    pulse: false,
+  },
+};
+
+function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
+  const style = PROJECT_STATUS_STYLES[status.kind ?? "live"];
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 normal-case tracking-[0.06em] ${style.badge}`}
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        {style.pulse && (
+          <span
+            className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 motion-reduce:animate-none ${style.dot}`}
+          />
+        )}
+        <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${style.dot}`} />
+      </span>
+      {status.label}
+    </span>
+  );
+}
+
 function ProjectMediaPanel({
   project,
   selectedImageIndex,
@@ -702,10 +751,13 @@ function ProjectMediaPanel({
   selectedImageIndex: number;
   onSelectImage: (index: number) => void;
 }) {
-  const images =
-    project.gallery && project.gallery.length > 0
-      ? project.gallery
-      : getProjectMedia(project.id);
+  const images = useMemo(
+    () =>
+      project.gallery && project.gallery.length > 0
+        ? project.gallery
+        : getProjectMedia(project.id, project.mediaCaptions),
+    [project.gallery, project.id, project.mediaCaptions],
+  );
   const isLandscape = project.galleryVariant === "landscape";
   const activeImage = images[selectedImageIndex] ?? images[0];
 
@@ -716,15 +768,20 @@ function ProjectMediaPanel({
     setIsImageLoading(true);
   }, [activeImage?.src]);
 
-  // Preload all project images for smoother transitions on Vercel
+  // Preload only the neighbours of the visible image (not the whole gallery),
+  // so arrows feel instant without downloading every screenshot up front.
   useEffect(() => {
-    if (images.length > 0) {
-      images.forEach((img) => {
-        const preloader = new window.Image();
-        preloader.src = img.src;
-      });
-    }
-  }, [images]);
+    if (images.length < 2) return;
+    const neighbours = [
+      images[(selectedImageIndex + 1) % images.length],
+      images[(selectedImageIndex - 1 + images.length) % images.length],
+    ];
+    neighbours.forEach((img) => {
+      const preloader = new window.Image();
+      preloader.decoding = "async";
+      preloader.src = img.src;
+    });
+  }, [images, selectedImageIndex]);
 
   const nextImage = () => {
     onSelectImage((selectedImageIndex + 1) % images.length);
@@ -750,8 +807,8 @@ function ProjectMediaPanel({
         <div
           className={`relative flex items-center justify-center overflow-hidden ${
             isLandscape
-              ? "aspect-[16/10] w-full p-3 sm:p-5"
-              : "min-h-[400px] p-4 sm:p-10"
+              ? "aspect-[16/10] w-full p-2 sm:p-3"
+              : "h-[min(66vh,640px)] min-h-[360px] p-3 sm:p-5"
           }`}
         >
           {/* Loading indicator */}
@@ -796,10 +853,11 @@ function ProjectMediaPanel({
               transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               src={activeImage.src}
               alt={activeImage.caption || project.displayName}
+              decoding="async"
               className={`relative z-10 w-full object-contain ${
                 isLandscape
                   ? "max-h-full bg-zinc-950"
-                  : "max-h-[550px] drop-shadow-[0_0_50px_rgba(16,185,129,0.1)]"
+                  : "h-full max-h-full drop-shadow-[0_0_50px_rgba(16,185,129,0.1)]"
               }`}
               style={
                 isLandscape
@@ -843,7 +901,7 @@ function ProjectMediaPanel({
               </div>
 
               {/* Technical Counter Label */}
-              <div className="absolute bottom-6 right-6 z-30 flex items-center gap-3 rounded border border-emerald-500/10 bg-black/80 px-3 py-1.5 backdrop-blur-md font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-300">
+              <div className="absolute bottom-4 right-4 z-30 flex items-center gap-3 rounded border border-emerald-500/10 bg-black/80 px-3 py-1.5 backdrop-blur-md font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-300">
                 <span className="text-zinc-500">MEDIA_INDEX:</span>
                 <span className="text-emerald-500 text-sm">
                   {String(selectedImageIndex + 1).padStart(2, "0")}
@@ -1761,7 +1819,15 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       // Roiner's mini avatar (bottom-right in Projects): the finale robot morphs into it.
       const miniEl = document.getElementById("mini");
       if (miniEl) {
+        // Forward: measure where the avatar will rest in Projects (it sits in
+        // the explorer column there), not where it is in Experience.
+        const prevPlace = miniEl.getAttribute("data-place");
+        if (direction === "forward") miniEl.setAttribute("data-place", "projects");
         const r = rectOf(miniEl);
+        if (direction === "forward") {
+          if (prevPlace === null) miniEl.removeAttribute("data-place");
+          else miniEl.setAttribute("data-place", prevPlace);
+        }
         const hidden = miniEl.classList.contains("off");
         if (r.width > 0) {
           snapshot.avatar = {
@@ -3511,7 +3577,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           ref={projectsSidebarRef}
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="flex w-full flex-shrink-0 flex-col border-b border-zinc-800 bg-black/40 min-h-0 lg:w-80 lg:border-b-0 lg:border-r"
+                          className="flex w-full flex-shrink-0 flex-col border-b border-zinc-800 bg-black/40 min-h-0 lg:w-64 lg:border-b-0 lg:border-r"
                         >
                           <div className="border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between bg-zinc-900/20">
                             <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
@@ -3577,6 +3643,26 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                       </span>
                                     </div>
                                   </div>
+                                  {project.building && (
+                                    <span
+                                      className="ml-auto flex shrink-0 items-center"
+                                      title={
+                                        language === "es"
+                                          ? "Construyendo ahora"
+                                          : "Currently building"
+                                      }
+                                    >
+                                      <span className="relative flex h-2 w-2">
+                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
+                                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+                                      </span>
+                                      <span className="sr-only">
+                                        {language === "es"
+                                          ? "Construyendo ahora"
+                                          : "Currently building"}
+                                      </span>
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}
@@ -3598,9 +3684,18 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   <span className="text-white font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 group-hover/prompt:border-white/20 transition-all">
                                     ENTER
                                   </span>{" "}
-                                  {hasNextProject
-                                    ? `${t("TO_OPEN")} ${projectEntries[activeProjectIndex + 1].terminalName}`
-                                    : t("TO_GO_CONTACT")}
+                                  {hasNextProject ? (
+                                    `${t("TO_OPEN")} ${projectEntries[activeProjectIndex + 1].terminalName}`
+                                  ) : (
+                                    <>
+                                      {language === "es"
+                                        ? "para continuar"
+                                        : "to continue"}{" "}
+                                      <span className="text-emerald-400">
+                                        → CONTACT
+                                      </span>
+                                    </>
+                                  )}
                                 </span>
                                 <div className="h-3.5 w-1.5 bg-white/40 group-hover/prompt:bg-emerald-500" />
                               </div>
@@ -3635,29 +3730,20 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   {activeProject.category}
                                 </span>
                                 {activeProject.status && (
-                                  <span className="rounded-full border border-emerald-500/25 bg-emerald-500/[0.06] px-2.5 py-1 text-emerald-300">
-                                    {activeProject.status.label}
-                                    {activeProject.status.value
-                                      ? ` / ${activeProject.status.value}`
-                                      : ""}
-                                  </span>
+                                  <ProjectStatusBadge
+                                    status={activeProject.status}
+                                  />
                                 )}
                               </div>
                             </div>
 
-                            <div
-                              className={`grid gap-10 p-6 lg:p-8 ${
-                                activeProject.galleryVariant === "landscape"
-                                  ? "grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
-                                  : "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
-                              }`}
-                            >
+                            <div className="grid grid-cols-1 items-start gap-8 p-6 lg:grid-cols-[minmax(300px,0.62fr)_minmax(0,1.38fr)] lg:p-8">
                               <div
                                 ref={projectsTextPanelRef}
-                                className="space-y-8 min-w-0"
+                                className="space-y-7 min-w-0"
                               >
-                                <div className="space-y-5">
-                                  <div className="space-y-4">
+                                <div className="space-y-4">
+                                  <div className="space-y-3">
                                     <div className="flex items-center gap-4">
                                       <span className="font-mono text-[10px] font-bold text-emerald-500 border-l-2 border-emerald-500 pl-2 uppercase tracking-widest">
                                         DATA_STREAM_
@@ -3668,7 +3754,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     </div>
 
                                     <div className="relative">
-                                      <h3 className="font-mono text-2xl font-black italic tracking-tighter text-white md:text-3xl lg:text-4xl leading-tight">
+                                      <h3 className="font-mono text-2xl font-black italic tracking-tighter text-white md:text-3xl leading-tight">
                                         <span className="text-emerald-500 mr-2 opacity-40 not-italic">
                                           &gt;
                                         </span>
@@ -3687,21 +3773,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                       </h3>
                                     </div>
 
-                                    <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500">
-                                      {activeProject.subtitle}
-                                    </div>
                                   </div>
 
                                   {/* Links - Moved to the top for visibility */}
+                                  <p className="text-[15px] leading-7 text-zinc-300">
+                                    {activeProject.description}
+                                  </p>
+
                                   {activeProject.links.length > 0 && (
-                                    <div className="space-y-4 py-2">
-                                      <div className="flex items-center gap-3">
-                                        <ProjectSectionLabel>
-                                          {t("PROJECT_EXTERNAL_RESOURCES")}
-                                        </ProjectSectionLabel>
-                                        <div className="h-px flex-1 bg-zinc-800/50" />
-                                      </div>
-                                      <div className="flex flex-wrap gap-x-8 gap-y-4">
+                                    <div className="py-1">
+                                      <div className="flex flex-wrap gap-x-6 gap-y-3">
                                         {activeProject.links.map(
                                           (link, idx) => (
                                             <TerminalLinkButton
@@ -3715,51 +3796,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     </div>
                                   )}
 
-                                  <p className="max-w-2xl text-base leading-8 text-zinc-300">
-                                    {activeProject.description}
-                                  </p>
                                 </div>
 
-                                {/* Additional Project Metadata */}
-                                <div className="grid gap-8 md:grid-cols-2">
-                                  {/* Role Section */}
-                                  <div className="group relative flex gap-4">
-                                    <div className="flex flex-col items-center pt-1">
-                                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-all duration-500">
-                                        <Briefcase className="w-5 h-5 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
-                                      </div>
-                                      <div className="mt-4 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5 pb-4">
-                                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                        {t("PROJECT_CONTEXT")}
-                                      </span>
-                                      <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                                        {activeProject.role}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  {/* Impact Section */}
-                                  <div className="group relative flex gap-4">
-                                    <div className="flex flex-col items-center pt-1">
-                                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-all duration-500">
-                                        <Sparkles className="w-5 h-5 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
-                                      </div>
-                                      <div className="mt-4 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5 pb-4">
-                                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                        {t("PROJECT_IMPACT")}
-                                      </span>
-                                      <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                                        {activeProject.impact}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-6">
+                                <div className="space-y-3.5">
                                   {activeProject.highlights.map(
                                     (highlight, index) => (
                                       <motion.div
@@ -3769,14 +3808,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                         transition={{
                                           delay: 0.4 + index * 0.1,
                                         }}
-                                        className="group flex gap-4"
+                                        className="group flex gap-2.5"
                                       >
-                                        <div className="flex flex-col items-center pt-1">
-                                          <ChevronRight className="w-6 h-6 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
-                                          <div className="mt-2 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
-                                        </div>
-                                        <div className="flex flex-col gap-1.5 pb-2">
-                                          <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 opacity-90 group-hover:text-zinc-200 group-hover:opacity-100 transition-all">
+                                        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500/50 transition-colors group-hover:text-emerald-500" />
+                                        <div className="flex flex-col">
+                                          <p className="font-mono text-[12.5px] leading-relaxed text-zinc-400 transition-colors group-hover:text-zinc-200">
                                             {highlight.includes(": ") ? (
                                               <>
                                                 <span className="font-bold text-emerald-500/80">
@@ -3797,40 +3833,31 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   )}
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                   <ProjectSectionLabel>
                                     {t("PROJECT_STACK")}
                                   </ProjectSectionLabel>
-                                  <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
+                                  <ul className="flex flex-wrap gap-2 pt-1">
                                     {activeProject.tech.map((tech, index) => (
-                                      <motion.div
+                                      <motion.li
                                         key={tech}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{
-                                          delay: 0.6 + index * 0.05,
+                                          delay: 0.5 + index * 0.04,
                                         }}
-                                        className="group flex items-center gap-2"
+                                        className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 font-mono text-[11px] text-zinc-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
                                       >
-                                        <span className="font-mono text-xs text-emerald-500/30 transition-colors group-hover:text-emerald-500">
-                                          #
-                                        </span>
-                                        <span className="font-mono text-[11px] uppercase tracking-wider text-zinc-600 transition-colors group-hover:text-zinc-300">
-                                          {tech}
-                                        </span>
-                                      </motion.div>
+                                        {tech}
+                                      </motion.li>
                                     ))}
-                                  </div>
+                                  </ul>
                                 </div>
                               </div>
 
                               <div
                                 ref={projectsMediaPanelRef}
-                                className={`space-y-6 min-w-0 ${
-                                  activeProject.galleryVariant === "landscape"
-                                    ? "w-full"
-                                    : ""
-                                }`}
+                                className="w-full min-w-0 space-y-6 lg:sticky lg:top-6"
                               >
                                 {activeProject.presentation ===
                                 "media-first" ? (
@@ -3840,7 +3867,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     onSelectImage={setActiveProjectImageIndex}
                                   />
                                 ) : (
-                                  <div className="space-y-10">
+                                  <div>
                                     {/* Process Architecture Visual */}
                                     <div className="overflow-hidden rounded-[2rem] border border-emerald-500/10 bg-zinc-950/50 p-8 shadow-2xl backdrop-blur-sm transition-all duration-500 hover:border-emerald-500/20">
                                       <div className="flex items-center gap-3 mb-10">
@@ -3886,7 +3913,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                                   <span className="text-emerald-500/40 mr-3">
                                                     0{idx + 1}_
                                                   </span>
-                                                  {line}
+                                                  {line.replace(/^\d+_\s*/, "")}
                                                 </span>
                                               </div>
                                             </div>
@@ -3895,46 +3922,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                       </div>
                                     </div>
 
-                                    {/* Project Context Boxes - Refactored for consistency */}
-                                    <div className="grid gap-8 md:grid-cols-2 px-2">
-                                      {/* Focus Areas */}
-                                      <div className="group relative flex gap-4">
-                                        <div className="flex flex-col items-center pt-1">
-                                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-all duration-500">
-                                            <Target className="w-5 h-5 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
-                                          </div>
-                                          <div className="mt-4 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
-                                        </div>
-                                        <div className="flex flex-col gap-2 pb-4">
-                                          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                            {t("PROJECT_CORE_FOCUS_AREAS")}
-                                          </span>
-                                          <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                                            {activeProject.focusAreas ??
-                                              "Core product mechanics, UX loops and key user interactions."}
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      {/* Delivery Scope */}
-                                      <div className="group relative flex gap-4">
-                                        <div className="flex flex-col items-center pt-1">
-                                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-all duration-500">
-                                            <Layers className="w-5 h-5 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
-                                          </div>
-                                          <div className="mt-4 h-full w-px bg-zinc-900 group-hover:bg-emerald-500/10 transition-colors" />
-                                        </div>
-                                        <div className="flex flex-col gap-2 pb-4">
-                                          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/60 transition-colors">
-                                            {t("PROJECT_DELIVERY_SCOPE")}
-                                          </span>
-                                          <p className="max-w-xl font-mono text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                                            {activeProject.deliveryScope ??
-                                              "End-to-end implementation from architecture to production deployment."}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -3948,12 +3935,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 $
                               </span>
                               <span>
-                                {language === "es" ? "Presiona" : "Press"}{" "}
-                                <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 font-bold text-white group-hover/continue:border-white/20">
-                                  ENTER
-                                </span>{" "}
-                                {language === "es" ? "para continuar" : "to continue"}{" "}
-                                <span className="text-emerald-400">→ CONTACT</span>
+                                cd ../contact{" "}
+                                <span className="text-emerald-400">→</span>
                               </span>
                               <span className="h-3.5 w-1.5 bg-white/40 group-hover/continue:bg-emerald-500" />
                             </button>
@@ -4378,6 +4361,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     </motion.div>
   );
 
+  // In Projects the avatar rests in the explorer column (desktop), so it never
+  // covers the text or the media viewer; see .pixel-avatar-mini[data-place].
+  const miniPlace =
+    isExpanded && activeView === "projects" && !isAiMode
+      ? "projects"
+      : undefined;
+
   const miniAvatar =
     typeof document !== "undefined"
       ? createPortal(
@@ -4385,8 +4375,17 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           {projectsHint && (
             <div
               aria-live="polite"
-              data-tail="left"
-              className="hero-bubble-anchor pointer-events-none fixed right-[76px] bottom-[118px] z-[161] sm:right-[106px] sm:bottom-[104px]"
+              data-tail={isCompactViewport ? "right" : "down"}
+              style={
+                isCompactViewport
+                  ? undefined
+                  : ({ "--tail-x": "92%" } as React.CSSProperties)
+              }
+              className={`hero-bubble-anchor pointer-events-none fixed z-[161] ${
+                isCompactViewport
+                  ? "right-[76px] bottom-[118px] sm:right-[106px] sm:bottom-[104px]"
+                  : "hero-bubble-anchor--sidebar left-3 bottom-[244px]"
+              }`}
             >
               <div className="hero-bubble">
                 <p className="hero-bubble-text">
@@ -4400,6 +4399,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           )}
           <img
             id="mini"
+            data-place={miniPlace}
             src={`/avatar/${miniDisplayPose}.png`}
             alt=""
             aria-hidden="true"
