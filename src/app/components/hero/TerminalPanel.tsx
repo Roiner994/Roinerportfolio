@@ -539,29 +539,17 @@ function AnimatedContactAvatar({
   isExternallyHovered?: boolean;
   frameRef?: React.Ref<HTMLDivElement>;
 }) {
+  // Static peace-sign portrait: the greeting itself now happens in the
+  // Projects -> Contact transition (sprite glitches into the peace pose and
+  // pixel-morphs into this photo), so there is no hover image swap any more.
+  // Hover only lights the frame border.
   const [isInternallyHovered, setIsInternallyHovered] = useState(false);
-  const handSwapTransition = {
-    duration: 0.09,
-    ease: "easeOut" as const,
-  };
-
-  const poseLayerClassName =
-    "absolute inset-0 h-full w-full object-cover pointer-events-none";
-  const poseLayerStyle = {
-    clipPath:
-      "polygon(0% 6%, 82% 6%, 82% 67%, 71% 67%, 60% 61%, 46% 61%, 35% 70%, 24% 100%, 0% 100%)",
-  };
   const isHovered = isExternallyHovered || isInternallyHovered;
-  const showPeace = isHovered;
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96, y: 0 }}
-      animate={{
-        opacity: 1,
-        scale: isHovered ? 1.025 : 1,
-        y: isHovered ? -4 : 0,
-      }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
       onHoverStart={() => setIsInternallyHovered(true)}
       onHoverEnd={() => setIsInternallyHovered(false)}
@@ -569,10 +557,7 @@ function AnimatedContactAvatar({
     >
       <motion.div
         className="absolute -inset-3 rounded-[1.7rem] bg-[radial-gradient(circle_at_30%_35%,rgba(16,185,129,0.22),transparent_58%)] opacity-0 blur-2xl pointer-events-none"
-        animate={{
-          opacity: isHovered ? 1 : 0,
-          scale: isHovered ? 1.04 : 0.98,
-        }}
+        animate={{ opacity: isHovered ? 1 : 0 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
       />
 
@@ -591,48 +576,13 @@ function AnimatedContactAvatar({
         transition={{ duration: 0.2, ease: "easeOut" }}
       >
         <img
-          src="/avatar_base.png"
-          alt="Avatar animado de contacto pasando de saludo a signo de paz"
+          data-contact-photo-img=""
+          src="/avatar_peace.png"
+          alt="Roiner Hernandez haciendo el signo de paz"
           className="h-full w-full object-cover opacity-95"
         />
 
-        <motion.img
-          src="/avatar_hello.png"
-          alt=""
-          aria-hidden="true"
-          className={poseLayerClassName}
-          style={poseLayerStyle}
-          animate={{
-            opacity: showPeace ? 0 : 1,
-            scale: isHovered ? 1.015 : 1,
-          }}
-          transition={{
-            ...handSwapTransition,
-            scale: { duration: 0.22, ease: "easeOut" },
-          }}
-        />
-
-        <motion.img
-          src="/avatar_peace.png"
-          alt=""
-          aria-hidden="true"
-          className={poseLayerClassName}
-          style={poseLayerStyle}
-          animate={{
-            opacity: showPeace ? 1 : 0,
-            scale: isHovered ? 1.015 : 1,
-          }}
-          transition={{
-            ...handSwapTransition,
-            scale: { duration: 0.22, ease: "easeOut" },
-          }}
-        />
-
-        <motion.div
-          className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_18%_42%,rgba(255,255,255,0.16),transparent_26%)]"
-          animate={{ opacity: isHovered ? 0.24 : 0.16 }}
-          transition={{ duration: 0.2 }}
-        />
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_18%_42%,rgba(255,255,255,0.16),transparent_26%)] opacity-[0.16]" />
 
         <div className="absolute -top-1 -left-1 h-12 w-12 border-t-2 border-l-2 border-emerald-400/50 pointer-events-none" />
         <div className="absolute -bottom-1 -right-1 h-12 w-12 border-b-2 border-r-2 border-emerald-400/50 pointer-events-none" />
@@ -1272,7 +1222,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // Projects -> Contact transition doesn't fetch/decode them mid-animation.
   useEffect(() => {
     if (activeView !== "projects") return;
-    ["/avatar_base.png", "/avatar_hello.png", "/avatar_peace.png"].forEach(
+    ["/avatar_peace.png", "/avatar/peace.png"].forEach(
       (src) => {
         const img = new window.Image();
         img.src = src;
