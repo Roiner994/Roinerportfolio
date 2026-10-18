@@ -2581,6 +2581,46 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       setActiveView(cmd as any);
     }
   };
+  // Phones: a hop under the curtain swaps the view instantly, so the section
+  // would just "be there" (its entrance only played on the first open). Play
+  // a short fade-up of the visible blocks as the curtain lifts, every time.
+  const playArrival = (bandTop: number, bandBottom: number) => {
+    const root = innerScrollRef.current;
+    if (!root) return;
+    const visible = (el: Element) => {
+      if (el.closest("[data-section-hidden]")) return false;
+      const r = el.getBoundingClientRect();
+      return r.height > 0 && r.width > 0 && r.bottom > bandTop && r.top < bandBottom;
+    };
+    let node: Element = root;
+    for (let d = 0; d < 8; d++) {
+      const kids = Array.from(node.children).filter(visible);
+      if (kids.length !== 1) break;
+      node = kids[0];
+    }
+    let blocks = Array.from(node.children).filter(visible);
+    if (blocks.length > 0 && blocks.length < 3) {
+      blocks = blocks.flatMap((b) => {
+        const kids = Array.from(b.children).filter(visible);
+        return kids.length > 1 ? kids : [b];
+      });
+    }
+    blocks.slice(0, 8).forEach((el, i) => {
+      if (typeof (el as HTMLElement).animate !== "function") return;
+      (el as HTMLElement).animate(
+        [
+          { opacity: 0, transform: "translate3d(0, 14px, 0)" },
+          { opacity: 1, transform: "translate3d(0, 0, 0)" },
+        ],
+        {
+          duration: 380,
+          delay: 40 + i * 55,
+          easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+          fill: "backwards",
+        },
+      );
+    });
+  };
   const mobileJump = (cmd: string) => {
     if (
       mobileJumpRef.current ||
@@ -2678,6 +2718,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           }
           if (ov) ov.scrollTop = 0;
           if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
+          if (!fast && cmd !== "ai") playArrival(top, bottom);
           curtain
             .animate([{ opacity: 1 }, { opacity: 0 }], {
               duration: fast || 240,
