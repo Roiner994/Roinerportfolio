@@ -1177,6 +1177,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     contactClone?: HTMLElement;
     contactBox?: XpBox;
     contactScrollTop?: number;
+    projectsScrollTop?: number;
+    spriteSrc?: string;
   } | null>(null);
   const contactCvRef = useRef<HTMLDivElement>(null);
   const contactCvButtonRef = useRef<HTMLAnchorElement>(null);
@@ -2325,8 +2327,14 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // ---- Projects <-> Contact ("zoom & portal") ----
   const startProjContactTransition = useCallback(
     (direction: "forward" | "reverse") => {
-      if (mobileJumpFnRef.current && window.matchMedia("(max-width: 767px)").matches) {
-        mobileJumpFnRef.current(direction === "forward" ? "contact" : "projects");
+      // Phones: Contact -> Projects uses the curtain; Projects -> Contact
+      // keeps the avatar / CRT / peace-morph effect (mobile variant).
+      if (
+        direction === "reverse" &&
+        mobileJumpFnRef.current &&
+        window.matchMedia("(max-width: 767px)").matches
+      ) {
+        mobileJumpFnRef.current("projects");
         return;
       }
       if (
@@ -2344,7 +2352,42 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           return;
         }
         snap.projectsBox = rectOf(root);
+        // Phones: Projects scrolls inside its own section; mark it so the
+        // clone can be put back at the same scroll offset.
+        const liveScroller = projectsScrollSectionRef.current;
+        liveScroller?.setAttribute("data-pc-scroller", "");
+        snap.projectsScrollTop = liveScroller?.scrollTop ?? 0;
         snap.projectsClone = root.cloneNode(true) as HTMLElement;
+        liveScroller?.removeAttribute("data-pc-scroller");
+        // A cloned <video> has no frame (it showed as a blank white box):
+        // swap each one for a still of the live video's current frame.
+        const liveVideos = root.querySelectorAll("video");
+        snap.projectsClone.querySelectorAll("video").forEach((cv, i) => {
+          const lv = liveVideos[i];
+          if (!lv) return;
+          const r = lv.getBoundingClientRect();
+          const c = document.createElement("canvas");
+          const dpr = Math.min(2, window.devicePixelRatio || 1);
+          c.width = Math.max(1, Math.round(r.width * dpr));
+          c.height = Math.max(1, Math.round(r.height * dpr));
+          c.className = cv.className;
+          c.setAttribute("style", cv.getAttribute("style") ?? "");
+          c.style.width = `${r.width}px`;
+          c.style.height = `${r.height}px`;
+          try {
+            const g = c.getContext("2d");
+            if (g && lv.videoWidth > 0) {
+              // object-contain: letterbox the frame like the live element.
+              const k = Math.min(c.width / lv.videoWidth, c.height / lv.videoHeight);
+              const w = lv.videoWidth * k;
+              const h = lv.videoHeight * k;
+              g.drawImage(lv, (c.width - w) / 2, (c.height - h) / 2, w, h);
+            }
+          } catch {
+            /* tainted or not ready: leave the canvas empty (dark) */
+          }
+          cv.replaceWith(c);
+        });
         const mini = document.getElementById("mini") as HTMLImageElement | null;
         // Phones: the avatar lives at the end of the project (folders block).
         const endAvatar = window.matchMedia("(max-width: 767px)").matches
@@ -2358,6 +2401,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
             "[data-projects-end-avatar]",
           );
           if (cloneAvatar && onScreen) cloneAvatar.style.visibility = "hidden";
+          snap.spriteSrc = endAvatar.src;
           if (mini) mini.style.visibility = "hidden";
         } else if (mini) {
           const r = rectOf(mini);
@@ -2468,8 +2512,15 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       contactBox,
       contactScrollTop: snap.contactScrollTop,
       avatar,
+      mobile: isMobile,
+      spriteSrc: snap.spriteSrc,
       onDone: finish,
     });
+    // Phones: put the Projects clone back at the scroll offset it had.
+    if (forward && snap.projectsScrollTop && projects) {
+      const sc = projects.querySelector<HTMLElement>("[data-pc-scroller]");
+      if (sc) sc.scrollTop = snap.projectsScrollTop;
+    }
     return cancel;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projContactTransition]);
@@ -2500,6 +2551,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     )
       return;
     if (cmd === "ai" ? isAiMode : !isAiMode && activeView === cmd) return;
+    // Projects -> Contact keeps its own effect on phones too.
+    if (cmd === "contact" && !isAiMode && activeView === "projects") {
+      startProjContactTransition("forward");
+      return;
+    }
     setHasInteracted(true);
     mobileJumpRef.current = true;
     const header = document.querySelector("[data-terminal-header]");
@@ -2598,7 +2654,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       isExpanded &&
       !isAiMode &&
       ((cleanCmd === "projects" && activeView !== "projects") ||
-        (cleanCmd === "contact" && activeView === "projects") ||
         (cleanCmd === "experience" && activeView === "projects"))
     ) {
       mobileJump(cleanCmd);
