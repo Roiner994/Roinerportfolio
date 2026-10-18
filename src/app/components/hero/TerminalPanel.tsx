@@ -3656,7 +3656,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
   const panel = (
     <motion.div
-      layout
+      // Phones: no layout animation inside the fullscreen sections. Switching
+      // views changes the panel height and motion "corrected" it with a
+      // scaleY squash (content looked zoomed for ~120ms after each jump).
+      layout={!(isMobile && isExpanded)}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
