@@ -2464,9 +2464,14 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       pointerEvents: "none",
     });
     document.body.appendChild(curtain);
+    // Swap instantly under the curtain (no AnimatePresence exit fade, so the
+    // old view never lingers). Set before the swap so the outgoing view
+    // re-renders with the instant exit first.
+    setInstantViewSwap(true);
     const fast = reduceMotion ? 1 : 0;
     const done = () => {
       curtain.remove();
+      setInstantViewSwap(false);
       mobileJumpRef.current = false;
       lastTransitionEndRef.current = performance.now();
     };
@@ -2478,22 +2483,41 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       })
       .finished.then(() => {
         jumpTo(cmd);
-        // Let the new view mount and lay out under the curtain.
-        window.requestAnimationFrame(() =>
-          window.requestAnimationFrame(() => {
-            if (overlayScrollRef.current) overlayScrollRef.current.scrollTop = 0;
-            if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
-            window.setTimeout(() => {
-              curtain
-                .animate([{ opacity: 1 }, { opacity: 0 }], {
-                  duration: fast || 240,
-                  easing: "ease-out",
-                  fill: "forwards",
-                })
-                .finished.then(done, done);
-            }, 40);
-          }),
-        );
+        const MARK: Record<string, string> = {
+          about: "[data-about-whoami]",
+          experience: "[data-exp-crew-slot]",
+          projects: "[data-project-header]",
+          contact: "[data-contact-photo]",
+          ai: "[data-ai-view]",
+        };
+        const shown = (sel?: string) => {
+          if (!sel) return false;
+          const el = overlayScrollRef.current?.querySelector(sel);
+          return !!el && !el.closest("[data-section-hidden]") && el.getClientRects().length > 0;
+        };
+        const from = isAiMode ? "ai" : activeView;
+        const t0 = performance.now();
+        let stable = 0;
+        // Wait until the old view is gone and the new one is mounted and laid
+        // out (a few frames), then lift.
+        const wait = () => {
+          const ov = overlayScrollRef.current;
+          if (shown(MARK[cmd]) && (from === cmd || !shown(MARK[from]))) stable++;
+          if (stable < 3 && performance.now() - t0 < 900) {
+            window.requestAnimationFrame(wait);
+            return;
+          }
+          if (ov) ov.scrollTop = 0;
+          if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
+          curtain
+            .animate([{ opacity: 1 }, { opacity: 0 }], {
+              duration: fast || 240,
+              easing: "ease-out",
+              fill: "forwards",
+            })
+            .finished.then(done, done);
+        };
+        window.requestAnimationFrame(wait);
       }, done);
   };
 
@@ -3794,6 +3818,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           {activeView === "terminal" && isAiMode ? (
             <motion.div
               key="ai-terminal"
+              data-ai-view=""
               initial={instantViewSwap ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={
