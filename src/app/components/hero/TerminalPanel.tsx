@@ -1166,6 +1166,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // While true, the view swap under the transition is instant (no
   // AnimatePresence fade, so there is never a blank frame).
   const [instantViewSwap, setInstantViewSwap] = useState(false);
+  // Phones: section hops use the "curtain" (see mobileJump).
+  const mobileJumpRef = useRef(false);
+  const mobileJumpFnRef = useRef<null | ((cmd: string) => void)>(null);
   const [aiCrewLeaving, setAiCrewLeaving] = useState(false);
   const projContactSnapRef = useRef<{
     projectsClone?: HTMLElement;
@@ -2108,6 +2111,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       direction: "forward" | "reverse",
       sourceMode: "experience" | "direct" = "experience",
     ) => {
+      // Phones: every Experience <-> Projects hop (swipe, scroll-end, keys)
+      // uses the curtain instead of the desktop choreography.
+      if (mobileJumpFnRef.current && window.matchMedia("(max-width: 767px)").matches) {
+        mobileJumpFnRef.current(direction === "forward" ? "projects" : "experience");
+        return;
+      }
       if (
         isAboutExpTransitioningRef.current ||
         isExpProjectsTransitioningRef.current ||
@@ -2272,6 +2281,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // ---- Projects <-> Contact ("zoom & portal") ----
   const startProjContactTransition = useCallback(
     (direction: "forward" | "reverse") => {
+      if (mobileJumpFnRef.current && window.matchMedia("(max-width: 767px)").matches) {
+        mobileJumpFnRef.current(direction === "forward" ? "contact" : "projects");
+        return;
+      }
       if (
         isAboutExpTransitioningRef.current ||
         isExpProjectsTransitioningRef.current ||
@@ -2422,7 +2435,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // the desktop choreographies that don't fit a narrow screen (zooms,
   // panels, crossfades of two different layouts on top of each other).
   // Opacity only, on a throwaway element: no React state per frame.
-  const mobileJumpRef = useRef(false);
   const jumpTo = (cmd: string) => {
     setInputValue("");
     if (cmd === "ai") {
@@ -2520,6 +2532,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         window.requestAnimationFrame(wait);
       }, done);
   };
+
+  mobileJumpFnRef.current = mobileJump;
 
   const handleCommand = (cmd: string) => {
     if (
