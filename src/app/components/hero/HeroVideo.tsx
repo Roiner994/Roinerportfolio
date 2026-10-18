@@ -766,7 +766,7 @@ export function HeroVideo() {
                 <div className="relative shrink-0">
                   <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-[#00BB7F]/30 overflow-hidden bg-zinc-900 shadow-[0_0_10px_rgba(0,187,127,0.15)]">
                     <img
-                      src="/avatar3.png"
+                      src="/avatar3.webp"
                       alt="Avatar"
                       className="h-full w-full object-cover"
                     />

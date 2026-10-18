@@ -588,7 +588,7 @@ function AnimatedContactAvatar({
       >
         <img
           data-contact-photo-img=""
-          src="/avatar_peace.png"
+          src="/avatar_peace.webp"
           alt="Roiner Hernandez haciendo el signo de paz"
           className="h-full w-full object-cover opacity-95"
         />
@@ -1333,7 +1333,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // Projects -> Contact transition doesn't fetch/decode them mid-animation.
   useEffect(() => {
     if (activeView !== "projects") return;
-    ["/avatar_peace.png", "/avatar/peace.png"].forEach(
+    ["/avatar_peace.webp", "/avatar/peace.png"].forEach(
       (src) => {
         const img = new window.Image();
         img.src = src;
@@ -3974,7 +3974,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                       <div className="relative flex-shrink-0">
                         <div className="w-12 h-12 rounded-full border border-emerald-500/30 overflow-hidden bg-zinc-900 relative">
                           <img
-                            src="/avatar3.png"
+                            src="/avatar3.webp"
                             alt="Avatar"
                             className="w-full h-full object-cover"
                           />
@@ -4128,7 +4128,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             <div className="absolute -inset-4 bg-emerald-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 max-md:hidden" />
                             <div className="relative aspect-square md:aspect-[4/5] rounded-2xl border border-emerald-500/20 overflow-hidden bg-zinc-900 shadow-2xl max-md:rounded-xl">
                               <img
-                                src="/avatar-complete3.png"
+                                src="/avatar-complete3.webp"
                                 alt="Roiner Hernandez"
                                 className="w-full h-full object-cover"
                               />

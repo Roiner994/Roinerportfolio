@@ -41,6 +41,15 @@ export function getProjectMedia(
     if (!path.startsWith(prefix)) continue;
     byName.set(normalizeMediaFileName(path.slice(prefix.length)), url as string);
   }
+  // Each PNG/JPG has a lossless WebP sibling (pixel-identical, ~60% smaller):
+  // serve the WebP and drop the original from the list.
+  for (const name of [...byName.keys()]) {
+    const webp = name.replace(/\.(png|jpe?g)$/i, ".webp");
+    if (webp !== name && byName.has(webp)) {
+      byName.set(name, byName.get(webp)!);
+      byName.delete(webp);
+    }
+  }
 
   if (captions && captions.length > 0) {
     return captions.flatMap(({ file, caption }) => {

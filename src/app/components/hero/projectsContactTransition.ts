@@ -72,7 +72,7 @@ export const PROJECTS_CONTACT_TIMELINE = {
 };
 
 const PEACE_SPRITE_SRC = "/avatar/peace.png";
-const PORTRAIT_SRC = "/avatar_peace.png";
+const PORTRAIT_SRC = "/avatar_peace.webp";
 const PORTRAIT_BG = "#158a67";
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
