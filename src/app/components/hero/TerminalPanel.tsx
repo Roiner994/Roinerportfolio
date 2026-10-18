@@ -1954,9 +1954,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       (document.querySelector("[data-mobile-tabbar]")?.getBoundingClientRect().top ?? vh) - 6;
     const entering = [false, false, false, false];
     if (phoneFwd) {
+      // One source for all four, never mixed: either every About card is
+      // fully on screen (all fly from their cards) or all four rise
+      // together, slightly staggered, from the bottom of the content band.
+      const allVisible = [0, 1, 2, 3].every((i) => {
+        const a = fromRects[i];
+        return !!a && a.width > 0 && a.top >= bandTop && a.top + a.height <= bandBottom;
+      });
       from = [0, 1, 2, 3].map((i) => {
         const a = fromRects[i];
-        if (a && a.width > 0 && a.top >= bandTop && a.top + a.height <= bandBottom) return a;
+        if (allVisible && a) return a;
         entering[i] = true;
         const size = 40;
         return {
