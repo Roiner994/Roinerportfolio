@@ -3284,37 +3284,182 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // Mobile About: tapping a robot card expands its skill chips (no navigation).
   const [aboutOpenAgent, setAboutOpenAgent] = useState<AgentId | null>(null);
 
-  // Mobile Experience: robots are an in-flow filter row (no fixed bar).
-  const [expFilter, setExpFilter] = useState<AgentId | null>(null);
+  // Mobile Experience: the 4 robots ride the timeline rail, fully
+  // scroll-linked (a pure function of scrollTop, written as transforms in
+  // rAF; no React state per frame, no timers):
+  //   top:    side by side in a row under "Retrieving logs..." (slot row)
+  //   scroll: one by one they slide left onto the rail, then travel down it
+  //           in single file, staggered
+  //   end:    one by one they leave the rail bottom and settle into the row
+  //           above the "next" card (slot row), slightly larger
+  // Paths go horizontal only in the header / closing rows, vertical only in
+  // the rail gutter, so they never cross job text. Reduced motion: no
+  // riders, the closing row is shown static.
+  const expRidersRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (activeView !== "experience") setExpFilter(null);
-  }, [activeView]);
-  const expFilterMatches = useMemo(
-    () =>
-      expFilter
-        ? experienceData.map((exp) =>
-            getMatchingAgentsForTech(exp.tech).has(expFilter),
-          )
-        : null,
-    [expFilter, experienceData],
-  );
-  const handleMobileExpFilter = (agentId: AgentId) => {
-    if (isAboutExpTransitioningRef.current) return;
-    if (expFilter === agentId) {
-      setExpFilter(null);
-      return;
-    }
-    setExpFilter(agentId);
-    const first = experienceData.findIndex((exp) =>
-      getMatchingAgentsForTech(exp.tech).has(agentId),
-    );
-    if (first < 0) return;
-    applyActiveExperienceIndex(first);
-    experienceItemRefs.current[first]?.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
-      block: "start",
-    });
-  };
+    if (!isMobile || activeView !== "experience" || reduceMotion) return;
+    const sc = getActiveScroller();
+    const layer = expRidersRef.current;
+    if (!sc || !layer) return;
+    const SIZE = 28;
+    const GAP = 40; // spacing in the single file
+    const RAIL_X = 12 - SIZE / 2; // rail centre is 12px into the gutter
+    // The header row scrolls away quickly, so the row -> rail move happens
+    // within the first ~140px of scroll (straight, staggered glides through
+    // the empty band between the header and the first job).
+    // Slide along the row band: duration grows with the distance to the
+    // gutter so every robot moves at a similar speed; the drop onto the rail
+    // starts once it is mostly in the gutter.
+    const IN_X_BASE = 24;
+    const IN_X_PER_PX = 0.28;
+    const IN_Y = 120;
+    const IN_STAGGER = 14;
+    // Closing: the leader leaves first; while its slot is still below the
+    // fold the robot waits at the bottom of the gutter (one GAP higher per
+    // robot), so nobody leaves the screen or bunches up.
+    const DROP = 300; // scroll px for one robot's glide down the gutter
+    const DROP_START = 620; // ...starting this far before the end
+    const DROP_STAGGER = 40;
+    const SLIDE = 95; // scroll px for one robot's slide into the closing row
+    const SLIDE_START = 170;
+    const SLIDE_STAGGER = 25;
+    type P = { x: number; y: number };
+    let top: P[] = [];
+    let end: P[] = [];
+    let endScale = 1;
+    let layerY = 0;
+    let railH = 0;
+    let sMax = 0;
+    const contentPos = (el: Element) => {
+      const sr = sc.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return { x: r.left - sr.left, y: r.top - sr.top + sc.scrollTop, w: r.width, h: r.height };
+    };
+    const measure = () => {
+      const lp = contentPos(layer);
+      layerY = lp.y;
+      const rail = experienceRailRef.current;
+      railH = rail ? rail.offsetHeight : 0;
+      const tops = sc.querySelectorAll("[data-exp-crew-slot] > span");
+      const ends = sc.querySelectorAll("[data-exp-crew-back] > span");
+      top = [...tops].map((el) => {
+        const p = contentPos(el);
+        return { x: p.x - lp.x + (p.w - SIZE) / 2, y: p.y - lp.y + (p.h - SIZE) / 2 };
+      });
+      end = [...ends].map((el) => {
+        const p = contentPos(el);
+        endScale = p.w / SIZE;
+        // translate is applied with transform-origin at the top-left
+        return { x: p.x - lp.x, y: p.y - lp.y };
+      });
+      sMax = Math.max(0, sc.scrollHeight - sc.clientHeight);
+      // The pre-mounted section may still be hidden when this first runs.
+      return (
+        top.length === 4 &&
+        end.length === 4 &&
+        !layer.closest("[data-section-hidden]") &&
+        tops[0].getBoundingClientRect().width > 0
+      );
+    };
+    const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+    const ease = (t: number) => t * t * (3 - 2 * t); // smoothstep
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    let dirty = false;
+    let valid = false;
+    // Right after the section is shown its layout still settles for a few
+    // hundred ms (entrance animations); keep re-measuring every frame until
+    // the slots stop moving, so the robots follow instead of snapping later.
+    let stableFrames = 0;
+    let lastSig = "";
+    const settleUntil = performance.now() + 2500;
+    const write = () => {
+      raf = 0;
+      const settling = stableFrames < 12 && performance.now() < settleUntil;
+      if (dirty || !valid || settling) {
+        dirty = false;
+        valid = measure();
+        // Not laid out yet: try again next frame (stops once valid).
+        if (!valid) {
+          raf = window.requestAnimationFrame(write);
+          return;
+        }
+        const sig = `${top[0].y.toFixed(1)},${end[0].y.toFixed(1)},${layerY.toFixed(1)}`;
+        stableFrames = sig === lastSig ? stableFrames + 1 : 0;
+        lastSig = sig;
+        if (stableFrames < 12 && performance.now() < settleUntil) {
+          raf = window.requestAnimationFrame(write);
+        }
+      }
+      if (top.length < 4 || end.length < 4) return;
+      const S = sc.scrollTop;
+      const anchor = S + sc.clientHeight * 0.4 - layerY;
+      const lo = 3 * GAP;
+      const hi = Math.max(lo, railH - SIZE);
+      const lead = Math.min(Math.max(anchor, lo), hi);
+      let prevX = 0;
+      let prevY = 0;
+      for (let i = 0; i < 4; i++) {
+        const el = expRobotRefs.current[i];
+        if (!el) continue;
+        const railY = lead - i * GAP;
+        // row -> rail: slide left along the (empty) row band, then drop
+        // into the gutter; the leader goes first so nobody crosses.
+        const s0 = S - i * IN_STAGGER;
+        const inX = IN_X_BASE + Math.abs(top[i].x - RAIL_X) * IN_X_PER_PX;
+        let x = lerp(top[i].x, RAIL_X, ease(clamp01(s0 / inX)));
+        let y = lerp(top[i].y, railY, ease(clamp01((s0 - 0.6 * inX) / IN_Y)));
+        // Keep clear of the robot ahead: until it is a body-length lower,
+        // stay (smoothly) to its right.
+        if (i > 0) {
+          const room = ease(clamp01((GAP - (prevY - y)) / (GAP - SIZE)));
+          x = Math.max(x, prevX + (SIZE + 4) * room);
+        }
+        prevX = x;
+        prevY = y;
+        let k = 1;
+        // rail -> closing row: leader first; drop down the gutter, then
+        // slide across (leader to the far right so nobody crosses).
+        const slot = end[3 - i];
+        const by = ease(clamp01((S - (sMax - DROP_START) - i * DROP_STAGGER) / DROP));
+        if (by > 0) {
+          // glide down the gutter towards the slot, waiting above the fold
+          const limit = S - layerY + sc.clientHeight - SIZE * endScale - 12 - i * GAP;
+          y = Math.min(lerp(y, slot.y, by), limit);
+          const bx = ease(clamp01((S - (sMax - SLIDE_START) - i * SLIDE_STAGGER) / SLIDE));
+          x = lerp(x, slot.x, bx);
+          k = lerp(1, endScale, bx);
+        }
+        el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) scale(${k.toFixed(3)})`;
+      }
+    };
+    let raf = 0;
+    const kick = () => {
+      if (!raf) raf = window.requestAnimationFrame(write);
+    };
+    write();
+    sc.addEventListener("scroll", kick, { passive: true });
+    const ro =
+      "ResizeObserver" in window
+        ? new ResizeObserver(() => {
+            dirty = true;
+            kick();
+          })
+        : null;
+    // The section may still be offset by the About -> Experience transition
+    // when this runs; measure again once it has settled.
+    const settle = window.setTimeout(() => {
+      dirty = true;
+      kick();
+    }, ABOUT_EXP_DURATION_MS + 200);
+    if (experienceRailRef.current) ro?.observe(experienceRailRef.current);
+    if (sc.firstElementChild) ro?.observe(sc.firstElementChild);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.clearTimeout(settle);
+      sc.removeEventListener("scroll", kick);
+      ro?.disconnect();
+    };
+  }, [isMobile, activeView, reduceMotion, getActiveScroller]);
   const expRobotsSettled =
     aboutExpTransition === null && expProjectsTransition === null;
 
@@ -4108,80 +4253,63 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           <div className="text-[10px] font-mono text-zinc-600 max-md:text-[12px] max-md:text-zinc-500">
                             {t("SYSTEM_RETRIEVING_LOGS")}
                           </div>
+                          {isMobile && (
+                            <div
+                              data-exp-crew-slot=""
+                              aria-hidden="true"
+                              className="flex gap-4 pt-3"
+                            >
+                              {agentCards.map((agent) => (
+                                <span key={agent.id} className="h-7 w-7" />
+                              ))}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Mobile: the 4 robots as an in-flow filter row (flying robots from About land here) */}
-                        {isMobile && (
-                          <div data-exp-filters="" className="space-y-2">
-                            <div
-                              role="group"
-                              aria-label={
-                                language === "es"
-                                  ? "Filtrar trabajos por área"
-                                  : "Filter jobs by area"
-                              }
-                              className="grid grid-cols-4 gap-2"
-                              style={{
-                                visibility: expRobotsSettled ? "visible" : "hidden",
-                              }}
-                            >
-                              {agentCards.map((agent, idx) => {
-                                const on = expFilter === agent.id;
-                                return (
-                                  <button
-                                    key={agent.id}
-                                    type="button"
-                                    aria-pressed={on}
-                                    aria-label={agent.area}
-                                    onClick={() => handleMobileExpFilter(agent.id)}
-                                    className={`flex min-h-[68px] flex-col items-center justify-center gap-1 rounded-xl border px-1 py-1.5 font-mono text-[12px] transition-colors ${
-                                      on
-                                        ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
-                                        : "border-zinc-800 bg-zinc-950 text-zinc-400"
-                                    }`}
-                                  >
-                                    <span
-                                      ref={(el) => {
-                                        expRobotRefs.current[idx] = el;
-                                      }}
-                                      className="flex h-9 w-9 items-center justify-center"
-                                    >
-                                      <img
-                                        src={agent.sprite}
-                                        alt=""
-                                        className="h-9 w-9 object-contain"
-                                        style={{ imageRendering: "pixelated" }}
-                                        draggable={false}
-                                      />
-                                    </span>
-                                    <span>
-                                      {agent.id === "frontend"
-                                        ? "FE"
-                                        : agent.id === "backend"
-                                          ? "BE"
-                                          : agent.id === "ai"
-                                            ? language === "es"
-                                              ? "IA"
-                                              : "AI"
-                                            : "OPS"}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <p className="font-mono text-[13px] text-zinc-500" aria-live="polite">
-                              {expFilter
-                                ? language === "es"
-                                  ? `Resaltando ${agentCards.find((a) => a.id === expFilter)?.area} · toca otra vez para quitar`
-                                  : `Highlighting ${agentCards.find((a) => a.id === expFilter)?.area} · tap again to clear`
-                                : language === "es"
-                                  ? "Toca un robot para resaltar sus trabajos"
-                                  : "Tap a robot to highlight its jobs"}
-                            </p>
-                          </div>
-                        )}
+
 
                         <div className="relative pl-10 md:pl-14">
+                          {/* Mobile: robots riding the rail (see expRidersRef) */}
+                          {isMobile && (
+                            <div
+                              ref={expRidersRef}
+                              data-exp-riders=""
+                              aria-hidden="true"
+                              className="pointer-events-none absolute left-0 top-0 z-[2] h-0 w-0"
+                              style={{
+                                // Hidden only while robots are flying in/out; with a
+                                // plain crossfade the row fades with the section.
+                                visibility:
+                                  !reduceMotion &&
+                                  expProjectsTransition === null &&
+                                  (aboutExpTransition === null ||
+                                    aboutExpTransition.fly === false)
+                                    ? "visible"
+                                    : "hidden",
+                              }}
+                            >
+                              {agentCards.map((agent, idx) => (
+                                <span
+                                  key={agent.id}
+                                  ref={(el) => {
+                                    expRobotRefs.current[idx] = el;
+                                  }}
+                                  className="absolute left-0 top-0 flex h-7 w-7 origin-top-left items-center justify-center will-change-transform"
+                                >
+                                  <img
+                                    src={agent.sprite}
+                                    alt=""
+                                    className="h-7 w-7 object-contain"
+                                    style={{
+                                      imageRendering: "pixelated",
+                                      filter: "drop-shadow(0 0 4px rgba(0,0,0,0.9))",
+                                    }}
+                                    draggable={false}
+                                  />
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           <div className="absolute left-0 top-2 bottom-0 w-6 flex justify-center pointer-events-none">
                             <div
                               ref={experienceRailRef}
@@ -4227,11 +4355,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                     />
                                   </div>
 
-                                  <div
-                                    className={`space-y-4${
-                                      isMobile ? " transition-opacity duration-300" : ""
-                                    }${expFilterMatches && !expFilterMatches[i] ? " opacity-40" : ""}`}
-                                  >
+                                  <div className="space-y-4">
                                     <div className="flex flex-col gap-1">
                                       <div className="flex flex-wrap items-center gap-2">
                                         <span
@@ -4817,6 +4941,27 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                             : "w-full"
                         }
                       >
+                      {activeView === "experience" && isMobile && (
+                        <div
+                          data-exp-crew-back=""
+                          aria-hidden="true"
+                          className="mt-10 flex justify-center gap-5"
+                        >
+                          {agentCards.map((agent) => (
+                            <span key={agent.id} className="h-9 w-9">
+                              {reduceMotion && (
+                                <img
+                                  src={agent.sprite}
+                                  alt=""
+                                  className="h-9 w-9 object-contain"
+                                  style={{ imageRendering: "pixelated" }}
+                                  draggable={false}
+                                />
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {(activeView === "about" ||
                         activeView === "experience") && (
                         <button
