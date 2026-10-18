@@ -2417,15 +2417,109 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projContactTransition]);
 
-  const handleCommand = (cmd: string) => {
+  // Phones: section jumps use one simple "curtain" (the content area dims to
+  // black, the view switches underneath, then it fades back in). It replaces
+  // the desktop choreographies that don't fit a narrow screen (zooms,
+  // panels, crossfades of two different layouts on top of each other).
+  // Opacity only, on a throwaway element: no React state per frame.
+  const mobileJumpRef = useRef(false);
+  const jumpTo = (cmd: string) => {
+    setInputValue("");
+    if (cmd === "ai") {
+      enterAiMode();
+    } else {
+      if (cmd === "projects") setHasOpenedProject(false);
+      setTerminalMode("shell");
+      setIsExpanded(true);
+      setActiveView(cmd as any);
+    }
+  };
+  const mobileJump = (cmd: string) => {
     if (
+      mobileJumpRef.current ||
       isAboutExpTransitioningRef.current ||
+      isExpProjectsTransitioningRef.current ||
       isProjContactTransitioningRef.current ||
       isContactAiTransitioningRef.current
     )
       return;
+    if (cmd === "ai" ? isAiMode : !isAiMode && activeView === cmd) return;
+    setHasInteracted(true);
+    mobileJumpRef.current = true;
+    const header = document.querySelector("[data-terminal-header]");
+    const tabbar = document.querySelector("[data-mobile-tabbar]");
+    const top = header ? header.getBoundingClientRect().bottom : 0;
+    const bottom = tabbar ? tabbar.getBoundingClientRect().top : window.innerHeight;
+    const curtain = document.createElement("div");
+    curtain.setAttribute("data-mobile-curtain", "");
+    Object.assign(curtain.style, {
+      position: "fixed",
+      left: "0",
+      right: "0",
+      top: `${top}px`,
+      height: `${Math.max(0, bottom - top)}px`,
+      background: "#000",
+      opacity: "0",
+      zIndex: "157",
+      pointerEvents: "none",
+    });
+    document.body.appendChild(curtain);
+    const fast = reduceMotion ? 1 : 0;
+    const done = () => {
+      curtain.remove();
+      mobileJumpRef.current = false;
+      lastTransitionEndRef.current = performance.now();
+    };
+    curtain
+      .animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: fast || 140,
+        easing: "ease-in",
+        fill: "forwards",
+      })
+      .finished.then(() => {
+        jumpTo(cmd);
+        // Let the new view mount and lay out under the curtain.
+        window.requestAnimationFrame(() =>
+          window.requestAnimationFrame(() => {
+            if (overlayScrollRef.current) overlayScrollRef.current.scrollTop = 0;
+            if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
+            window.setTimeout(() => {
+              curtain
+                .animate([{ opacity: 1 }, { opacity: 0 }], {
+                  duration: fast || 240,
+                  easing: "ease-out",
+                  fill: "forwards",
+                })
+                .finished.then(done, done);
+            }, 40);
+          }),
+        );
+      }, done);
+  };
+
+  const handleCommand = (cmd: string) => {
+    if (
+      isAboutExpTransitioningRef.current ||
+      isProjContactTransitioningRef.current ||
+      isContactAiTransitioningRef.current ||
+      mobileJumpRef.current
+    )
+      return;
     setHasInteracted(true);
     const cleanCmd = cmd.toLowerCase().trim();
+
+    // Phones: Experience <-> Projects and Projects <-> Contact use the curtain.
+    if (
+      isMobile &&
+      isExpanded &&
+      !isAiMode &&
+      ((cleanCmd === "projects" && activeView !== "projects") ||
+        (cleanCmd === "contact" && activeView === "projects") ||
+        (cleanCmd === "experience" && activeView === "projects"))
+    ) {
+      mobileJump(cleanCmd);
+      return;
+    }
 
     if (!cleanCmd) {
       setInputValue("");
@@ -2529,6 +2623,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }
 
     if (activeView === "experience") {
+      if (isMobile) {
+        mobileJump("projects");
+        return;
+      }
       startExpProjectsTransition("forward", "experience");
       return;
     }
@@ -5273,7 +5371,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                     onClick={() => {
                       if (isAiMode && cmd === "ai") return;
                       if (!isAiMode && activeView === cmd) return;
-                      handleCommand(cmd);
+                      mobileJump(cmd);
                     }}
                     className={`flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1.5 font-mono text-[12px] ${
                       active ? "text-emerald-400" : "text-zinc-400"
