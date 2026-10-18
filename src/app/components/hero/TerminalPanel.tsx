@@ -1833,11 +1833,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         // bar) they would rise from behind the tab bar.
         const phone = window.matchMedia("(max-width: 767px)").matches;
         const vhNow = window.innerHeight;
-        const fly =
-          !phone ||
-          aboutRects.every(
-            (r) => r.width > 0 && r.top > 48 && r.top + r.height < vhNow - 72,
-          );
+        // Phones always fly: robots whose About card is off screen fade and
+        // rise in from the bottom of the content area (see the effect).
+        void phone;
+        void vhNow;
+        const fly = true;
 
         hasVisitedAboutRef.current = true;
         isAboutExpTransitioningRef.current = true;
@@ -1932,9 +1932,42 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     const lift = reduceMotion
       ? 0
       : phone
-        ? 40
+        ? 0
         : Math.max(70, Math.min(170, vh * 0.16));
     const target: RectBox[] = toRects.map((r) => ({ ...r }));
+    let from: Array<RectBox | undefined> = fromRects.slice();
+    // Phones, About -> Experience: keep every robot fully on screen. The
+    // flight is bounded to the content band (below the header, above the tab
+    // bar); robots whose About card is off screen fade + rise in from the
+    // bottom of that band; the first destination guess is the slot row
+    // (the riders' own rects are not laid out while Experience is hidden).
+    const phoneFwd = phone && direction === "forward" && fly;
+    const vwNow = window.innerWidth;
+    // The header scrolls with About; it is back at the top once Experience
+    // shows, so keep the robots below its height either way.
+    const headerEl = document.querySelector<HTMLElement>("[data-terminal-header]");
+    const bandTop =
+      Math.max(headerEl?.getBoundingClientRect().bottom ?? 0, headerEl?.offsetHeight ?? 52) + 6;
+    const bandBottom =
+      (document.querySelector("[data-mobile-tabbar]")?.getBoundingClientRect().top ?? vh) - 6;
+    const entering = [false, false, false, false];
+    if (phoneFwd) {
+      from = [0, 1, 2, 3].map((i) => {
+        const a = fromRects[i];
+        if (a && a.width > 0 && a.top >= bandTop && a.top + a.height <= bandBottom) return a;
+        entering[i] = true;
+        const size = 40;
+        return {
+          left: Math.max(8, Math.min(vwNow - size - 8, (vwNow - 4 * size - 3 * 24) / 2 + i * (size + 24))),
+          top: bandBottom - size - 8,
+          width: size,
+          height: size,
+        };
+      });
+      for (let i = 0; i < 4; i++) {
+        target[i] = { left: 24 + i * 44, top: bandTop + 84, width: 28, height: 28 };
+      }
+    }
     const destRefs = direction === "forward" ? expRobotRefs : aboutRobotRefs;
     const dirSign = direction === "forward" ? 1 : -1;
 
@@ -2065,7 +2098,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         const stagger = reduceMotion ? 0 : i * 0.05;
         const u = clamp01((raw - stagger) / (1 - (reduceMotion ? 0 : 0.15)));
         const e = easeInOutSine(u);
-        const a = fromRects[i] ?? target[i];
+        const a = from[i] ?? target[i];
         const b = target[i] ?? a;
 
         const ax = a.left + a.width / 2;
@@ -2075,13 +2108,18 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         const cx = (ax + bx) / 2;
         const cy = Math.min(ay, by) - lift;
         const inv = 1 - e;
-        const x = inv * inv * ax + 2 * inv * e * cx + e * e * bx;
-        const y = inv * inv * ay + 2 * inv * e * cy + e * e * by;
+        let x = inv * inv * ax + 2 * inv * e * cx + e * e * bx;
+        let y = inv * inv * ay + 2 * inv * e * cy + e * e * by;
         const w = a.width + (b.width - a.width) * e;
         const h = a.height + (b.height - a.height) * e;
         // The element keeps its initial box; size changes are a scale.
         const w0 = fromRects[i]?.width ?? 71;
         const h0 = fromRects[i]?.height ?? 71;
+        if (phoneFwd) {
+          x = Math.max(w / 2 + 2, Math.min(vwNow - w / 2 - 2, x));
+          y = Math.max(bandTop + h / 2, Math.min(bandBottom - h / 2, y));
+          robotEl.style.opacity = entering[i] ? smoothstep(0, 0.3, u).toFixed(3) : "1";
+        }
 
         const vx = 2 * inv * (cx - ax) + 2 * e * (bx - cx);
         const activity = Math.sin(Math.PI * u);
