@@ -652,6 +652,12 @@ export function runProjectsContactTransition(
   };
   const originX = zoomOrigin.x - opts.projectsBox.left;
   const originY = zoomOrigin.y - opts.projectsBox.top;
+  const mOriginX = opts.avatar
+    ? opts.avatar.box.left + opts.avatar.box.width / 2 - opts.projectsBox.left
+    : opts.projectsBox.width / 2;
+  const mOriginY = opts.avatar
+    ? opts.avatar.box.top + opts.avatar.box.height / 2 - opts.projectsBox.top
+    : Math.min(opts.projectsBox.height * 0.2, 160);
 
   const show = (el: HTMLElement | undefined, on: boolean) => {
     if (el) put(el, "opacity", on ? "1" : "0");
@@ -676,7 +682,12 @@ export function runProjectsContactTransition(
     const z = easeInOutCubic(seg(t, [0, T.zoomMs]));
     const out = seg(t, T.projectsOut);
     if (opts.mobile) {
-      put(projectsEl, "opacity", (1 - easeInOutCubic(seg(t, [150, 850]))).toFixed(3));
+      // Phones: the same camera push-in, but gentler (1.35x) and aimed at
+      // the avatar block (or the top of the view on a tab-bar jump), so the
+      // screenshot is never the thing blown up.
+      put(projectsEl, "transform-origin", `${mOriginX}px ${mOriginY}px`);
+      put(projectsEl, "transform", `scale(${lerp(1, 1.35, z).toFixed(4)})`);
+      put(projectsEl, "opacity", (lerp(1, 0.5, z) * (1 - out)).toFixed(3));
     } else {
       put(projectsEl, "transform-origin", `${originX}px ${originY}px`);
       put(projectsEl, "transform", `scale(${lerp(1, T.zoomScale, z).toFixed(4)})`);
