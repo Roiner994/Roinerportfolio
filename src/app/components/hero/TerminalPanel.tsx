@@ -1513,7 +1513,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }, 1700);
   }, []);
 
+  // Phones: until the visitor asks something, the AI view stays at the top
+  // (auto-scrolling the welcome clipped the ask-roiner card mid-way).
+  const aiPhoneIdleRef = useRef(false);
+  aiPhoneIdleRef.current = isMobile && !chatHistory.some((m) => m.role === "user");
   const scrollToBottom = useCallback(() => {
+    if (aiPhoneIdleRef.current) return;
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
@@ -1552,12 +1557,36 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   };
 
   const startContactAiTransition = (direction: "forward" | "reverse") => {
-    // Phones: the CRT power-off hid the tab bar and held ~450ms of black;
-    // use the same curtain as every other hop.
-    if (mobileJumpFnRef.current && window.matchMedia("(max-width: 767px)").matches) {
-      mobileJumpFnRef.current(direction === "forward" ? "ai" : "contact");
+    // Phones: Contact -> AI plays the CRT power-off inside the content band
+    // (header and tab bar stay); AI -> Contact keeps the curtain.
+    const phoneCa = window.matchMedia("(max-width: 767px)").matches;
+    if (phoneCa && direction === "reverse" && mobileJumpFnRef.current) {
+      mobileJumpFnRef.current("contact");
       return;
     }
+    let band: { top: number; bottom: number } | undefined;
+    if (phoneCa) {
+      const hb = document.querySelector("[data-terminal-header]")?.getBoundingClientRect();
+      const tb = document.querySelector("[data-mobile-tabbar]")?.getBoundingClientRect();
+      band = {
+        top: Math.max(0, hb ? hb.bottom : 0),
+        bottom: tb ? tb.top : window.innerHeight,
+      };
+    }
+    // Phones: collapse whatever "screen" is on view: the photo square, or
+    // (scrolled down to the ask-roiner button) the button itself.
+    const inBand = (el: Element | null) => {
+      if (!el || !band) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.top >= band.top - 4 && r.bottom <= band.bottom + 4;
+    };
+    const pickPhoto = () => {
+      const photo = document.querySelector<HTMLElement>("[data-contact-photo]");
+      if (!phoneCa || inBand(photo)) return photo;
+      const cta = document.querySelector<HTMLElement>("[data-mobile-ai-cta]");
+      return inBand(cta) ? cta : photo;
+    };
+    const pickedPhoto = direction === "forward" ? pickPhoto() : null;
     if (
       isAboutExpTransitioningRef.current ||
       isExpProjectsTransitioningRef.current ||
@@ -1572,7 +1601,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     contactAiCancelRef.current = runContactAiTransition({
       direction,
       reduceMotion,
-      getPhoto: () => document.querySelector<HTMLElement>("[data-contact-photo]"),
+      getPhoto: () =>
+        pickedPhoto && pickedPhoto.isConnected
+          ? pickedPhoto
+          : document.querySelector<HTMLElement>("[data-contact-photo]"),
+      band,
       getCursor: () => document.querySelector<HTMLElement>("[data-ai-cursor]"),
       getAiRoot: () => document.querySelector<HTMLElement>("[data-ai-terminal]"),
       onSwap: () => {
@@ -1954,9 +1987,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       (document.querySelector("[data-mobile-tabbar]")?.getBoundingClientRect().top ?? vh) - 6;
     const entering = [false, false, false, false];
     if (phoneFwd) {
+      // One source for all four, never mixed: either every About card is
+      // fully on screen (all fly from their cards) or all four rise
+      // together, slightly staggered, from the bottom of the content band.
+      const allVisible = [0, 1, 2, 3].every((i) => {
+        const a = fromRects[i];
+        return !!a && a.width > 0 && a.top >= bandTop && a.top + a.height <= bandBottom;
+      });
       from = [0, 1, 2, 3].map((i) => {
         const a = fromRects[i];
-        if (a && a.width > 0 && a.top >= bandTop && a.top + a.height <= bandBottom) return a;
+        if (allVisible && a) return a;
         entering[i] = true;
         const size = 40;
         return {
@@ -2551,9 +2591,13 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     )
       return;
     if (cmd === "ai" ? isAiMode : !isAiMode && activeView === cmd) return;
-    // Projects -> Contact keeps its own effect on phones too.
+    // Projects -> Contact and Contact -> AI keep their own effects on phones.
     if (cmd === "contact" && !isAiMode && activeView === "projects") {
       startProjContactTransition("forward");
+      return;
+    }
+    if (cmd === "ai" && !isAiMode && activeView === "contact") {
+      startContactAiTransition("forward");
       return;
     }
     setHasInteracted(true);
@@ -3215,6 +3259,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }
 
     if (!isCoarsePointer()) inputRef.current?.focus();
+    if (aiPhoneIdleRef.current) return;
     chatScrollRef.current?.scrollTo({
       top: chatScrollRef.current.scrollHeight,
       behavior: "smooth",

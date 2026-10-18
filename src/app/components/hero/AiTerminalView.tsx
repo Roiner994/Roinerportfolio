@@ -165,6 +165,9 @@ const MINI_CREW = [
   { id: "devops", src: "/hero/agents/chatgpt.png" },
 ] as const;
 
+// Phones: drop markdown **bold** markers (shown raw in the monospace reply).
+const stripBold = (t: string) => t.replace(/\*\*([^*\n]+)\*\*/g, "$1");
+
 export function AiTerminalView({
   lang,
   messages,
@@ -189,6 +192,10 @@ export function AiTerminalView({
   const decorReady = useDeferredMount(3);
   const s = STRINGS[lang] ?? STRINGS.en;
   const isCoarse = useCoarsePointer();
+  // Phones (fixed at mount; the layout only changes at the md breakpoint).
+  const [phone] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
+  );
   const touchHint =
     lang === "es"
       ? "toca una pregunta o escribe la tuya"
@@ -354,20 +361,20 @@ export function AiTerminalView({
         ref={scrollRef}
         className="relative z-[1] min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]"
       >
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-5 pb-4 pt-6 max-md:px-4 max-md:pt-4 sm:px-8">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-5 pb-4 pt-6 max-md:gap-3 max-md:px-4 max-md:pt-3 sm:px-8">
           {/* Banner */}
-          <div className="flex flex-col items-start gap-4">
+          <div className="flex flex-col items-start gap-4 max-md:gap-0">
             <RoinerBanner delay={entranceDelay} />
             <div
               data-ai-banner
-              className="max-w-full rounded-lg border border-[#00bc7d]/45 px-4 py-3 sm:min-w-[26rem]"
+              className="max-w-full rounded-lg border border-[#00bc7d]/45 px-4 py-3 max-md:w-full max-md:px-3 max-md:py-2.5 sm:min-w-[26rem]"
             >
               <div className="text-zinc-200">
                 <span className="mr-2 text-[#00d492]">{SPINNER[1]}</span>
                 {s.welcome} <span className="font-semibold text-white">ask-roiner</span>
               </div>
-              <div className="mt-2 text-xs text-zinc-500 max-md:text-[14px] max-md:text-zinc-400">{s.intro}</div>
-              <div className="mt-2 text-xs text-zinc-600 max-md:text-[13px]">
+              <div className="mt-2 text-xs text-zinc-500 max-md:mt-1 max-md:text-[14px] max-md:leading-snug max-md:text-zinc-400">{s.intro}</div>
+              <div className="mt-2 text-xs text-zinc-600 max-md:hidden">
                 cwd: <span className="text-zinc-400">~/ai</span>
               </div>
             </div>
@@ -402,9 +409,9 @@ export function AiTerminalView({
                   </span>
                   <span className="min-w-0 whitespace-pre-wrap break-words">
                     {m.id === lastAssistantId && holdReply ? null : m.id === lastAssistantId ? (
-                      <Typewriter text={m.content} speed={12} onTick={onTypingTick} />
+                      <Typewriter text={phone ? stripBold(m.content) : m.content} speed={12} onTick={onTypingTick} />
                     ) : (
-                      m.content
+                      phone ? stripBold(m.content) : m.content
                     )}
                   </span>
                 </div>
@@ -415,7 +422,7 @@ export function AiTerminalView({
 
           {/* Suggested questions */}
           {showSuggestions && suggestedQuestions.length > 0 && (
-            <div data-ai-suggestions className="mt-1 flex flex-col gap-0.5">
+            <div data-ai-suggestions className="mt-1 flex flex-col gap-0.5 max-md:mt-0 max-md:gap-1.5">
               <div className="mb-1 text-xs text-zinc-600 max-md:text-[14px] max-md:text-zinc-500">{s.try}:</div>
               {suggestedQuestions.map((q, i) => {
                 const active = i === suggestIndex;
@@ -424,6 +431,9 @@ export function AiTerminalView({
                     key={q}
                     type="button"
                     data-ai-suggestion={i + 1}
+                    // Phones: the first four (the list no longer overflows
+                    // the screen and opens scrolled half-way).
+                    hidden={phone && i >= 4}
                     onMouseEnter={() => setSuggestIndex(i)}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -510,7 +520,10 @@ export function AiTerminalView({
                 autoComplete="off"
                 spellCheck={false}
                 aria-label={placeholder}
-                placeholder={placeholder}
+                // Phones: the long placeholder was cut mid-word.
+                placeholder={
+                  phone ? (lang === "es" ? "Pregúntame lo que quieras…" : "Ask me anything…") : placeholder
+                }
                 // Native caret (emerald): the visible text is always exactly the
                 // input value, the caret follows arrows / mid-text edits, and
                 // the placeholder starts right after the caret.
