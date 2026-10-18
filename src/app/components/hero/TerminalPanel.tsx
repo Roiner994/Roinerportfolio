@@ -1073,6 +1073,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     direction: "forward" | "reverse";
     fromRects: RectBox[];
     toRects: RectBox[];
+    // Phones: false when the robots can't fly visibly (About cards off
+    // screen, or going back to About); the sections just crossfade.
+    fly?: boolean;
   } | null>(null);
   // Active Experience job: kept out of React state so scrolling never
   // re-renders the whole panel; toggled as a data attribute on the job nodes.
@@ -1816,6 +1819,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         const scroller = getActiveScroller();
         capturedAboutScrollTopRef.current = scroller?.scrollTop ?? 0;
         aboutRectsCacheRef.current = aboutRects;
+        // Phones: only fly the robots when their About cards are on screen
+        // (e.g. after scrolling to the matrix); from the top of About (tab
+        // bar) they would rise from behind the tab bar.
+        const phone = window.matchMedia("(max-width: 767px)").matches;
+        const vhNow = window.innerHeight;
+        const fly =
+          !phone ||
+          aboutRects.every(
+            (r) => r.width > 0 && r.top > 48 && r.top + r.height < vhNow - 72,
+          );
 
         hasVisitedAboutRef.current = true;
         isAboutExpTransitioningRef.current = true;
@@ -1829,6 +1842,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           direction: "forward",
           fromRects: aboutRects,
           toRects: expRects,
+          fly,
         });
       } else {
         const expRects = readRobotRects(expRobotRefs, getFallbackExpRect);
@@ -1854,6 +1868,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           direction: "reverse",
           fromRects: expRects,
           toRects: aboutGuess,
+          fly: !window.matchMedia("(max-width: 767px)").matches,
         });
       }
     },
@@ -1897,12 +1912,19 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     if (!aboutExpTransition) return;
 
     const { direction, fromRects, toRects } = aboutExpTransition;
-    const duration = reduceMotion
-      ? ABOUT_EXP_REDUCED_MS
-      : ABOUT_EXP_DURATION_MS;
+    const fly = aboutExpTransition.fly !== false;
+    // Phones: no section slide (opacity only, so the robot row is measured
+    // in place) and overlapping fades (no black frame in the middle).
+    const phone = window.matchMedia("(max-width: 767px)").matches;
+    const duration =
+      reduceMotion || !fly ? ABOUT_EXP_REDUCED_MS : ABOUT_EXP_DURATION_MS;
     const SWITCH_AT = 0.42;
     const vh = window.innerHeight;
-    const lift = reduceMotion ? 0 : Math.max(70, Math.min(170, vh * 0.16));
+    const lift = reduceMotion
+      ? 0
+      : phone
+        ? 40
+        : Math.max(70, Math.min(170, vh * 0.16));
     const target: RectBox[] = toRects.map((r) => ({ ...r }));
     const destRefs = direction === "forward" ? expRobotRefs : aboutRobotRefs;
     const dirSign = direction === "forward" ? 1 : -1;
@@ -1938,7 +1960,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       el.style.willChange = "opacity, transform";
       el.style.opacity = opacity.toFixed(3);
       el.style.transform =
-        reduceMotion || Math.abs(y) < 0.05 ? "" : `translate3d(0, ${y.toFixed(2)}px, 0)`;
+        reduceMotion || phone || Math.abs(y) < 0.05
+          ? ""
+          : `translate3d(0, ${y.toFixed(2)}px, 0)`;
     };
 
     const clearSection = (el: HTMLElement | null) => {
@@ -1995,7 +2019,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           scrollRestored = true;
           restoreAboutScroll();
         }
-        const a = smoothstep(SWITCH_AT + 0.04, 0.96, raw);
+        const a = phone
+          ? smoothstep(SWITCH_AT, fly ? 0.8 : 1, raw)
+          : smoothstep(SWITCH_AT + 0.04, 0.96, raw);
         styleSection(incoming, a, 16 * (1 - a) * dirSign);
 
         if (shown && (!measuredDest || (raw >= 0.9 && !measuredLate))) {
@@ -5172,7 +5198,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
             )}
 
             {/* Timed About <-> Experience flying robots layer */}
-            {aboutExpTransition && (
+            {aboutExpTransition && aboutExpTransition.fly !== false && (
               <div className="fixed inset-0 z-[210] pointer-events-none overflow-hidden">
                 {agentCards.map((agent, idx) => {
                   const initialBox = aboutExpTransition.fromRects[idx];
