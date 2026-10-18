@@ -1,37 +1,62 @@
 /**
- * Dynamic project media loader using Vite's import.meta.glob
- * This allows us to load all images from a project's folder without manual listing.
+ * Project media loader using Vite's import.meta.glob.
+ * Images live in src/assets/projects/[projectId]/*.{png,jpg,...}.
+ *
+ * Only the URLs are resolved eagerly (`query: "?url"`); the image bytes are
+ * fetched by the browser when an image is actually shown (or preloaded as a
+ * neighbour of the visible one), never all at once.
  */
-
-// Import all images from src/assets/projects eagerly
-const projectMedia = import.meta.glob('/src/assets/projects/**/*.{png,jpg,jpeg,webp,gif}', { eager: true });
+const projectMedia = import.meta.glob<string>(
+  "/src/assets/projects/**/*.{png,jpg,jpeg,webp,gif}",
+  { eager: true, query: "?url", import: "default" },
+);
 
 export interface ProjectImage {
   src: string;
   caption: string;
 }
 
-/**
- * Gets all images for a specific project based on its ID.
- * Folder structure: src/assets/projects/[projectId]/*.{png,jpg,etc}
- */
-export function getProjectMedia(projectId: string): ProjectImage[] {
-  const prefix = `/src/assets/projects/${projectId}/`;
-  
-  return Object.entries(projectMedia)
-    .filter(([path]) => path.includes(prefix))
-    .map(([path, module]) => {
-      // Get filename without extension and replace underscores/dashes with spaces
-      const filename = path.split('/').pop()?.split('.')[0] || '';
-      
-      // Clean up the filename to create a readable caption
-      const caption = filename
-        .replace(/[-_]/g, ' ')
-        .replace(/\b\w/g, (l) => l.toUpperCase());
+export interface ProjectMediaCaption {
+  file: string;
+  caption: string;
+}
 
-      return {
-        src: (module as any).default,
-        caption
-      };
+/** File name with any whitespace (incl. macOS narrow no-break spaces) as "_". */
+export function normalizeMediaFileName(name: string): string {
+  return name.replace(/\s+/g, "_");
+}
+
+/**
+ * Images for a project. With `captions`, returns exactly those files, in that
+ * order, with their curated captions (files not listed are left out).
+ * Without it, falls back to every image in the folder, uncaptioned.
+ */
+export function getProjectMedia(
+  projectId: string,
+  captions?: ProjectMediaCaption[],
+): ProjectImage[] {
+  const prefix = `/src/assets/projects/${projectId}/`;
+  const byName = new Map<string, string>();
+  for (const [path, url] of Object.entries(projectMedia)) {
+    if (!path.startsWith(prefix)) continue;
+    byName.set(normalizeMediaFileName(path.slice(prefix.length)), url as string);
+  }
+  // Each PNG/JPG has a lossless WebP sibling (pixel-identical, ~60% smaller):
+  // serve the WebP and drop the original from the list.
+  for (const name of [...byName.keys()]) {
+    const webp = name.replace(/\.(png|jpe?g)$/i, ".webp");
+    if (webp !== name && byName.has(webp)) {
+      byName.set(name, byName.get(webp)!);
+      byName.delete(webp);
+    }
+  }
+
+  if (captions && captions.length > 0) {
+    return captions.flatMap(({ file, caption }) => {
+      const src = byName.get(normalizeMediaFileName(file));
+      return src ? [{ src, caption }] : [];
     });
+  }
+
+  return [...byName.values()].map((src) => ({ src, caption: "" }));
 }

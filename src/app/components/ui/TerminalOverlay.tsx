@@ -5,7 +5,7 @@ export const TerminalOverlay: React.FC = () => {
     <div className="fixed inset-0 z-[9999] pointer-events-none select-none overflow-hidden">
       {/* CRT Vignette (Radial gradient) */}
       <div 
-        className="absolute inset-0 w-full h-full"
+        className="crt-vignette absolute inset-0 w-full h-full"
         style={{
           background: 'radial-gradient(circle, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 80%, rgba(0,0,0,0.4) 100%)',
         }}

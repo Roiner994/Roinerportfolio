@@ -49,13 +49,21 @@ function BlockLetter({
   );
 }
 
-export function HeroNameTreatment() {
+interface HeroNameTreatmentProps {
+  className?: string;
+  rowGapClassName?: string;
+}
+
+export function HeroNameTreatment({
+  className = "w-full max-w-full",
+  rowGapClassName = "space-y-3 sm:space-y-4 md:space-y-6 lg:space-y-8 py-1 md:py-2",
+}: HeroNameTreatmentProps = {}) {
   // NEURAL MATRIX PULSE - CUSTOM ALTERNATING
   const emeraldShadow = 'shadow-[1.5px_1.5px_0px_#047857,3px_3px_0px_rgba(16,185,129,0.15),-1px_-1px_0px_rgba(255,255,255,0.1)]';
   const blackShadow = 'shadow-[1.5px_1.5px_0px_#000,3px_3px_0px_rgba(0,0,0,0.4),-1px_-1px_0px_rgba(255,255,255,0.05)]';
 
   return (
-    <div className="space-y-4 md:space-y-8 lg:space-y-12 py-2 md:py-4 w-full max-w-full">
+    <div className={`${rowGapClassName} ${className}`}>
       <div className="flex max-w-full origin-left scale-[1.2] items-center gap-[2px] sm:scale-100 sm:gap-1 md:gap-2.5 lg:gap-4 overflow-visible">
         {"ROINER".split("").map((char, i) => (
           <motion.div

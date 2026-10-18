@@ -1,0 +1,95 @@
+/* ==========================================================================
+   Mobile / touch layer. Everything here is gated behind a small-screen
+   (max-width: 767px) or touch (pointer: coarse) media query so desktop
+   rendering is unchanged.
+   ========================================================================== */
+
+/* --- Step 1: global base ------------------------------------------------ */
+
+@media (pointer: coarse) {
+  /* Section overlay: keep momentum/overscroll inside it (no pull-to-refresh,
+     no scroll chaining to the page). */
+  [data-section-overlay] {
+    overscroll-behavior: contain;
+  }
+  /* While a timed section transition plays, freeze touch scrolling with CSS
+     instead of cancelling touchmove (which is not always cancelable). */
+  [data-section-overlay][data-transitioning],
+  [data-section-overlay][data-transitioning] .overflow-y-auto {
+    overflow: hidden !important;
+    touch-action: none;
+  }
+}
+
+@media (max-width: 767px) {
+  /* The hero stage (video + canvas, scaled by the CRT dolly) stays fully
+     covered while a section is open: drop it from rendering to free GPU. */
+  [data-section-open] [data-hero-stage] {
+    visibility: hidden;
+  }
+}
+
+/* --- Step 2: bottom tab bar ---------------------------------------------- */
+
+@media (max-width: 767px) {
+  :root {
+    --m-tabbar-h: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+  /* The section overlay ends above the fixed tab bar (dvh-safe: no 100vh). */
+  [data-section-overlay] {
+    bottom: var(--m-tabbar-h) !important;
+    height: auto !important;
+    width: auto !important;
+  }
+}
+
+/* Step 3 · Projects: the mini avatar would cover the single-column content.
+   visibility (not display) so Projects→Contact still reads its start rect. */
+@media (max-width: 767px) {
+  .pixel-avatar-mini[data-place="projects"] {
+    visibility: hidden;
+  }
+  [data-project-picker] [data-project-picker-strip]::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Step 6 · Hero: larger speech-bubble text on phones */
+@media (max-width: 767px) {
+  .hero-bubble {
+    font-size: 13px;
+    max-width: 176px;
+    padding: 6px 9px 7px;
+  }
+  .hero-bubble-text.text-\[10px\] {
+    font-size: 12px;
+  }
+}
+
+/* Step 8 · AI: mini crew bounces in sequence while thinking (transform only) */
+/* One robot at a time: 2.4s cycle, each robot hops in its own 0.6s slot
+   (animation-delay i * 0.6s). */
+@keyframes ai-mini-bounce {
+  0%, 25%, 100% { transform: translateY(0); }
+  12% { transform: translateY(-10px); }
+}
+.ai-mini-bounce {
+  animation: ai-mini-bounce 2.4s steps(12, end) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-mini-bounce { animation: none; }
+}
+/* Keyboard up (AI input focused on a touch screen): give the room back */
+@media (max-width: 767px) {
+  html[data-kb-open] [data-mobile-tabbar] { display: none; }
+  html[data-kb-open] [data-section-overlay] { bottom: 0 !important; }
+}
+
+/* Section hop "curtain" (phones): the mini avatar sits above the curtain's
+   layer, so hide it while the view swaps instead of letting it blink. */
+@media (max-width: 767px) {
+  body[data-mobile-jumping] .pixel-avatar-mini {
+    opacity: 0 !important;
+    transition: opacity 0.12s ease;
+  }
+}
