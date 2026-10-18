@@ -3741,8 +3741,16 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       {/* Terminal header */}
       <div data-terminal-header="" className="relative flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-black/40 px-3 py-3 max-md:flex-nowrap max-md:gap-2 max-md:py-0 max-md:pr-1 sm:flex-nowrap sm:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex gap-2 group/controls max-md:pointer-events-none" data-traffic-lights="">
+          {/* Phones: the dots are decoration only (12px, below the 44px tap
+              minimum); close/home live in the tab bar, so take them out of
+              the tap and focus order instead of growing them. */}
+          <div
+            className="flex gap-2 group/controls max-md:pointer-events-none"
+            data-traffic-lights=""
+            aria-hidden={isMobile || undefined}
+          >
             <button
+              tabIndex={isMobile ? -1 : undefined}
               onClick={(e) => {
                 e.stopPropagation();
                 closeExpanded();
@@ -3755,6 +3763,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               />
             </button>
             <button
+              tabIndex={isMobile ? -1 : undefined}
               onClick={(e) => {
                 e.stopPropagation();
                 closeExpanded();
@@ -3767,6 +3776,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
               />
             </button>
             <button
+              tabIndex={isMobile ? -1 : undefined}
               onClick={(e) => {
                 e.stopPropagation();
                 setIsExpanded(!isExpanded);
