@@ -1987,17 +1987,32 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       (document.querySelector("[data-mobile-tabbar]")?.getBoundingClientRect().top ?? vh) - 6;
     const entering = [false, false, false, false];
     if (phoneFwd) {
-      // One source for all four, never mixed: either every About card is
-      // fully on screen (all fly from their cards) or all four rise
-      // together, slightly staggered, from the bottom of the content band.
-      const allVisible = [0, 1, 2, 3].every((i) => {
-        const a = fromRects[i];
-        return !!a && a.width > 0 && a.top >= bandTop && a.top + a.height <= bandBottom;
-      });
+      // Per robot sprite (not the whole card), with tolerance: a sprite counts
+      // as on screen when most of it is inside the visible content area (the
+      // header has usually scrolled away at the end of About). On-screen
+      // robots fly from their cards; off-screen ones fade in just inside the
+      // edge nearest their card (same column, same direction of travel).
+      // Only when none is on screen do all four rise together from the bottom.
+      const visTop = Math.max(0, headerEl?.getBoundingClientRect().bottom ?? 0);
+      const visBottom = bandBottom + 6;
+      const isVis = (r?: RectBox) => {
+        if (!r || r.width <= 0 || r.height <= 0) return false;
+        const overlap = Math.min(r.top + r.height, visBottom) - Math.max(r.top, visTop);
+        return overlap / r.height >= 0.6;
+      };
+      const vis = [0, 1, 2, 3].map((i) => isVis(fromRects[i]));
+      const anyVisible = vis.some(Boolean);
       from = [0, 1, 2, 3].map((i) => {
         const a = fromRects[i];
-        if (allVisible && a) return a;
+        if (anyVisible && a && vis[i]) return a;
         entering[i] = true;
+        if (anyVisible && a && a.width > 0) {
+          const top =
+            a.top + a.height / 2 < (visTop + visBottom) / 2
+              ? visTop + 4
+              : visBottom - a.height - 10;
+          return { left: a.left, top, width: a.width, height: a.height };
+        }
         const size = 40;
         return {
           left: Math.max(8, Math.min(vwNow - size - 8, (vwNow - 4 * size - 3 * 24) / 2 + i * (size + 24))),
@@ -2159,7 +2174,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         const h0 = fromRects[i]?.height ?? 71;
         if (phoneFwd) {
           x = Math.max(w / 2 + 2, Math.min(vwNow - w / 2 - 2, x));
-          y = Math.max(bandTop + h / 2, Math.min(bandBottom - h / 2, y));
+          // Robots starting above the header line (it has scrolled away)
+          // ease down to it instead of jumping.
+          const top0 = Math.min(bandTop, from[i]?.top ?? bandTop);
+          y = Math.max(top0 + (bandTop - top0) * e + h / 2, Math.min(bandBottom - h / 2, y));
           robotEl.style.opacity = entering[i] ? smoothstep(0, 0.3, u).toFixed(3) : "1";
         }
 
