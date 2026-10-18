@@ -128,7 +128,7 @@ export function useHeroCrtTransition(
     const r = refs;
     let particles: Particle[] = [];
     let raf = 0;
-    let base = { vx: 0, vy: 0, vw: 0, vh: 0, W: 0, H: 0, cover: false, posY: 0.5, posX: 1 };
+    let base = { vx: 0, vy: 0, vw: 0, vh: 0, W: 0, H: 0, cover: false, posY: 0.5, posX: 1, panFrom: MOBILE_PAN_FROM / 100, panTo: MOBILE_PAN_TO / 100 };
 
     // ---- particles from the cutout --------------------------------------
     const img = new Image();
@@ -193,8 +193,23 @@ export function useHeroCrtTransition(
         cover: cs.objectFit === 'cover',
         posX: parseFloat(px0) / 100 || 0,
         posY: parseFloat(py) / 100 || 0.5,
+        panFrom: MOBILE_PAN_FROM / 100,
+        panTo: MOBILE_PAN_TO / 100,
       };
-      if (base.cover) base.posX = MOBILE_PAN_FROM / 100;
+      if (base.cover && base.W < 768) {
+        // Phones (portrait): the video box is sized so the 4 robots fit the
+        // width; centre them horizontally. Robot + CRT are already on screen,
+        // so no pan during the dolly.
+        const s = Math.max(base.vw / VIDEO_W, base.vh / VIDEO_H);
+        const span = ROBOT_BOXES[3].x + ROBOT_BOXES[3].w - ROBOT_BOXES[0].x;
+        const left = base.vw / 2 - (ROBOT_BOXES[0].x + span / 2) * s;
+        const room = base.vw - VIDEO_W * s;
+        const p = room < 0 ? Math.min(1, Math.max(0, left / room)) : 0.5;
+        base.panFrom = p;
+        base.panTo = p;
+        video.style.objectPosition = `${(p * 100).toFixed(2)}% 50%`;
+      }
+      if (base.cover) base.posX = base.panFrom;
     };
 
     /** Rendered 1280x720 content rect inside the video element. */
@@ -344,7 +359,7 @@ export function useHeroCrtTransition(
       // 1) mobile: pan the cover crop so the robot + CRT are on screen
       const pan = easeInOut(range(p, 0, 0.12));
       const posX = base.cover
-        ? (MOBILE_PAN_FROM + (MOBILE_PAN_TO - MOBILE_PAN_FROM) * pan) / 100
+        ? base.panFrom + (base.panTo - base.panFrom) * pan
         : base.posX;
       if (base.cover) video.style.objectPosition = `${(posX * 100).toFixed(2)}% 50%`;
       const cr = contentRect(posX);

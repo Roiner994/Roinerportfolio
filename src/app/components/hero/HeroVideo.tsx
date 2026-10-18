@@ -540,12 +540,14 @@ export function HeroVideo() {
         className="pointer-events-none absolute inset-0 origin-top-left will-change-transform"
       >
       {/* Video wrapper with responsive vertical margin and max height */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-end overflow-hidden px-0 py-3 sm:py-5 lg:py-6 xl:py-8">
-        <div className="relative flex h-full max-h-[82vh] lg:max-h-[660px] xl:max-h-[720px] 2xl:max-h-[760px] w-full max-w-[1920px] items-center justify-end">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-end overflow-hidden px-0 py-3 max-md:pb-[calc(13rem+env(safe-area-inset-bottom))] max-md:pt-[max(3.25rem,calc(env(safe-area-inset-top)+2.75rem))] sm:py-5 lg:py-6 xl:py-8">
+        {/* Phones: the box is as tall as needed for the 4 robots (x 670..1221 of
+            the 1280x720 frame) to fit the width; see HeroCrtTransition measure(). */}
+        <div className="relative flex h-full max-h-[82vh] lg:max-h-[660px] xl:max-h-[720px] 2xl:max-h-[760px] w-full max-w-[1920px] items-center justify-end max-md:h-[calc((100vw-20px)*1.3067)] max-md:max-h-full">
           <video
             key={reduceMotion ? 'still' : 'motion'}
             ref={videoRef}
-            className="h-full w-full object-cover object-[72%_center] lg:object-contain lg:object-right"
+            className="h-full w-full object-cover object-[72%_center] max-md:object-[93%_center] lg:object-contain lg:object-right"
             style={{ imageRendering: 'pixelated' }}
             poster="/hero/hero-poster.jpg"
             autoPlay={!reduceMotion}
@@ -560,6 +562,11 @@ export function HeroVideo() {
             <source src="/hero/hero.webm" type="video/webm" />
             <source src="/hero/hero.mp4" type="video/mp4" />
           </video>
+          {/* Phones: soften the video's bottom edge into the page */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-20 bg-gradient-to-t from-[#030213] to-transparent md:hidden"
+          />
           {/* 1280x720 frame overlay aligned to the rendered video content */}
           <div
             ref={frameRef}
@@ -618,10 +625,19 @@ export function HeroVideo() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 lg:hidden z-[4]"
+        className="pointer-events-none absolute inset-0 lg:hidden max-md:hidden z-[4]"
         style={{
           background:
             'linear-gradient(0deg, rgba(3,2,19,0.96) 0%, rgba(3,2,19,0.88) 42%, rgba(3,2,19,0.4) 66%, rgba(3,2,19,0) 85%)',
+        }}
+      />
+      {/* Phones: shorter fade, only under the name + CTA (keeps the face clear) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[4] md:hidden"
+        style={{
+          background:
+            'linear-gradient(0deg, rgba(3,2,19,0.97) 0%, rgba(3,2,19,0.9) 24%, rgba(3,2,19,0.35) 36%, rgba(3,2,19,0) 46%)',
         }}
       />
 
