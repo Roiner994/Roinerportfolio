@@ -3138,7 +3138,10 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     if (
       hasVisitedAboutRef.current ||
       isAboutExpTransitioningRef.current ||
-      reduceMotion
+      reduceMotion ||
+      // Phones: the bio is shown complete right away, so it never reads as
+      // cut off mid-sentence (and the panel isn't re-rendered per tick).
+      isMobile
     ) {
       // Reduced motion: the bio appears complete (no typewriter).
       setAboutTypedLength(fullText.length);
@@ -3146,10 +3149,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       return;
     }
 
-    // Same typing speed everywhere; phones render half as often (6 chars per
-    // 36 ms instead of 3 per 18 ms) since each tick re-renders this panel.
-    const step = isMobile ? 6 : 3;
-    const delay = isMobile ? 36 : 18;
+    const step = 3;
+    const delay = 18;
     let frame = 0;
     let timer = 0;
     const tick = () => {
@@ -3835,7 +3836,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                   <span className="text-emerald-500">$</span>
                                   <span>cat profile_summary.md</span>
                                 </div>
-                                <div className="relative min-h-[15rem]">
+                                <div className="relative min-h-[15rem] max-md:min-h-0">
                                   <p className="text-xl text-zinc-300 leading-relaxed font-light whitespace-pre-wrap max-md:text-[17px] max-md:font-normal">
                                     {`${aboutData.bio}`.slice(
                                       0,
