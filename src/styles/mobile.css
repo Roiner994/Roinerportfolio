@@ -84,3 +84,12 @@
   html[data-kb-open] [data-mobile-tabbar] { display: none; }
   html[data-kb-open] [data-section-overlay] { bottom: 0 !important; }
 }
+
+/* Section hop "curtain" (phones): the mini avatar sits above the curtain's
+   layer, so hide it while the view swaps instead of letting it blink. */
+@media (max-width: 767px) {
+  body[data-mobile-jumping] .pixel-avatar-mini {
+    opacity: 0 !important;
+    transition: opacity 0.12s ease;
+  }
+}

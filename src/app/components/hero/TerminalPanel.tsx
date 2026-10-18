@@ -2482,6 +2482,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       pointerEvents: "none",
     });
     document.body.appendChild(curtain);
+    document.body.setAttribute("data-mobile-jumping", "");
     // Swap instantly under the curtain (no AnimatePresence exit fade, so the
     // old view never lingers). Set before the swap so the outgoing view
     // re-renders with the instant exit first.
@@ -2489,6 +2490,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     const fast = reduceMotion ? 1 : 0;
     const done = () => {
       curtain.remove();
+      document.body.removeAttribute("data-mobile-jumping");
       setInstantViewSwap(false);
       mobileJumpRef.current = false;
       lastTransitionEndRef.current = performance.now();
