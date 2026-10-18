@@ -3462,6 +3462,14 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     };
   }, [activeView, experienceRailHeight, experienceNodeTargets]);
 
+  // Leaving the About/Experience pair (hero, Projects, Contact, AI) resets the
+  // About entrance, so it plays again on the next visit, not only once.
+  useEffect(() => {
+    if (!isExpanded || isAiMode || (activeView !== "about" && activeView !== "experience")) {
+      hasVisitedAboutRef.current = false;
+    }
+  }, [isExpanded, isAiMode, activeView]);
+
   useEffect(() => {
     if (activeView !== "about") {
       setAboutTypedLength(0);
