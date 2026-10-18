@@ -429,12 +429,12 @@ export function AiTerminalView({
                       e.stopPropagation();
                       submit(q);
                     }}
-                    className={`group flex w-fit max-w-full items-baseline gap-2 rounded px-2 py-0.5 text-left transition-colors max-md:min-h-11 max-md:w-full max-md:items-center max-md:border max-md:border-zinc-800 max-md:px-3 max-md:py-2 ${
+                    className={`group flex w-fit max-w-full items-baseline gap-2 rounded px-2 py-0.5 text-left transition-colors max-md:min-h-11 max-md:w-full max-md:items-start max-md:border max-md:border-zinc-800 max-md:px-2.5 max-md:py-[9px] max-md:leading-snug ${
                       active ? "bg-[#00bc7d]/10 text-[#00d492]" : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
-                    <span className={`w-[1ch] select-none ${active ? "text-[#00d492]" : "text-transparent"}`}>›</span>
-                    <span className={active ? "text-[#00d492]" : "text-zinc-600"}>{i + 1}.</span>
+                    <span className={`w-[1ch] shrink-0 select-none ${active ? "text-[#00d492]" : "text-transparent"}`}>›</span>
+                    <span className={`shrink-0 ${active ? "text-[#00d492]" : "text-zinc-600"}`}>{i + 1}.</span>
                     <span className="min-w-0 break-words">{q}</span>
                   </button>
                 );
@@ -450,7 +450,7 @@ export function AiTerminalView({
           <div
             data-ai-mini-crew
             aria-hidden="true"
-            className="mb-2 flex items-end gap-2.5 px-1 md:hidden"
+            className="mb-3 mt-1 flex items-end justify-center gap-6 md:hidden"
           >
             {MINI_CREW.map((a, i) => (
               <img
@@ -458,8 +458,8 @@ export function AiTerminalView({
                 src={a.src}
                 alt=""
                 draggable={false}
-                className={`h-7 w-7 object-contain ${isThinking ? "ai-mini-bounce" : ""}`}
-                style={{ imageRendering: "pixelated", animationDelay: `${i * 0.15}s` }}
+                className={`h-12 w-12 object-contain ${isThinking ? "ai-mini-bounce" : ""}`}
+                style={{ imageRendering: "pixelated", animationDelay: `${i * 0.6}s` }}
               />
             ))}
           </div>

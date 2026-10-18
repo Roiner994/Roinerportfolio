@@ -67,12 +67,14 @@
 }
 
 /* Step 8 · AI: mini crew bounces in sequence while thinking (transform only) */
+/* One robot at a time: 2.4s cycle, each robot hops in its own 0.6s slot
+   (animation-delay i * 0.6s). */
 @keyframes ai-mini-bounce {
-  0%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-6px); }
+  0%, 25%, 100% { transform: translateY(0); }
+  12% { transform: translateY(-10px); }
 }
 .ai-mini-bounce {
-  animation: ai-mini-bounce 0.9s steps(4, end) infinite;
+  animation: ai-mini-bounce 2.4s steps(12, end) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .ai-mini-bounce { animation: none; }
