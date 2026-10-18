@@ -1550,6 +1550,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   };
 
   const startContactAiTransition = (direction: "forward" | "reverse") => {
+    // Phones: the CRT power-off hid the tab bar and held ~450ms of black;
+    // use the same curtain as every other hop.
+    if (mobileJumpFnRef.current && window.matchMedia("(max-width: 767px)").matches) {
+      mobileJumpFnRef.current(direction === "forward" ? "ai" : "contact");
+      return;
+    }
     if (
       isAboutExpTransitioningRef.current ||
       isExpProjectsTransitioningRef.current ||
