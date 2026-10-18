@@ -1936,9 +1936,15 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     // at 90%), not every frame; the robots converge toward the cached rects.
     let measuredDest = false;
     let measuredLate = false;
+    // Phones, About -> Experience: land on the top-row slots (the riders'
+    // own transforms may not be laid out yet when this is read).
     const readDest = () =>
       [0, 1, 2, 3].map((i) => {
-        const r = destRefs.current[i]?.getBoundingClientRect();
+        const slot =
+          phone && direction === "forward"
+            ? document.querySelectorAll("[data-exp-crew-slot] > span")[i]
+            : null;
+        const r = (slot ?? destRefs.current[i])?.getBoundingClientRect();
         return r && r.width > 0
           ? { left: r.left, top: r.top, width: r.width, height: r.height }
           : null;
