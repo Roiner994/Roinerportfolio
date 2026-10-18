@@ -1177,6 +1177,8 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     contactClone?: HTMLElement;
     contactBox?: XpBox;
     contactScrollTop?: number;
+    projectsScrollTop?: number;
+    spriteSrc?: string;
   } | null>(null);
   const contactCvRef = useRef<HTMLDivElement>(null);
   const contactCvButtonRef = useRef<HTMLAnchorElement>(null);
@@ -1833,11 +1835,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         // bar) they would rise from behind the tab bar.
         const phone = window.matchMedia("(max-width: 767px)").matches;
         const vhNow = window.innerHeight;
-        const fly =
-          !phone ||
-          aboutRects.every(
-            (r) => r.width > 0 && r.top > 48 && r.top + r.height < vhNow - 72,
-          );
+        // Phones always fly: robots whose About card is off screen fade and
+        // rise in from the bottom of the content area (see the effect).
+        void phone;
+        void vhNow;
+        const fly = true;
 
         hasVisitedAboutRef.current = true;
         isAboutExpTransitioningRef.current = true;
@@ -1932,9 +1934,42 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     const lift = reduceMotion
       ? 0
       : phone
-        ? 40
+        ? 0
         : Math.max(70, Math.min(170, vh * 0.16));
     const target: RectBox[] = toRects.map((r) => ({ ...r }));
+    let from: Array<RectBox | undefined> = fromRects.slice();
+    // Phones, About -> Experience: keep every robot fully on screen. The
+    // flight is bounded to the content band (below the header, above the tab
+    // bar); robots whose About card is off screen fade + rise in from the
+    // bottom of that band; the first destination guess is the slot row
+    // (the riders' own rects are not laid out while Experience is hidden).
+    const phoneFwd = phone && direction === "forward" && fly;
+    const vwNow = window.innerWidth;
+    // The header scrolls with About; it is back at the top once Experience
+    // shows, so keep the robots below its height either way.
+    const headerEl = document.querySelector<HTMLElement>("[data-terminal-header]");
+    const bandTop =
+      Math.max(headerEl?.getBoundingClientRect().bottom ?? 0, headerEl?.offsetHeight ?? 52) + 6;
+    const bandBottom =
+      (document.querySelector("[data-mobile-tabbar]")?.getBoundingClientRect().top ?? vh) - 6;
+    const entering = [false, false, false, false];
+    if (phoneFwd) {
+      from = [0, 1, 2, 3].map((i) => {
+        const a = fromRects[i];
+        if (a && a.width > 0 && a.top >= bandTop && a.top + a.height <= bandBottom) return a;
+        entering[i] = true;
+        const size = 40;
+        return {
+          left: Math.max(8, Math.min(vwNow - size - 8, (vwNow - 4 * size - 3 * 24) / 2 + i * (size + 24))),
+          top: bandBottom - size - 8,
+          width: size,
+          height: size,
+        };
+      });
+      for (let i = 0; i < 4; i++) {
+        target[i] = { left: 24 + i * 44, top: bandTop + 84, width: 28, height: 28 };
+      }
+    }
     const destRefs = direction === "forward" ? expRobotRefs : aboutRobotRefs;
     const dirSign = direction === "forward" ? 1 : -1;
 
@@ -2065,7 +2100,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         const stagger = reduceMotion ? 0 : i * 0.05;
         const u = clamp01((raw - stagger) / (1 - (reduceMotion ? 0 : 0.15)));
         const e = easeInOutSine(u);
-        const a = fromRects[i] ?? target[i];
+        const a = from[i] ?? target[i];
         const b = target[i] ?? a;
 
         const ax = a.left + a.width / 2;
@@ -2075,13 +2110,18 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         const cx = (ax + bx) / 2;
         const cy = Math.min(ay, by) - lift;
         const inv = 1 - e;
-        const x = inv * inv * ax + 2 * inv * e * cx + e * e * bx;
-        const y = inv * inv * ay + 2 * inv * e * cy + e * e * by;
+        let x = inv * inv * ax + 2 * inv * e * cx + e * e * bx;
+        let y = inv * inv * ay + 2 * inv * e * cy + e * e * by;
         const w = a.width + (b.width - a.width) * e;
         const h = a.height + (b.height - a.height) * e;
         // The element keeps its initial box; size changes are a scale.
         const w0 = fromRects[i]?.width ?? 71;
         const h0 = fromRects[i]?.height ?? 71;
+        if (phoneFwd) {
+          x = Math.max(w / 2 + 2, Math.min(vwNow - w / 2 - 2, x));
+          y = Math.max(bandTop + h / 2, Math.min(bandBottom - h / 2, y));
+          robotEl.style.opacity = entering[i] ? smoothstep(0, 0.3, u).toFixed(3) : "1";
+        }
 
         const vx = 2 * inv * (cx - ax) + 2 * e * (bx - cx);
         const activity = Math.sin(Math.PI * u);
@@ -2287,8 +2327,14 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   // ---- Projects <-> Contact ("zoom & portal") ----
   const startProjContactTransition = useCallback(
     (direction: "forward" | "reverse") => {
-      if (mobileJumpFnRef.current && window.matchMedia("(max-width: 767px)").matches) {
-        mobileJumpFnRef.current(direction === "forward" ? "contact" : "projects");
+      // Phones: Contact -> Projects uses the curtain; Projects -> Contact
+      // keeps the avatar / CRT / peace-morph effect (mobile variant).
+      if (
+        direction === "reverse" &&
+        mobileJumpFnRef.current &&
+        window.matchMedia("(max-width: 767px)").matches
+      ) {
+        mobileJumpFnRef.current("projects");
         return;
       }
       if (
@@ -2306,7 +2352,42 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           return;
         }
         snap.projectsBox = rectOf(root);
+        // Phones: Projects scrolls inside its own section; mark it so the
+        // clone can be put back at the same scroll offset.
+        const liveScroller = projectsScrollSectionRef.current;
+        liveScroller?.setAttribute("data-pc-scroller", "");
+        snap.projectsScrollTop = liveScroller?.scrollTop ?? 0;
         snap.projectsClone = root.cloneNode(true) as HTMLElement;
+        liveScroller?.removeAttribute("data-pc-scroller");
+        // A cloned <video> has no frame (it showed as a blank white box):
+        // swap each one for a still of the live video's current frame.
+        const liveVideos = root.querySelectorAll("video");
+        snap.projectsClone.querySelectorAll("video").forEach((cv, i) => {
+          const lv = liveVideos[i];
+          if (!lv) return;
+          const r = lv.getBoundingClientRect();
+          const c = document.createElement("canvas");
+          const dpr = Math.min(2, window.devicePixelRatio || 1);
+          c.width = Math.max(1, Math.round(r.width * dpr));
+          c.height = Math.max(1, Math.round(r.height * dpr));
+          c.className = cv.className;
+          c.setAttribute("style", cv.getAttribute("style") ?? "");
+          c.style.width = `${r.width}px`;
+          c.style.height = `${r.height}px`;
+          try {
+            const g = c.getContext("2d");
+            if (g && lv.videoWidth > 0) {
+              // object-contain: letterbox the frame like the live element.
+              const k = Math.min(c.width / lv.videoWidth, c.height / lv.videoHeight);
+              const w = lv.videoWidth * k;
+              const h = lv.videoHeight * k;
+              g.drawImage(lv, (c.width - w) / 2, (c.height - h) / 2, w, h);
+            }
+          } catch {
+            /* tainted or not ready: leave the canvas empty (dark) */
+          }
+          cv.replaceWith(c);
+        });
         const mini = document.getElementById("mini") as HTMLImageElement | null;
         // Phones: the avatar lives at the end of the project (folders block).
         const endAvatar = window.matchMedia("(max-width: 767px)").matches
@@ -2320,6 +2401,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
             "[data-projects-end-avatar]",
           );
           if (cloneAvatar && onScreen) cloneAvatar.style.visibility = "hidden";
+          snap.spriteSrc = endAvatar.src;
           if (mini) mini.style.visibility = "hidden";
         } else if (mini) {
           const r = rectOf(mini);
@@ -2430,8 +2512,15 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       contactBox,
       contactScrollTop: snap.contactScrollTop,
       avatar,
+      mobile: isMobile,
+      spriteSrc: snap.spriteSrc,
       onDone: finish,
     });
+    // Phones: put the Projects clone back at the scroll offset it had.
+    if (forward && snap.projectsScrollTop && projects) {
+      const sc = projects.querySelector<HTMLElement>("[data-pc-scroller]");
+      if (sc) sc.scrollTop = snap.projectsScrollTop;
+    }
     return cancel;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projContactTransition]);
@@ -2462,6 +2551,11 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     )
       return;
     if (cmd === "ai" ? isAiMode : !isAiMode && activeView === cmd) return;
+    // Projects -> Contact keeps its own effect on phones too.
+    if (cmd === "contact" && !isAiMode && activeView === "projects") {
+      startProjContactTransition("forward");
+      return;
+    }
     setHasInteracted(true);
     mobileJumpRef.current = true;
     const header = document.querySelector("[data-terminal-header]");
@@ -2560,7 +2654,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       isExpanded &&
       !isAiMode &&
       ((cleanCmd === "projects" && activeView !== "projects") ||
-        (cleanCmd === "contact" && activeView === "projects") ||
         (cleanCmd === "experience" && activeView === "projects"))
     ) {
       mobileJump(cleanCmd);

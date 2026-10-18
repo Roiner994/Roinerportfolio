@@ -236,6 +236,15 @@ export interface RunProjectsContactOptions {
   contactScrollTop?: number;
   /** Roiner's mini avatar in the Projects Explorer. */
   avatar: { src: string; box: Box } | null;
+  /**
+   * Phones: no camera push-in (the zoomed screenshot read as a broken grey
+   * blow-up); Projects simply fades while the avatar travels to the square.
+   * Without an avatar on screen (tab-bar jump) he fades in on the square
+   * itself, then the same glitch / peace / CRT / morph plays.
+   */
+  mobile?: boolean;
+  /** Pose for the on-square appearance when there is no avatar to fly. */
+  spriteSrc?: string;
   onDone: () => void;
 }
 
@@ -372,7 +381,12 @@ export function runProjectsContactTransition(
       return { el, dist: Math.hypot(dx, dy), dx, dy, horizontal };
     })
     .sort((a, b) => a.dist - b.dist)
-    .map((r, i) => ({ ...r, delay: T.revealStart + i * T.revealStaggerMs }));
+    // Phones: the rest of Contact starts revealing during the glitch / peace
+    // hold so the screen is never just the avatar on black for long.
+    .map((r, i) => ({
+      ...r,
+      delay: (opts.mobile ? 1150 : T.revealStart) + i * T.revealStaggerMs,
+    }));
   // Never cut the last reveal short (it would pop on cleanup).
   if (!reduce && reveals.length)
     duration = Math.max(duration, reveals[reveals.length - 1].delay + T.revealMs);
@@ -426,7 +440,7 @@ export function runProjectsContactTransition(
   crtFront.append(scan, line);
 
   // ---------- images ----------
-  const oldSrc = opts.avatar?.src ?? PEACE_SPRITE_SRC;
+  const oldSrc = opts.avatar?.src ?? opts.spriteSrc ?? PEACE_SPRITE_SRC;
   const imgEl = (src: string) => {
     const i = document.createElement("img");
     i.alt = "";
@@ -661,9 +675,13 @@ export function runProjectsContactTransition(
     // Projects: camera push-in toward the square, dim, then fade away.
     const z = easeInOutCubic(seg(t, [0, T.zoomMs]));
     const out = seg(t, T.projectsOut);
-    put(projectsEl, "transform-origin", `${originX}px ${originY}px`);
-    put(projectsEl, "transform", `scale(${lerp(1, T.zoomScale, z).toFixed(4)})`);
-    put(projectsEl, "opacity", (lerp(1, T.zoomDim, z) * (1 - out)).toFixed(3));
+    if (opts.mobile) {
+      put(projectsEl, "opacity", (1 - easeInOutCubic(seg(t, [150, 850]))).toFixed(3));
+    } else {
+      put(projectsEl, "transform-origin", `${originX}px ${originY}px`);
+      put(projectsEl, "transform", `scale(${lerp(1, T.zoomScale, z).toFixed(4)})`);
+      put(projectsEl, "opacity", (lerp(1, T.zoomDim, z) * (1 - out)).toFixed(3));
+    }
 
     // Drift (free sprite) until it lands; from then on the stage takes over
     // at the identical spot.
@@ -684,7 +702,12 @@ export function runProjectsContactTransition(
     const mk = seg(t, T.morph);
     const me = easeInOutCubic(mk);
     const portraitLive = mk >= 0.95;
-    show(stage, !drifting && !portraitLive);
+    if (opts.mobile && !opts.avatar && drifting) {
+      // No avatar on screen to travel from: he fades in on the square.
+      put(stage, "opacity", easeInOutCubic(seg(t, [450, 950])).toFixed(3));
+    } else {
+      show(stage, !drifting && !portraitLive);
+    }
 
     // Which sprite frame is up.
     let frameKey = t < T.glitchSteps[0][0] ? "old" : "peace";
