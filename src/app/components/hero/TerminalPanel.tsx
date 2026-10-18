@@ -2283,7 +2283,20 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
         snap.projectsBox = rectOf(root);
         snap.projectsClone = root.cloneNode(true) as HTMLElement;
         const mini = document.getElementById("mini") as HTMLImageElement | null;
-        if (mini) {
+        // Phones: the avatar lives at the end of the project (folders block).
+        const endAvatar = window.matchMedia("(max-width: 767px)").matches
+          ? root.querySelector<HTMLImageElement>("[data-projects-end-avatar]")
+          : null;
+        if (endAvatar) {
+          const r = rectOf(endAvatar);
+          const onScreen = r.width > 0 && r.top < window.innerHeight && r.top + r.height > 0;
+          snap.avatar = onScreen ? { src: endAvatar.src, box: r } : null;
+          const cloneAvatar = snap.projectsClone.querySelector<HTMLElement>(
+            "[data-projects-end-avatar]",
+          );
+          if (cloneAvatar && onScreen) cloneAvatar.style.visibility = "hidden";
+          if (mini) mini.style.visibility = "hidden";
+        } else if (mini) {
           const r = rectOf(mini);
           const hidden = mini.classList.contains("off");
           snap.avatar =
@@ -2335,6 +2348,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       projectsBox = snap.projectsBox!;
       contact = inner;
       contactBox = inner ? rectOf(inner) : projectsBox;
+      // Phones: the avatar starts from the visible one at the end of the
+      // project; if it isn't on screen (tab-bar jump) there is no fly-in and
+      // Roiner appears on the Contact square (glitch + peace) only.
       avatar = snap.avatar ?? null;
     } else {
       if (projectsScrollSectionRef.current)
@@ -2343,7 +2359,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       projectsBox = projects ? rectOf(projects) : snap.contactBox!;
       contact = snap.contactClone ?? null;
       contactBox = snap.contactBox!;
-      if (mini) {
+      if (mini && !isMobile) {
         const r = rectOf(mini);
         const hidden = mini.classList.contains("off");
         if (r.width > 0)
@@ -2380,7 +2396,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
 
     const cancel = runProjectsContactTransition({
       direction: projContactTransition.direction,
-      reduceMotion,
+      // Phones, Contact -> Projects: the short crossfade (Projects opens at the
+      // top, where there is no avatar for the peace sprite to land on).
+      reduceMotion: reduceMotion || (isMobile && !forward),
       projects,
       projectsBox,
       contact,
@@ -2510,7 +2528,9 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }
 
     if (activeView === "projects") {
-      if (hasNextProject) {
+      // Phones pick the next project from the folders at the end of each
+      // project; swiping on keeps going to Contact.
+      if (hasNextProject && !isMobile) {
         setActiveProjectId(projectEntries[activeProjectIndex + 1].id);
         setHasOpenedProject(true);
       } else {
@@ -3199,17 +3219,6 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
   useEffect(() => {
     setActiveProjectImageIndex(0);
   }, [activeProjectId]);
-
-  // Mobile project picker: keep the active chip centred in the strip.
-  useEffect(() => {
-    if (!isMobile || activeView !== "projects") return;
-    const strip = projectChipsRef.current;
-    const idx = projectEntries.findIndex((p) => p.id === activeProject.id);
-    const chip = projectFolderRefs.current[idx];
-    if (!strip || !chip) return;
-    const left = chip.offsetLeft - (strip.clientWidth - chip.clientWidth) / 2;
-    strip.scrollTo({ left: Math.max(0, left), behavior: reduceMotion ? "auto" : "smooth" });
-  }, [isMobile, activeView, activeProject.id, projectEntries, reduceMotion]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 1023px)");
@@ -4428,7 +4437,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
                           data-project-picker=""
-                          className="flex w-full flex-shrink-0 flex-col border-b border-zinc-800 bg-black/40 min-h-0 max-md:bg-zinc-950 lg:w-64 lg:border-b-0 lg:border-r"
+                          className="flex w-full flex-shrink-0 flex-col border-b border-zinc-800 bg-black/40 min-h-0 max-md:hidden lg:w-64 lg:border-b-0 lg:border-r"
                         >
                           <div className="border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between bg-zinc-900/20 max-md:hidden">
                             <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
@@ -4542,12 +4551,21 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                           >
                             <div
                               ref={projectsBreadcrumbRef}
-                              className="border-b border-zinc-800 px-6 py-4 max-md:px-4 max-md:py-3"
+                              data-project-header=""
+                              className="border-b border-zinc-800 px-6 py-4 max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-zinc-950/95 max-md:px-4 max-md:py-3"
                             >
-                              <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em]">
+                              <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] max-md:gap-x-2 max-md:text-[13px] max-md:tracking-[0.12em]">
+                                {isMobile && (
+                                  <FolderOpen className="h-4 w-4 shrink-0 text-emerald-500" />
+                                )}
                                 <span className="text-[#00FF41]">
                                   {activeProject.terminalName}
                                 </span>
+                                {isMobile && (
+                                  <span className="text-zinc-400 normal-case tracking-normal">
+                                    ({activeProjectIndex + 1}/{projectEntries.length})
+                                  </span>
+                                )}
                                 <span className="text-zinc-700">/</span>
                                 <span className="text-zinc-500">
                                   {activeProject.category}
@@ -4692,30 +4710,59 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
                                 {!isMobile && projectMediaBlock}
                               </div>
                             </div>
-                            {hasNextProject && (
-                              <button
-                                type="button"
-                                data-mobile-next-project=""
-                                onClick={() => {
-                                  setActiveProjectId(
-                                    projectEntries[activeProjectIndex + 1].id,
-                                  );
-                                  setHasOpenedProject(true);
-                                }}
-                                className="mx-4 mb-3 mt-2 flex min-h-[64px] w-[calc(100%-2rem)] items-center justify-between gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-left font-mono md:hidden"
+                            {isMobile && (
+                              <div
+                                data-projects-end=""
+                                className="mx-4 mb-2 mt-4 space-y-4 border-t border-zinc-800/60 pt-6"
                               >
-                                <span className="flex min-w-0 flex-col gap-0.5">
-                                  <span className="text-[12px] uppercase tracking-widest text-zinc-400">
+                                <div className="flex items-end gap-3">
+                                  <img
+                                    data-projects-end-avatar=""
+                                    src={`/avatar/${hasOpenedProject ? "laptop" : "coffee"}.png`}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="h-auto w-14 shrink-0"
+                                    style={{ imageRendering: "pixelated" }}
+                                    draggable={false}
+                                  />
+                                  <p className="relative mb-3 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 font-mono text-[15px] leading-snug text-zinc-100">
+                                    <span
+                                      aria-hidden="true"
+                                      className="absolute -left-[7px] bottom-3 h-3 w-3 rotate-45 border-b border-l border-zinc-700 bg-zinc-900"
+                                    />
                                     {language === "es"
-                                      ? "Siguiente proyecto"
-                                      : "Next project"}
-                                  </span>
-                                  <span className="truncate text-[16px] font-bold text-zinc-100">
-                                    {projectEntries[activeProjectIndex + 1].displayName}
-                                  </span>
-                                </span>
-                                <ChevronRight className="h-5 w-5 shrink-0 text-emerald-400" />
-                              </button>
+                                      ? "¿Quieres ver más proyectos? Elige una carpeta o sigue a contacto."
+                                      : "Want to see more projects? Pick a folder — or keep going to contact."}
+                                  </p>
+                                </div>
+                                <ul className="grid grid-cols-2 gap-2">
+                                  {projectEntries
+                                    .filter((p) => p.id !== activeProject.id)
+                                    .map((project) => (
+                                      <li key={project.id}>
+                                        <button
+                                          type="button"
+                                          data-project-folder={project.id}
+                                          onClick={() => {
+                                            setActiveProjectId(project.id);
+                                            setHasOpenedProject(true);
+                                            projectsScrollSectionRef.current?.scrollTo({ top: 0 });
+                                            getActiveScroller()?.scrollTo({ top: 0 });
+                                          }}
+                                          className="flex min-h-[56px] w-full items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-left font-mono text-[14px] text-zinc-200 active:border-emerald-500/50 active:bg-emerald-500/10"
+                                        >
+                                          <Folder className="h-5 w-5 shrink-0 text-emerald-500/80" />
+                                          <span className="min-w-0 break-words leading-tight">
+                                            {project.terminalName}
+                                          </span>
+                                          {project.building && (
+                                            <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+                                          )}
+                                        </button>
+                                      </li>
+                                    ))}
+                                </ul>
+                              </div>
                             )}
                             <button
                               type="button"
