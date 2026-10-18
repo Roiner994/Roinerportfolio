@@ -67,6 +67,11 @@ export interface RunContactAiOptions {
   /** Switch the React view (called once, while the screen is black). */
   onSwap: () => void;
   onDone: () => void;
+  /**
+   * Phones: limit the black / flash layers to the content band (below the
+   * header, above the tab bar) so both stay in place.
+   */
+  band?: { top: number; bottom: number };
 }
 
 export function runContactAiTransition(opts: RunContactAiOptions): () => void {
@@ -117,10 +122,17 @@ export function runContactAiTransition(opts: RunContactAiOptions): () => void {
   };
 
   // ---------- layers ----------
-  const dim = layer(160, { width: `${vw}px`, height: `${vh}px`, background: "#050506" });
+  const bandTop = opts.band ? opts.band.top : 0;
+  const bandH = opts.band ? Math.max(0, opts.band.bottom - opts.band.top) : vh;
+  const dim = layer(160, {
+    top: `${bandTop}px`,
+    width: `${vw}px`,
+    height: `${bandH}px`,
+    background: "#050506",
+  });
   const flash = reduce
     ? null
-    : layer(162, { width: `${vw}px`, height: `${vh}px`, background: "#ffffff" });
+    : layer(162, { top: `${bandTop}px`, width: `${vw}px`, height: `${bandH}px`, background: "#ffffff" });
 
   // The CRT picture, beam and dot are only needed for the full version.
   let stage: HTMLElement | null = null;
