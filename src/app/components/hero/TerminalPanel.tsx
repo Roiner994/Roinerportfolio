@@ -1513,7 +1513,12 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }, 1700);
   }, []);
 
+  // Phones: until the visitor asks something, the AI view stays at the top
+  // (auto-scrolling the welcome clipped the ask-roiner card mid-way).
+  const aiPhoneIdleRef = useRef(false);
+  aiPhoneIdleRef.current = isMobile && !chatHistory.some((m) => m.role === "user");
   const scrollToBottom = useCallback(() => {
+    if (aiPhoneIdleRef.current) return;
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
@@ -3254,6 +3259,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
     }
 
     if (!isCoarsePointer()) inputRef.current?.focus();
+    if (aiPhoneIdleRef.current) return;
     chatScrollRef.current?.scrollTo({
       top: chatScrollRef.current.scrollHeight,
       behavior: "smooth",
