@@ -2600,6 +2600,17 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
       startContactAiTransition("forward");
       return;
     }
+    // About <-> Experience: the same robot hand-off as the swipe, every time.
+    if (cmd === "experience" && !isAiMode && activeView === "about") {
+      setHasInteracted(true);
+      startAboutExpTransition("forward");
+      return;
+    }
+    if (cmd === "about" && !isAiMode && activeView === "experience") {
+      setHasInteracted(true);
+      startAboutExpTransition("reverse");
+      return;
+    }
     setHasInteracted(true);
     mobileJumpRef.current = true;
     const header = document.querySelector("[data-terminal-header]");
