@@ -619,7 +619,7 @@ function TerminalLinkButton({
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, delay: index * 0.1 }}
       whileHover={{ x: 4 }}
-      className="group relative inline-flex items-center gap-2 py-1 transition-all"
+      className="group relative inline-flex items-center gap-2 py-1 transition-all max-md:min-h-11"
     >
       {/* Subtle arrow pulse indicator to call attention */}
       <div className="absolute -left-5 flex items-center justify-center pointer-events-none">
@@ -642,7 +642,7 @@ function TerminalLinkButton({
         </motion.div>
       </div>
 
-      <span className="text-sm font-mono text-emerald-500 group-hover:text-emerald-400 transition-colors border-b border-transparent group-hover:border-emerald-500/40">
+      <span className="text-sm font-mono text-emerald-500 group-hover:text-emerald-400 transition-colors border-b border-transparent group-hover:border-emerald-500/40 max-md:text-[15px]">
         {formattedLabel}
       </span>
 

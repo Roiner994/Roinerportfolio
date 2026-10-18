@@ -910,7 +910,7 @@ export function HeroVideo() {
             <button
               type="button"
               onClick={() => panelRef.current?.runCommand(crtTarget)}
-              className="cursor-pointer text-left text-[#4dffb0] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4dffb0]"
+              className="cursor-pointer text-left text-[#4dffb0] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4dffb0] max-md:min-h-11"
             >
               ✓ {SECTION_LABELS[crtTarget] ?? crtTarget} ready
             </button>
