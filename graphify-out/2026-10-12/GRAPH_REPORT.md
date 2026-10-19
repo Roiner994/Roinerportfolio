@@ -1,7 +1,7 @@
 # Graph Report - Roinerportfolio  (2026-10-12)
 
 ## Corpus Check
-- 77 files · ~1,718,703 words
+- 77 files · ~1,718,621 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 9 file(s) not represented in the graph (top: .css 6, (none) 2, .example 1)
 

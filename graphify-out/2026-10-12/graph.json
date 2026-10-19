@@ -7088,6 +7088,7 @@
     {
       "id": "ref_lib_i18n_languagecontext",
       "label": "ref_lib_i18n_languagecontext",
+      "_origin": "semantic",
       "community": 10,
       "community_name": "HeroVariant3.tsx",
       "external": true,
@@ -7099,6 +7100,7 @@
     {
       "id": "ref_motion_react",
       "label": "ref_motion_react",
+      "_origin": "semantic",
       "community": 10,
       "community_name": "HeroVariant3.tsx",
       "external": true,
@@ -7110,6 +7112,7 @@
     {
       "id": "ref_path",
       "label": "ref_path",
+      "_origin": "semantic",
       "community": 26,
       "community_name": "vite.config.ts",
       "external": true,
@@ -7121,6 +7124,7 @@
     {
       "id": "ref_app_components_ui_use_mobile",
       "label": "ref_app_components_ui_use_mobile",
+      "_origin": "semantic",
       "community": 3,
       "community_name": "TerminalPanel.tsx",
       "external": true,
@@ -7132,6 +7136,7 @@
     {
       "id": "ref_data_portfolioprofile",
       "label": "ref_data_portfolioprofile",
+      "_origin": "semantic",
       "community": 3,
       "community_name": "TerminalPanel.tsx",
       "external": true,
@@ -7143,6 +7148,7 @@
     {
       "id": "ref_lib_projectmedia",
       "label": "ref_lib_projectmedia",
+      "_origin": "semantic",
       "community": 3,
       "community_name": "TerminalPanel.tsx",
       "external": true,
@@ -7154,6 +7160,7 @@
     {
       "id": "ref_react_dom_client",
       "label": "ref_react_dom_client",
+      "_origin": "semantic",
       "community": 8,
       "community_name": "lucide-react",
       "external": true,
@@ -7165,6 +7172,7 @@
     {
       "id": "src_styles_index",
       "label": "src_styles_index",
+      "_origin": "semantic",
       "community": 8,
       "community_name": "lucide-react",
       "external": true,
@@ -7352,7 +7360,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/app/components/hero/TerminalPanel.tsx",
-      "source_location": "L1145",
+      "source_location": "L1061",
       "weight": 1.0
     },
     {
