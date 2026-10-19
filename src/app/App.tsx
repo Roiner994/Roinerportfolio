@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/react';
 import { HeroVideo } from './components/hero/HeroVideo';
 import { SkillsSection } from './components/SkillsSection';
 import { ProjectsSection } from './components/ProjectsSection';
@@ -14,6 +15,7 @@ export default function App() {
           <HeroVideo />
         </main>
       </div>
+      <Analytics />
     </LanguageProvider>
   );
 }
