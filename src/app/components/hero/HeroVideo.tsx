@@ -154,7 +154,7 @@ export function HeroVideo() {
       animatingRef.current = true;
       reversingRef.current = to === 0;
       const from = progressRef.current;
-      const duration = (reduceMotion ? 600 : 3000) * Math.abs(to - from);
+      const duration = (reduceMotion ? 600 : 2200) * Math.abs(to - from);
       const t0 = performance.now();
       const step = (now: number) => {
         const t = duration > 0 ? Math.min(1, (now - t0) / duration) : 1;
@@ -178,23 +178,23 @@ export function HeroVideo() {
   /** Hero -> robot dissolve -> CRT -> `cd <section>` -> open that section. */
   const openForward = useCallback(
     (cmd: string) => {
-      if (sectionOpenRef.current) return false;
+      if (sectionOpenRef.current || animatingRef.current || progressRef.current > 0) return false;
       if (reversingRef.current) {
         cancelAnimationFrame(animRafRef.current);
         animatingRef.current = false;
         reversingRef.current = false;
-      } else if (animatingRef.current || progressRef.current > 0) {
-        return false;
       }
+      setIsDispatching(true);
       setHintDone(true);
       retarget(cmd);
       return animateTo(1, () => {
         holdTimerRef.current = window.setTimeout(
           () => {
+            setIsDispatching(false);
             autoAboutRef.current = true;
             panelRef.current?.runCommand(targetRef.current);
           },
-          reduceMotion ? 0 : 450,
+          reduceMotion ? 0 : 350,
         );
       });
     },
@@ -242,17 +242,14 @@ export function HeroVideo() {
     [],
   );
 
-  // Input: the first downward wheel / swipe / key on the hero plays the
-  // transition; upward input at the top of the opened section reverses it.
+  // Input: upward input at the top of an opened section reverses it back to the hero.
+  // The hero itself no longer triggers forward transition on scroll / swipe / keys.
   useEffect(() => {
     let lastOverlayScroll = 0;
     const overlayAtTop = () => {
       const el = document.querySelector<HTMLElement>('[data-section-overlay]');
       // require the overlay to have settled at its top (no momentum carry-over)
       return (!el || el.scrollTop <= 0) && performance.now() - lastOverlayScroll > 300;
-    };
-    const forward = () => {
-      if (!sectionOpenRef.current) openForward('about');
     };
     const back = () => {
       if (!sectionOpenRef.current || !autoAboutRef.current || animatingRef.current) return;
@@ -271,23 +268,14 @@ export function HeroVideo() {
       if (el && el.hasAttribute?.('data-section-overlay')) lastOverlayScroll = performance.now();
     };
     const onWheel = (e: WheelEvent) => {
-      if (sectionOpenRef.current) {
-        // A section is open: only an upward wheel can matter (back() filters
-        // by view); skip everything else.
-        if (e.deltaY < -4) back();
-        return;
+      if (sectionOpenRef.current && e.deltaY < -4) {
+        back();
       }
-      if (e.deltaY > 4) forward();
     };
     const onKey = (e: globalThis.KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
       if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(el.tagName))) return;
-      if (['PageDown', 'ArrowDown', ' ', 'Spacebar'].includes(e.key)) {
-        if (!sectionOpenRef.current) {
-          e.preventDefault();
-          forward();
-        }
-      } else if (['PageUp', 'ArrowUp'].includes(e.key)) {
+      if (['PageUp', 'ArrowUp'].includes(e.key)) {
         back();
       }
     };
@@ -298,12 +286,9 @@ export function HeroVideo() {
       fired = false;
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (fired) return;
+      if (fired || !sectionOpenRef.current) return;
       const dy = (e.touches[0]?.clientY ?? 0) - startY;
-      if (dy < -40 && !sectionOpenRef.current) {
-        fired = true;
-        forward();
-      } else if (dy > 50) {
+      if (dy > 50) {
         fired = true;
         back();
       }
@@ -320,7 +305,7 @@ export function HeroVideo() {
       window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove);
     };
-  }, [openForward]);
+  }, []);
 
   // Keep the background video in sync with reduced-motion and open sections.
   useEffect(() => {
@@ -358,7 +343,7 @@ export function HeroVideo() {
       const value = raw.trim();
       const cmd = value.toLowerCase();
       setInputValue('');
-      if (!cmd || isDispatching) return;
+      if (!cmd || isDispatching || animatingRef.current || progressRef.current > 0) return;
 
       if (cmd === 'clear') {
         setLog([]);
@@ -384,7 +369,8 @@ export function HeroVideo() {
           { kind: 'cmd', text: `$ ${value}` },
           { kind: 'dispatch', text: `> dispatching ${agent}...` },
         ]);
-        if (openForward(cmd)) return;
+        openForward(cmd);
+        return;
       }
 
       setIsDispatching(true);
@@ -426,8 +412,8 @@ export function HeroVideo() {
   // touch screens keep the buttons but have no ENTER key.
   const HINT_TEXT = isNarrow
     ? language === 'es'
-      ? 'desliza para entrar'
-      : 'swipe up to enter'
+      ? 'toca para entrar'
+      : 'tap to enter'
     : language === 'es'
       ? 'intenta presionar About'
       : 'try pressing About';
@@ -437,8 +423,8 @@ export function HeroVideo() {
       : 'or tap cd about'
     : isCoarse
       ? language === 'es'
-        ? 'o desliza hacia arriba'
-        : 'or swipe up'
+        ? 'o toca About'
+        : 'or tap About'
       : language === 'es'
         ? 'o presiona ENTER'
         : 'or press ENTER';
@@ -721,7 +707,7 @@ export function HeroVideo() {
               </span>
             </span>
             <span className="text-[13px] text-zinc-400">
-              {language === 'es' ? 'desliza o toca' : 'swipe or tap'}
+              {language === 'es' ? 'toca para entrar' : 'tap to enter'}
             </span>
           </button>
         </motion.div>

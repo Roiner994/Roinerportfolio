@@ -360,9 +360,9 @@
     "semantic_hash": ""
   },
   "src/app/components/hero/TerminalPanel.tsx": {
-    "mtime": 1791849190.8646085,
-    "seen": 1791849225.811657,
-    "ast_hash": "857ca268df15a45bef080e27a1d6223f",
+    "mtime": 1791850524.2642379,
+    "seen": 1791850564.572027,
+    "ast_hash": "519c468177eebd379b67777c61a683c2",
     "semantic_hash": ""
   },
   "src/app/components/hero/NeuralBackground.tsx": {
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "src/app/components/hero/HeroVariant3.tsx": {
-    "mtime": 1791848944.2611458,
-    "seen": 1791849225.811656,
-    "ast_hash": "3f48e1479161f1e1484ba51c5ed10e91",
+    "mtime": 1791850342.5167322,
+    "seen": 1791850564.572025,
+    "ast_hash": "40a77318942a3935bf03dc637304fe07",
     "semantic_hash": ""
   },
   "src/app/components/hero/HeroVariant1.tsx": {
